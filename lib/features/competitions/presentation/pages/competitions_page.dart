@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../app/router/app_router.dart';
 
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
@@ -171,7 +174,11 @@ class _FixtureContentView extends StatelessWidget {
                     onRetry: retry,
                   ),
                 ),
-              ...matchDayItems(matches: loaded.matches.matches, now: now),
+              ...matchDayItems(
+                matches: loaded.matches.matches,
+                now: now,
+                onTap: (m) => context.push(AppRoutes.matchDetail(m.id)),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(

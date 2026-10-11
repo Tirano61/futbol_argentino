@@ -396,6 +396,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: Primera 2026 Clausura fecha 12 = los 15 de octubre; Apertura fecha 12 = los 15 de marzo; Nacional fecha 33 = 18; Copa muestra Cuartos y Semifinales; partidos `00:00` sin corroborar dicen «Horario por confirmar».
 
 ### Fase 5 — Detalle de partido  ·  Hito A (cierra la primera versión)
+- **Estado**: ✅ completada el 11/10/2026 — T5.1 hecha; 228 tests verdes; validada en tablet Android y Chrome. **Hito A entregado**: esperando revisión y aprobación para el Hito B (Fase 6).
 - **Tareas**
   - **T5.1** `MatchDetailBloc` + `MatchDetailPage` (equipos, escudos, fecha, hora ART o «Horario por confirmar», competición, fase/etapa, estado, resultado, estadio, imagen y video si existen, «Reprogramado») + navegación desde `MatchCard` y deep link `/partidos/:id`.
 - **Aceptación**: campos ausentes no aparecen; deep link funciona en Web.

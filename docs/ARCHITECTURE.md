@@ -208,3 +208,11 @@ Dominio implementado (Dart puro, 125 tests):
 - **Sin fase determinada**: si la ronda tiene partidos así, aparece «N partidos de esta ronda sin fase determinada» y se pueden ver aparte.
 - `Clock` disponible por `RepositoryProvider`.
 - `LocalDatabase.openOrMemory` con timeout de 5 s: si IndexedDB no responde, la app arranca con base en memoria en lugar de quedar en blanco.
+
+## Estado de implementación (Fase 5, 11/10/2026) — Hito A completo
+
+- **Nueva feature `match_detail`** (desvío del plan, que ubicaba el detalle en `matches/presentation`): el detalle muestra fase y etapa, que dependen del catálogo de `competitions`, y `matches` no puede depender de `competitions`. Igual que `home`, compone las dos: `match_detail → competitions, matches`.
+  - `GetMatchDetail`: partido (`MatchRepository.getMatch`) + fase/etapa con `PhaseResolver` sobre la ronda guardada (primera emisión de `watchRound`, normalmente la caché); sin ronda, clasifica con el partido solo.
+  - `MatchDetailBloc` (`droppable`): `Loading`, `Loaded` (con `refreshError`/`isRefreshing`), `Failure`.
+  - `MatchDetailPage`: competición, «Fase · Etapa», escudos, marcador o «vs», fecha y hora ART o «Horario por confirmar» (con nota si es `00:00` UTC sin corroborar), «Reprogramado», estado, aviso de penales sin resultado, estadio, video (`url_launcher`) e imagen, solo si existen.
+- **Rutas**: `/partidos/:eventId` fuera del shell (pantalla completa). `GoRouter.optionURLReflectsImperativeAPIs = true`: abrir un partido actualiza la URL en Web. Con enlace directo (sin «atrás») se ofrece «Ir al inicio».

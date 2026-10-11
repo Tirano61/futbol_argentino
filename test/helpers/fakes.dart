@@ -54,6 +54,7 @@ class FakeMatchRepository implements MatchRepository {
     int matchId, {
     bool forceRefresh = false,
   }) async {
+    if (failure != null) throw failure!;
     for (final round in rounds.values) {
       for (final m in round) {
         if (m.id == matchId) {
