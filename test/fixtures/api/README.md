@@ -59,3 +59,16 @@ Los estados (`NS`, `1H`, `FT`…) reflejan el momento de la grabación.
 | `eventsround_4616_r35_s2026.json` | `eventsround.php?id=4616&r=35&s=2026` | 200 | `events` = 18 | 2026-10: 18 | 11/10/2026 20:35 UTC | `7feb8b15d171` |
 | `eventsround_4616_r36_s2026.json` | `eventsround.php?id=4616&r=36&s=2026` | 200 | `events` = 18 | 2026-10: 18 | 11/10/2026 20:35 UTC | `8ac6afba90b4` |
 | `eventsround_4616_r37_s2026.json` | `eventsround.php?id=4616&r=37&s=2026` | 200 | `events` = null |  | 11/10/2026 20:35 UTC | `ac165cc3ca83` |
+| `eventsround_4616_r1_s2025.json` | `eventsround.php?id=4616&r=1&s=2025` | 200 | `events` = 18 | 2025-02: 18 | 11/10/2026 21:45 UTC | `47d3660ec8a3` |
+| `eventsround_4616_r35_s2025.json` | `eventsround.php?id=4616&r=35&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4616_r36_s2025.json` | `eventsround.php?id=4616&r=36&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r32_s2025.json` | `eventsround.php?id=4500&r=32&s=2025` | 200 | `events` = 16 | 2025-05: 5, 2025-06: 5, 2025-07: 5, 2025-08: 1 | 11/10/2026 21:45 UTC | `f9603e426ec7` |
+| `eventsround_4500_r16_s2025.json` | `eventsround.php?id=4500&r=16&s=2025` | 200 | `events` = 4 | 2025-08: 4 | 11/10/2026 21:45 UTC | `75628e0e27e0` |
+| `eventsround_4500_r125_s2025.json` | `eventsround.php?id=4500&r=125&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r150_s2025.json` | `eventsround.php?id=4500&r=150&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r160_s2025.json` | `eventsround.php?id=4500&r=160&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r170_s2025.json` | `eventsround.php?id=4500&r=170&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r175_s2025.json` | `eventsround.php?id=4500&r=175&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r180_s2025.json` | `eventsround.php?id=4500&r=180&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r190_s2025.json` | `eventsround.php?id=4500&r=190&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r200_s2025.json` | `eventsround.php?id=4500&r=200&s=2025` | 200 | `events` = 1 | 2025-11: 1 | 11/10/2026 21:45 UTC | `2c99bad75fca` |

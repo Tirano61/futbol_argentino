@@ -56,6 +56,9 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Web release con diagnóstico: `flutter build web --dart-define=DIAGNOSTICS=true`; probar en la tablet con `adb reverse tcp:8080 tcp:8080` y `http://localhost:8080/`.
 - La pantalla de diagnóstico está en `/diagnostico` (botón 🐞 en Inicio, solo en debug o con `DIAGNOSTICS=true`).
 
+## Inspección de datos (Windows)
+- Al revisar JSON con Python desde un pipe, decodificar explícitamente como UTF-8 (`sys.stdin.buffer.read().decode('utf-8')`): por defecto usa cp1252 y simula «mojibake» que la API no tiene.
+
 ## Datos locales
 - sembast: archivo en Android, IndexedDB en Web (`lib/core/storage/local_database.dart`). Tests: `newDatabaseFactoryMemory()`.
 - Los repositorios son stale-while-revalidate; los TTL están en `CacheClass`. Todo refresco pasa por `SyncScheduler` (P0 visible, P1 contexto).

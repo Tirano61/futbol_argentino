@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config/app_config.dart';
+import '../core/time/clock.dart';
 import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
 import '../features/matches/domain/repositories/match_repository.dart';
@@ -38,6 +39,7 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<AppConfig>.value(value: deps.config),
+        RepositoryProvider<Clock>.value(value: deps.clock),
         RepositoryProvider<DiagnosticsRepository>.value(
           value: deps.diagnosticsRepository,
         ),

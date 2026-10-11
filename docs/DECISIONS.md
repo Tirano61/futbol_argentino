@@ -39,6 +39,7 @@
 | D12 Escudos Web | Fallback `<img>` (validado en T0.2) | Proxy propio (Cloudflare Worker): servicio extra, requiere aprobación explícita. |
 
 ## Registro de cambios
+- 11/10/2026 — Fase 4: `ScoreBox` y `KickoffText` integrados en `MatchCard`; rutas de competiciones hermanas; timeout de 5 s al abrir la base local; catálogo 2025 (Nacional 34 fechas; Copa: 200 = Final verificado); se descartó el riesgo de mojibake (error de inspección).
 - 11/10/2026 — Fase 3: un partido sin cerrar de los últimos 2 días mantiene la ronda en TTL «hoy» (10 min); verificación de `orphaned` con `lookupevent` postergada a P3 (post-MVP), solo se registra en el log; si la base local no abre, se usa memoria.
 - 11/10/2026 — Fase 2: `Match` no guarda la fase (la calcula `PhaseResolver`) para respetar la dirección de dependencias; sin caso de uso `GetMatchDetail` (sería un pasamanos); Clausura 2026 cargado «en curso» (sin fin ni eliminatorias hasta tener datos); duplicados de equipo en una fase → ambos `undetermined`; faltantes en respuestas parciales se verifican si no se ven hace > 24 h.
 - 11/10/2026 — Fase 1: URLs Web con `#` (estrategia por defecto) hasta definir el hosting; `Clock` se creó en T1.2 (lo necesitaba el `RateLimiter`) en lugar de T1.3.

@@ -42,12 +42,7 @@ class WatchStageMatches {
     Stage stage, {
     bool forceRefresh = false,
   }) {
-    final query = RoundQuery(
-      competitionId: definition.id,
-      season: stage.season.apiValue,
-      apiRound: stage.apiRound,
-      expectedMinimum: definition.expectedMinimumMatches(stage.apiRound),
-    );
+    final query = _queryFor(definition, stage);
     final resolver = PhaseResolver(definition);
 
     return _matches
@@ -78,4 +73,17 @@ class WatchStageMatches {
           }),
         );
   }
+
+  /// Precarga en segundo plano (prioridad baja) la ronda de [stage], por
+  /// ejemplo la etapa siguiente a la que se está mirando.
+  Future<void> prefetch(CompetitionDefinition definition, Stage stage) =>
+      _matches.prefetchRound(_queryFor(definition, stage));
+
+  static RoundQuery _queryFor(CompetitionDefinition definition, Stage stage) =>
+      RoundQuery(
+        competitionId: definition.id,
+        season: stage.season.apiValue,
+        apiRound: stage.apiRound,
+        expectedMinimum: definition.expectedMinimumMatches(stage.apiRound),
+      );
 }

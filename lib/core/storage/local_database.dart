@@ -13,12 +13,16 @@ abstract final class LocalDatabase {
 
   static Future<Database> open() => opener.openAppDatabase(fileName);
 
-  /// Abre la base; si el almacenamiento no está disponible (p. ej. Web en
-  /// modo privado con IndexedDB bloqueado) usa una base en memoria: la app
-  /// funciona, pero sin datos guardados entre sesiones.
+  /// Si abrir la base tarda más que esto, se sigue sin ella (la app no puede
+  /// quedar en blanco esperando un IndexedDB colgado).
+  static const openTimeout = Duration(seconds: 5);
+
+  /// Abre la base; si el almacenamiento no está disponible o no responde
+  /// (p. ej. Web en modo privado con IndexedDB bloqueado) usa una base en
+  /// memoria: la app funciona, pero sin datos guardados entre sesiones.
   static Future<Database> openOrMemory() async {
     try {
-      return await open();
+      return await open().timeout(openTimeout);
     } catch (e) {
       debugPrint('No se pudo abrir la base local ($e): se usa memoria.');
       return newDatabaseFactoryMemory().openDatabase(fileName);

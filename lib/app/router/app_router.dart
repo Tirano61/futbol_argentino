@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/competitions/presentation/pages/competitions_page.dart';
+import '../../features/competitions/presentation/routing/fixture_route.dart';
 import '../../features/diagnostics/domain/repositories/diagnostics_repository.dart';
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
 import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
@@ -52,12 +54,22 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             routes: [
               GoRoute(
                 path: AppRoutes.competitions,
-                builder: (context, state) => const ComingSoonPage(
-                  title: 'Competiciones',
-                  icon: Icons.emoji_events,
-                  message:
-                      'Fixture de Primera División, Primera Nacional y '
-                      'Copa Argentina por fecha y ronda.',
+                builder: (context, state) => CompetitionsPage(
+                  initialEvent: FixtureRoute.parse(
+                    query: state.uri.queryParameters,
+                  ),
+                ),
+              ),
+              // Ruta hermana (no anidada): un enlace directo no apila la
+              // página base ni muestra «atrás».
+              GoRoute(
+                path: '${AppRoutes.competitions}/:leagueId',
+                builder: (context, state) => CompetitionsPage(
+                  key: ValueKey(state.uri.toString()),
+                  initialEvent: FixtureRoute.parse(
+                    leagueId: state.pathParameters['leagueId'],
+                    query: state.uri.queryParameters,
+                  ),
                 ),
               ),
             ],
