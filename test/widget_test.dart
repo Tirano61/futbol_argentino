@@ -80,6 +80,8 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester, size: const Size(400, 800));
+    // El Inicio ya consultó la API al abrir.
+    apiCalls = 0;
 
     await tester.tap(find.byTooltip('Diagnóstico de la API'));
     await tester.pumpAndSettle();

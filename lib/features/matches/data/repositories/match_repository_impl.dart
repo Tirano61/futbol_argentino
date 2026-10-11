@@ -47,6 +47,7 @@ class MatchRepositoryImpl implements MatchRepository {
   Stream<DataResult<List<Match>>> watchRound(
     RoundQuery query, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) async* {
     final key = roundKey(query);
     final meta = await _metadata.get(key);
@@ -63,11 +64,7 @@ class MatchRepositoryImpl implements MatchRepository {
     }
 
     try {
-      await _scheduler.run(
-        key,
-        SyncPriority.visible,
-        () => _refreshRound(query, key),
-      );
+      await _scheduler.run(key, priority, () => _refreshRound(query, key));
     } on Failure catch (failure) {
       if (meta == null) rethrow;
       yield DataResult(

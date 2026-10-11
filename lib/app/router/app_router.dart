@@ -8,6 +8,7 @@ import '../../features/diagnostics/domain/repositories/diagnostics_repository.da
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
 import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import '../../features/diagnostics/presentation/pages/api_test_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/match_detail/presentation/pages/match_detail_page.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
 import '../../shared/presentation/widgets/coming_soon_page.dart';
@@ -39,21 +40,8 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                builder: (context, state) => ComingSoonPage(
-                  title: 'Fútbol Argentino',
-                  icon: Icons.sports_soccer,
-                  message:
-                      'Acá vas a ver los partidos de hoy, los próximos y '
-                      'los resultados recientes.',
-                  actions: [
-                    if (enableDiagnostics)
-                      IconButton(
-                        tooltip: 'Diagnóstico de la API',
-                        icon: const Icon(Icons.bug_report_outlined),
-                        onPressed: () => context.push(AppRoutes.diagnostics),
-                      ),
-                  ],
-                ),
+                builder: (context, state) =>
+                    HomePage(showDiagnostics: enableDiagnostics),
               ),
             ],
           ),

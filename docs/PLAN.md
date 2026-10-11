@@ -403,6 +403,9 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Entrega Hito A**: build de prueba en tablet y Chrome; revisión tuya antes de seguir.
 
 ### Fase 6 — Inicio  ·  Hito B
+- **Estado**: ✅ completada el 11/10/2026 — T6.1 y T6.2 hechas; 267 tests verdes; validada en tablet Android y Chrome (escritorio y tablet): frío = 12 peticiones, caliente = 0. Esperando aprobación para la Fase 7.
+- **Ajuste en T6.1**: «ronda actual/anterior» se resolvió como *ronda del último partido + etapa siguiente* (o la del próximo partido si es otra), máx. 2 por competición, más los partidos de los punteros aunque su ronda no se cargue. Motivo: con la fecha en curso, próximo y último caen en la misma ronda (caso real del 11/10) y la fecha siguiente quedaba fuera de «Próximos».
+- **Observaciones para revisar**: «Recientes» cubre solo ayer (ventana del plan): entre semana suele quedar vacío; se podría ampliar a «últimos 3 días» sin peticiones extra (las rondas ya están cargadas).
 - **T6.1** `GetHomeFeed` (ronda actual/anterior de cada competición → ayer…+7 días) + `HomeBloc` + tests.
 - **T6.2** `HomePage`: Hoy, Próximos, Recientes, accesos a competiciones y al buscador.
 - **Aceptación**: frío ≤ 12 peticiones; caliente 0 dentro del TTL.

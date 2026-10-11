@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/result/data_result.dart';
+import '../../../../core/sync/sync_scheduler.dart';
 import '../entities/match.dart';
 
 /// Una ronda de la API: la unidad de carga incremental (§5.1).
@@ -33,9 +34,12 @@ abstract interface class MatchRepository {
   /// cuando la caché venció o [forceRefresh] es `true`. Si la actualización
   /// falla y hay datos guardados, emite esos datos con `refreshError`. Si no
   /// hay nada guardado y falla, emite un error `Failure`.
+  ///
+  /// [priority]: P0 para lo que se está mirando; P1 para contexto (Inicio).
   Stream<DataResult<List<Match>>> watchRound(
     RoundQuery query, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   });
 
   /// Descarga una ronda en segundo plano, con prioridad baja, si lo

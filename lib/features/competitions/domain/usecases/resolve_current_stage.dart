@@ -4,7 +4,6 @@ import '../catalog/competition_catalog.dart';
 import '../entities/season.dart';
 import '../entities/stage.dart';
 import '../repositories/competition_repository.dart';
-import '../services/phase_resolver.dart';
 import '../services/round_navigator.dart';
 
 /// Etapa con la que abre el fixture: la del próximo partido o, si no hay,
@@ -25,25 +24,8 @@ class ResolveCurrentStage {
     }
 
     if (pointer != null && pointer.season == season.apiValue) {
-      final assignment = PhaseResolver(definition).classifyRound(
-        season: season,
-        apiRound: pointer.apiRound,
-        matches: [pointer],
-      )[pointer.id]!;
-      if (assignment.isDetermined) {
-        final stages = RoundNavigator.stagesFor(
-          definition,
-          season,
-          assignment.phase,
-          knownMaxRound: pointer.apiRound,
-        );
-        for (final stage in stages) {
-          if (stage.apiRound == pointer.apiRound &&
-              stage.kind == assignment.stageKind) {
-            return stage;
-          }
-        }
-      }
+      final located = RoundNavigator.locate(definition, pointer);
+      if (located != null) return located.stage;
     }
 
     for (final phase in definition.phases) {

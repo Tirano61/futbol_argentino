@@ -1,7 +1,9 @@
+import '../../../matches/domain/entities/match.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/phase.dart';
 import '../entities/season.dart';
 import '../entities/stage.dart';
+import 'phase_resolver.dart';
 import 'stage_labeler.dart';
 
 /// Lista ordenada de etapas de una fase y navegación anterior/siguiente.
@@ -58,6 +60,36 @@ abstract final class RoundNavigator {
           order: index,
         ),
     ];
+  }
+
+  /// Etapa de un partido suelto (p. ej. el próximo partido de la liga) y
+  /// las etapas de su fase, o `null` si la fase no se puede determinar con
+  /// ese partido solo o la temporada no es válida.
+  static ({Stage stage, List<Stage> stages})? locate(
+    CompetitionDefinition definition,
+    Match match,
+  ) {
+    final season = Season.tryParse(match.season);
+    if (season == null) return null;
+    final assignment = PhaseResolver(definition).classifyRound(
+      season: season,
+      apiRound: match.apiRound,
+      matches: [match],
+    )[match.id]!;
+    if (!assignment.isDetermined) return null;
+    final stages = stagesFor(
+      definition,
+      season,
+      assignment.phase,
+      knownMaxRound: match.apiRound,
+    );
+    for (final stage in stages) {
+      if (stage.apiRound == match.apiRound &&
+          stage.kind == assignment.stageKind) {
+        return (stage: stage, stages: stages);
+      }
+    }
+    return null;
   }
 
   static Stage? next(List<Stage> stages, Stage current) {

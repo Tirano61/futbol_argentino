@@ -80,6 +80,7 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
   Future<DataResult<SchedulePointers>> getSchedulePointers(
     int competitionId, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) {
     final key = pointersKey(competitionId);
     final record = AppStores.schedulePointers.record(competitionId);
@@ -87,6 +88,7 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
     return _cached(
       key: key,
       forceRefresh: forceRefresh,
+      priority: priority,
       read: () async {
         final map = await record.get(_db);
         return map == null ? null : CompetitionRecord.pointersFromMap(map);
@@ -123,6 +125,7 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
     required Future<T?> Function() read,
     required Future<void> Function() refresh,
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) async {
     final meta = await _metadata.get(key);
     final stored = meta == null ? null : await read();
@@ -137,7 +140,7 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
     }
 
     try {
-      await _scheduler.run(key, SyncPriority.visible, refresh);
+      await _scheduler.run(key, priority, refresh);
     } on Failure catch (failure) {
       if (meta == null || stored == null) rethrow;
       return DataResult(

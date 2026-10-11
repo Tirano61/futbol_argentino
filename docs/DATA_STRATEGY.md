@@ -101,3 +101,25 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 | Reinicio sin red | CACHÉ desde el archivo | CACHÉ desde IndexedDB (recarga de página) |
 
 Hallazgo: en Android, sin red y tras reiniciar, los escudos no se ven (`Image.network` no guarda en disco). `TeamBadge` mostrará iniciales; la caché de escudos en disco sigue en el backlog post-MVP.
+
+## Estado de implementación (Fase 6, 11/10/2026) — Inicio
+
+**Qué consulta el Inicio** (`GetHomeFeed`), por competición del catálogo:
+1. Próximo y último partido (`eventsnextleague` + `eventspastleague`, TTL 30 min).
+2. Como mucho **2 rondas**: la del último partido y la de la etapa siguiente (con `RoundNavigator`); si no hay último o no hay etapa siguiente, la del próximo partido. Cubre la fecha en curso (próximo y último en la misma ronda), el cambio de fecha y la copa (códigos no consecutivos).
+3. Los partidos de los punteros se muestran aunque su ronda no se cargue (p. ej. un reprogramado de una fecha anterior, como el de la fecha 11 de Primera del 14/10).
+
+Ventana: de ayer a +7 días en día argentino. Presupuesto: 3 × 2 punteros + ≤ 6 rondas = **≤ 12 en frío**; con todo vigente, **0**. Prioridad P1 (contexto); el refresco manual va con P0 e ignora la vigencia (mínimo 30 s por clave). Durante un refresco cada competición conserva lo que mostraba hasta terminar.
+
+Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada entre semana), puede quedar fuera hasta que pase a ser la del último partido.
+
+### Validación en dispositivos (evidencia en `docs/evidence/f6_*`)
+| Prueba | Android (tablet) | Web |
+|---|---|---|
+| Frío (datos borrados / perfil nuevo) | 12 peticiones (6 punteros + 6 rondas) | 12 (Chrome escritorio) |
+| Caliente dentro del TTL | 0 (reapertura de la app, 2 veces) | 0 (hot restart, misma IndexedDB) |
+| Vencida la vigencia de las rondas en juego (2 min) | — | 2 (solo Primera 12 y Nacional 33) |
+| «Actualizar» | 12, prioridad P0 | — |
+| Modo avión + «Actualizar» | datos guardados + aviso, la lista no se vacía | — |
+| Chrome en la tablet (release) | — | Inicio con escudos; acceso a Copa actualiza la URL |
+

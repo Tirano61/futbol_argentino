@@ -32,7 +32,8 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`.
 - Límite: 30 peticiones/minuto (HTTP 429). Sin paginación. Fuente principal: `eventsround.php?id=&r=&s=`.
 - Primera: cada `r` (1..16) trae **Apertura y Clausura juntos**; `r=0` = eliminatorias; `r=16` incluye octavos. La fase se resuelve con el catálogo por temporada (`PhaseResolver`); si no hay evidencia → `undetermined`.
-- Copa: rondas `64, 32, 16, 125 (cuartos), 150 (semis), 200 (final, sin validar)`.
+- Copa: rondas `64, 32, 16, 125 (cuartos), 150 (semis), 200 (final)` (V2 validada con la final 2025).
+- Inicio (`GetHomeFeed`): por competición, punteros + ≤ 2 rondas (último partido + etapa siguiente) → ≤ 12 peticiones en frío, 0 en caliente. No agregar consultas al Inicio sin revisar ese presupuesto (test `home_request_budget_test.dart`).
 - Identificadores: `idEvent` (partidos, deduplicación), `idTeam` (equipos), `idLeague`.
 
 ## Escudos

@@ -216,3 +216,15 @@ Dominio implementado (Dart puro, 125 tests):
   - `MatchDetailBloc` (`droppable`): `Loading`, `Loaded` (con `refreshError`/`isRefreshing`), `Failure`.
   - `MatchDetailPage`: competición, «Fase · Etapa», escudos, marcador o «vs», fecha y hora ART o «Horario por confirmar» (con nota si es `00:00` UTC sin corroborar), «Reprogramado», estado, aviso de penales sin resultado, estadio, video (`url_launcher`) e imagen, solo si existen.
 - **Rutas**: `/partidos/:eventId` fuera del shell (pantalla completa). `GoRouter.optionURLReflectsImperativeAPIs = true`: abrir un partido actualiza la URL en Web. Con enlace directo (sin «atrás») se ofrece «Ir al inicio».
+
+## Estado de implementación (Fase 6, 11/10/2026)
+
+- **Feature `home`** (`home → competitions, matches`, sin datos propios):
+  - `domain/entities/home_feed.dart`: `HomeMatch` (partido + competición, fase y etapa visibles), `CompetitionFeed` (por competición: cargando, partidos de la ventana, `fetchedAt`, error) y `HomeFeed` (secciones `todayMatches`/`upcoming`/`recent` calculadas, `carryOver` para refrescar sin parpadeos).
+  - `domain/usecases/get_home_feed.dart` (`GetHomeFeed`): stream que emite a medida que llega cada competición; ventana de ayer a +7 días (día argentino); fase con `PhaseResolver` sobre la ronda completa. Un error de una competición no afecta a las demás.
+  - `presentation/bloc/home_*` (`HomeBloc`, `droppable`): `Initial`, `Loading`, `Loaded{feed}` (`isBusy` mientras alguna competición carga), `Failure` (ninguna competición con datos).
+  - `presentation/pages/home_page.dart`: accesos a «Buscar equipo» (lleva a Equipos; la búsqueda es la Fase 7) y a cada fixture; secciones Hoy, Próximos 7 días (por día) y Recientes (ayer); subtítulo «Competición · Fase · Etapa» en cada tarjeta; aviso de datos guardados y de competiciones que no cargaron; pull-to-refresh y botón «Actualizar»; acceso al diagnóstico.
+- `RoundNavigator.locate`: etapa de un partido suelto (extraída de `ResolveCurrentStage`, la usan ambos).
+- `MatchRepository.watchRound` y `CompetitionRepository.getSchedulePointers` aceptan `priority`: el Inicio carga con P1 y el refresco manual con P0.
+- `shared/presentation/widgets/section_header.dart` (`SectionHeader`).
+
