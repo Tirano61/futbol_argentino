@@ -1,5 +1,6 @@
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
+import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/competition.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
@@ -9,7 +10,8 @@ import 'package:futbol_argentino/features/matches/domain/repositories/match_repo
 
 final fakeFetchedAt = DateTime.utc(2026, 10, 11, 20, 35);
 
-/// Repositorio de partidos en memoria con rondas reales.
+/// Repositorio de partidos en memoria con rondas reales (por `apiRound`:
+/// no mezclar rondas con el mismo número de distintas competiciones).
 ///
 /// - [delays]: demora por ronda (para simular respuestas fuera de orden).
 /// - [refreshError]: emite los datos como caché con ese error.
@@ -28,13 +30,16 @@ class FakeMatchRepository implements MatchRepository {
   Failure? failure;
   final queries = <RoundQuery>[];
   final prefetched = <RoundQuery>[];
+  final calls = <({RoundQuery query, bool force, SyncPriority priority})>[];
 
   @override
   Stream<DataResult<List<Match>>> watchRound(
     RoundQuery query, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) async* {
     queries.add(query);
+    calls.add((query: query, force: forceRefresh, priority: priority));
     final delay = delays[query.apiRound];
     if (delay != null) await Future<void>.delayed(delay);
     if (failure != null) throw failure!;
@@ -70,16 +75,24 @@ class FakeMatchRepository implements MatchRepository {
   }
 }
 
+/// - [pointers]: próximo/último partido de cualquier competición, salvo las
+///   que tengan entrada en [pointersById].
+/// - [failure] / [failuresById]: sin datos, la consulta lanza ese error.
 class FakeCompetitionRepository implements CompetitionRepository {
   FakeCompetitionRepository({
     this.pointers,
+    this.pointersById = const {},
     this.failure,
+    this.failuresById = const {},
     this.currentSeason = const Season(2026),
   });
 
   final SchedulePointers? pointers;
+  final Map<int, SchedulePointers> pointersById;
   final Failure? failure;
+  final Map<int, Failure> failuresById;
   final Season? currentSeason;
+  final pointerCalls = <({int id, bool force, SyncPriority priority})>[];
 
   @override
   Future<DataResult<Competition>> getCompetition(int competitionId) async {
@@ -101,10 +114,17 @@ class FakeCompetitionRepository implements CompetitionRepository {
   Future<DataResult<SchedulePointers>> getSchedulePointers(
     int competitionId, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) async {
-    if (failure != null) throw failure!;
+    pointerCalls.add((
+      id: competitionId,
+      force: forceRefresh,
+      priority: priority,
+    ));
+    final error = failuresById[competitionId] ?? failure;
+    if (error != null) throw error;
     return DataResult(
-      data: pointers ?? const SchedulePointers(),
+      data: pointersById[competitionId] ?? pointers ?? const SchedulePointers(),
       origin: DataOrigin.remote,
       fetchedAt: fakeFetchedAt,
     );

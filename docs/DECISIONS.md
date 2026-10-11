@@ -39,6 +39,7 @@
 | D12 Escudos Web | Fallback `<img>` (validado en T0.2) | Proxy propio (Cloudflare Worker): servicio extra, requiere aprobación explícita. |
 
 ## Registro de cambios
+- 11/10/2026 — Fase 6: el Inicio carga la ronda del último partido + la etapa siguiente (no «actual/anterior»: con la fecha en curso ambas coinciden y se perdía la próxima fecha); `watchRound`/`getSchedulePointers` reciben prioridad (P1 Inicio, P0 refresco manual); feature `home` con `GetHomeFeed` como stream por competición.
 - 11/10/2026 — Fase 5: feature `match_detail` (compone `competitions` y `matches`) en lugar de ubicar el detalle en `matches`; se agrega `url_launcher` para el video; `push` refleja la URL en Web.
 - 11/10/2026 — Fase 4: `ScoreBox` y `KickoffText` integrados en `MatchCard`; rutas de competiciones hermanas; timeout de 5 s al abrir la base local; catálogo 2025 (Nacional 34 fechas; Copa: 200 = Final verificado); se descartó el riesgo de mojibake (error de inspección).
 - 11/10/2026 — Fase 3: un partido sin cerrar de los últimos 2 días mantiene la ronda en TTL «hoy» (10 min); verificación de `orphaned` con `lookupevent` postergada a P3 (post-MVP), solo se registra en el log; si la base local no abre, se usa memoria.

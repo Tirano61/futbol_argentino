@@ -1,4 +1,5 @@
 import '../../../../core/result/data_result.dart';
+import '../../../../core/sync/sync_scheduler.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../entities/competition.dart';
 
@@ -22,5 +23,6 @@ abstract interface class CompetitionRepository {
   Future<DataResult<SchedulePointers>> getSchedulePointers(
     int competitionId, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   });
 }

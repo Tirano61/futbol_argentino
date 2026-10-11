@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
+import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
@@ -19,6 +20,7 @@ class _StubRepository implements MatchRepository {
   Stream<DataResult<List<Match>>> watchRound(
     RoundQuery query, {
     bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.visible,
   }) async* {
     forced.add(forceRefresh);
     for (final e in emissions) {

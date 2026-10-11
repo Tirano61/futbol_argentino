@@ -72,3 +72,6 @@ Los estados (`NS`, `1H`, `FT`…) reflejan el momento de la grabación.
 | `eventsround_4500_r180_s2025.json` | `eventsround.php?id=4500&r=180&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
 | `eventsround_4500_r190_s2025.json` | `eventsround.php?id=4500&r=190&s=2025` | 200 | `events` = null |  | 11/10/2026 21:45 UTC | `ac165cc3ca83` |
 | `eventsround_4500_r200_s2025.json` | `eventsround.php?id=4500&r=200&s=2025` | 200 | `events` = 1 | 2025-11: 1 | 11/10/2026 21:45 UTC | `2c99bad75fca` |
+| `eventsnextleague_4500.json` | `eventsnextleague.php?id=4500` | 200 | `events` = 1 | 2026-10: 1 | 11/10/2026 23:34 UTC | `6f4bbc103a4e` |
+| `eventspastleague_4500.json` | `eventspastleague.php?id=4500` | 200 | `events` = 1 | 2026-10: 1 | 11/10/2026 23:34 UTC | `29155decc8d3` |
+| `eventsround_4500_r200_s2026.json` | `eventsround.php?id=4500&r=200&s=2026` | 200 | `events` = null |  | 11/10/2026 23:34 UTC | `ac165cc3ca83` |
