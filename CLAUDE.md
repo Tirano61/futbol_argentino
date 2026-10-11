@@ -46,7 +46,8 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Formatos: fecha `dd/MM/yyyy`, hora `HH:mm`.
 
 ## Mantenimiento periódico
-- Cada semestre: cargar en `CompetitionCatalog` las ventanas de fase de Primera de la temporada (desde datos reales).
+- Cada semestre: actualizar en `CompetitionCatalog` (`lib/features/competitions/domain/catalog/competition_catalog.dart`) las ventanas de Primera **a partir de datos reales grabados** en `test/fixtures/api/`. Pendiente: cierre y eliminatorias del Clausura 2026 (hoy «en curso»), temporada 2027.
+- Al cerrar una ventana, el test `competition_catalog_test.dart` verifica que cada partido grabado caiga en un solo torneo.
 - Revisar los pendientes V2–V7 de `docs/API.md` cuando haya datos nuevos.
 
 ## Comandos

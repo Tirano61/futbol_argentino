@@ -8,3 +8,13 @@ Uint8List fixtureBytes(String name) =>
 
 Map<String, dynamic> fixtureJson(String name) =>
     jsonDecode(utf8.decode(fixtureBytes(name))) as Map<String, dynamic>;
+
+/// Eventos (`"events"`) de una respuesta grabada.
+List<Map<String, dynamic>> fixtureEvents(String name) => [
+  for (final e in (fixtureJson(name)['events'] as List?) ?? const [])
+    e as Map<String, dynamic>,
+];
+
+/// Un evento real por `idEvent`.
+Map<String, dynamic> fixtureEvent(String name, String idEvent) =>
+    fixtureEvents(name).singleWhere((e) => e['idEvent'] == idEvent);

@@ -55,7 +55,7 @@
 | V4 | Estados no observados (`PST`, `CANC`, `ABD`…) | log de estados desconocidos en debug |
 | V5 | Significado de `00:00:00` UTC | regla conservadora D5 mientras tanto |
 | V6 | Ausencia de tope en `eventsround` | clasificación de calidad de respuesta (§5.3) |
-| V7 | Cantidad de rondas de Nacional 2026 | descubrimiento hasta ronda vacía |
+| V7 | Cantidad de rondas de Nacional 2026 | ✅ Resuelto (11/10/2026): 36 fechas (r=37 vacía) |
 
 ---
 
@@ -80,3 +80,13 @@ Evidencia: `docs/evidence/t0_2_android_nativo.jpg`, `t0_2_web_chrome_escritorio.
 
 ## Fixtures reales (T0.3)
 18 respuestas reales grabadas el 11/10/2026 en `test/fixtures/api/` (índice, HTTP, cantidades y hash en `test/fixtures/api/README.md`).
+
+## Hallazgos de la Fase 2 (11/10/2026, 34 respuestas reales más)
+
+- **Primera 2026, Apertura**: 22/01–24/05. La **fecha 9 completa se jugó del 2 al 4 de mayo**; octavos (ronda 16) 9–10/05; ronda 0 (cuartos, semis, final) 12–24/05. Una división fija por meses ubicaría mal la fecha 9.
+- **Primera 2026, Clausura**: desde el 23/07; programado hasta el 08/11 (fecha 16). Eliminatorias aún sin datos.
+- **Primera 2025**: Apertura 23/01–04/05, Clausura 11/07–17/11. **La API no tiene las eliminatorias de 2025** (r=0 vacía, r=16 solo 15 partidos).
+- **Fechas repartidas**: hay fechas con partidos postergados semanas después (2025 Clausura fecha 6: 22/08 y 24/10).
+- **Primera Nacional 2026**: 36 fechas de 18 partidos (r=37 vacía).
+- **Horarios `00:00` UTC**: en los datos grabados hay 42 casos con `strTimeLocal = 21:00` (corroborados) y 7 sin corroborar (`strTimeLocal` 16:00, 18:00, 19:00, 19:30, 19:45 o vacío).
+- **`strTime` sin segundos** (`"20:00"`) en 16 eventos.

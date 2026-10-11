@@ -80,7 +80,7 @@ App personal, gratuita, sin login ni backend, para Android y Web (escritorio y m
 | V4 | Estados no observados (`PST`, `CANC`, `ABD`…) | log de estados desconocidos en debug |
 | V5 | Significado de `00:00:00` UTC | regla conservadora D5 mientras tanto |
 | V6 | Ausencia de tope en `eventsround` | clasificación de calidad de respuesta (§5.3) |
-| V7 | Cantidad de rondas de Nacional 2026 | descubrimiento hasta ronda vacía |
+| V7 | Cantidad de rondas de Nacional 2026 | ✅ Resuelto (11/10/2026): 36 fechas (r=37 vacía) |
 
 ---
 
@@ -365,6 +365,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Validaciones**: tests de `JsonEnvelope` (null, lista, raíz inválida, JSON roto), `RateLimiter`, reintentos.
 
 ### Fase 2 — Dominio de partidos y competiciones  ·  Hito A
+- **Estado**: ✅ completada el 11/10/2026 — T2.1 a T2.6 hechas; 125 tests verdes; `domain/` sin Flutter/http/sembast. Esperando aprobación para la Fase 3.
 - **Depende de**: Fase 1 (y fixtures de T0.3).
 - **Tareas**
   - **T2.1** Entidades de `matches` + `ArgentinaTime` + `KickoffResolver` (D5) + tests (cruce de medianoche, `00:00` sin/con corroboración, sin hora, `HH:mm`).
