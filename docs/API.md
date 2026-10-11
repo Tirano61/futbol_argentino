@@ -28,7 +28,7 @@
 | `eventsnext.php` / `eventslast.php?id={idTeam}` | **1, solo de local** | Boca → Sudamericana (4724) | complemento post-MVP |
 
 ### 2.3 Confirmados pero no aptos con clave gratuita
-`eventsseason` (tope 15) · `eventsday` (tope 3 + mojibake) · `search_all_seasons` (tope 5, devuelve las más antiguas) · `search_all_teams` (tope 10) · `lookup_all_teams` (dataset fijo incorrecto: equipos ingleses) · `lookuptable` (5 filas) · `lookupeventstats` / `lookuptimeline` / `lookuplineup` (5 filas).
+`eventsseason` (tope 15) · `eventsday` (tope 3) · `search_all_seasons` (tope 5, devuelve las más antiguas) · `search_all_teams` (tope 10) · `lookup_all_teams` (dataset fijo incorrecto: equipos ingleses) · `lookuptable` (5 filas) · `lookupeventstats` / `lookuptimeline` / `lookuplineup` (5 filas).
 
 ### 2.4 Estructura real de los datos
 **Primera División (4406)**
@@ -50,7 +50,7 @@
 | # | Tema | Cómo |
 |---|---|---|
 | V1 | Escudos en Flutter Web | ✅ **Resuelto en T0.2 (11/10/2026)**: carga normal bloqueada por CORS en Web; `webHtmlElementStrategy.fallback` funciona (ver «Resultado T0.2») |
-| V2 | Código de la final de Copa (¿200?) | cuando se programe |
+| V2 | Código de la final de Copa (¿200?) | ✅ Resuelto: 200 = Final (final 2025) |
 | V3 | Reducido de Nacional / playoffs del Clausura | nov–dic 2026 |
 | V4 | Estados no observados (`PST`, `CANC`, `ABD`…) | log de estados desconocidos en debug |
 | V5 | Significado de `00:00:00` UTC | regla conservadora D5 mientras tanto |
@@ -90,3 +90,10 @@ Evidencia: `docs/evidence/t0_2_android_nativo.jpg`, `t0_2_web_chrome_escritorio.
 - **Primera Nacional 2026**: 36 fechas de 18 partidos (r=37 vacía).
 - **Horarios `00:00` UTC**: en los datos grabados hay 42 casos con `strTimeLocal = 21:00` (corroborados) y 7 sin corroborar (`strTimeLocal` 16:00, 18:00, 19:00, 19:30, 19:45 o vacío).
 - **`strTime` sin segundos** (`"20:00"`) en 16 eventos.
+
+## Corrección y hallazgos de la Fase 4 (11/10/2026)
+
+- **No hay mojibake en la API.** Lo informado en la Fase 0 (`eventsday` con `R�­o Cuarto`) fue un error de inspección: Python en Windows decodifica los pipes como cp1252 y los `repr` escapan `­`. Verificado decodificando explícitamente como UTF-8: los 65 fixtures (incluido `eventsday`) son UTF-8 correcto. `RoundMergePolicy.looksGarbled` queda como defensa barata.
+- **Copa Argentina: 200 = Final** (verificado con la final 2025, noviembre 2025). V2 resuelto.
+- **Copa Argentina 2025 incompleta en la API**: 32avos 32/32, 16avos 16/16, octavos 4/8, cuartos y semifinales sin datos (ni con 125/150 ni con otros códigos probados: 160, 170, 175, 180, 190), final 1/1. La app muestra esas etapas vacías.
+- **Primera Nacional 2025**: 34 fechas (r=35 vacía).

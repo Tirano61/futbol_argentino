@@ -232,7 +232,8 @@ abstract final class CompetitionCatalog {
     format: CompetitionFormat.league,
     rules: SingleTableLeagueRules(
       matchesPerRound: 18,
-      regularRoundsBySeason: {2026: 36},
+      // 2025: fecha 35 vacía; 2026: fecha 37 vacía.
+      regularRoundsBySeason: {2025: 34, 2026: 36},
     ),
   );
 
@@ -248,7 +249,8 @@ abstract final class CompetitionCatalog {
         CupRound(code: 16, label: 'Octavos de final', matches: 8),
         CupRound(code: 125, label: 'Cuartos de final', matches: 4),
         CupRound(code: 150, label: 'Semifinales', matches: 2),
-        CupRound(code: 200, label: 'Final', matches: 1, verified: false),
+        // Verificado con la final 2025 (noviembre 2025).
+        CupRound(code: 200, label: 'Final', matches: 1),
       ],
     ),
   );

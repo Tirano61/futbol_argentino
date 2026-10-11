@@ -199,3 +199,12 @@ Dominio implementado (Dart puro, 125 tests):
 - `MatchRepository` suma `prefetchRound` (P1, no lanza errores).
 - Diagnóstico suma «Prueba de caché» (`CacheProbeBloc`) para validar la caché en dispositivos.
 - `main` es asíncrono: abre la base antes de `runApp`.
+
+## Estado de implementación (Fase 4, 11/10/2026)
+
+- `shared/presentation/`: `MatchLabels` (días en español, horario D5, estados, descripción accesible), `failureMessage`, `TeamBadge` (fallback `<img>` en Web + iniciales), `MatchStatusChip`, `MatchCard` (incluye marcador y horario; reemplaza a `ScoreBox`/`KickoffText` separados), `matchDayItems`/`DayHeader`, `EmptyView`, `ErrorView`, `StaleDataBanner`.
+- `features/competitions/presentation/`: `CompetitionFixtureBloc` (un solo handler `restartable`: cada selección cancela la carga anterior; precarga P1 de la etapa siguiente), `CompetitionsPage`, `FixtureSelectors`, `StageNavigator`, `FixtureRoute` (URL ↔ selección).
+- **URL**: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12[&etapa=eliminatoria]`. En Web se actualiza con `SystemNavigator.routeInformationUpdated(replace: true)` sin recrear la pantalla. `/competiciones` y `/competiciones/:leagueId` son rutas **hermanas** (si se anidan, el enlace directo muestra «atrás»).
+- **Sin fase determinada**: si la ronda tiene partidos así, aparece «N partidos de esta ronda sin fase determinada» y se pueden ver aparte.
+- `Clock` disponible por `RepositoryProvider`.
+- `LocalDatabase.openOrMemory` con timeout de 5 s: si IndexedDB no responde, la app arranca con base en memoria en lugar de quedar en blanco.

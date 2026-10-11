@@ -53,7 +53,7 @@ App personal, gratuita, sin login ni backend, para Android y Web (escritorio y m
 | `eventsnext.php` / `eventslast.php?id={idTeam}` | **1, solo de local** | Boca → Sudamericana (4724) | complemento post-MVP |
 
 ### 2.3 Confirmados pero no aptos con clave gratuita
-`eventsseason` (tope 15) · `eventsday` (tope 3 + mojibake) · `search_all_seasons` (tope 5, devuelve las más antiguas) · `search_all_teams` (tope 10) · `lookup_all_teams` (dataset fijo incorrecto: equipos ingleses) · `lookuptable` (5 filas) · `lookupeventstats` / `lookuptimeline` / `lookuplineup` (5 filas).
+`eventsseason` (tope 15) · `eventsday` (tope 3) · `search_all_seasons` (tope 5, devuelve las más antiguas) · `search_all_teams` (tope 10) · `lookup_all_teams` (dataset fijo incorrecto: equipos ingleses) · `lookuptable` (5 filas) · `lookupeventstats` / `lookuptimeline` / `lookuplineup` (5 filas).
 
 ### 2.4 Estructura real de los datos
 **Primera División (4406)**
@@ -75,7 +75,7 @@ App personal, gratuita, sin login ni backend, para Android y Web (escritorio y m
 | # | Tema | Cómo |
 |---|---|---|
 | V1 | Escudos en Flutter Web | ✅ **Resuelto en T0.2 (11/10/2026)**: carga normal bloqueada por CORS en Web; `webHtmlElementStrategy.fallback` funciona (ver «Resultado T0.2») |
-| V2 | Código de la final de Copa (¿200?) | cuando se programe |
+| V2 | Código de la final de Copa (¿200?) | ✅ Resuelto: 200 = Final (final 2025) |
 | V3 | Reducido de Nacional / playoffs del Clausura | nov–dic 2026 |
 | V4 | Estados no observados (`PST`, `CANC`, `ABD`…) | log de estados desconocidos en debug |
 | V5 | Significado de `00:00:00` UTC | regla conservadora D5 mientras tanto |
@@ -326,7 +326,7 @@ Estados sealed comunes: `Initial`, `Loading`, `Loaded{data, isRefreshing, origin
 | Códigos de ronda no documentados | «Ronda {n}» + log + actualización del catálogo |
 | Catálogo de fases a mantener cada semestre | tarea documentada en `CLAUDE.md`; partidos fuera de ventana quedan `undetermined`, no mal ubicados |
 | Ganador por penales desconocido | «Definido por penales»; inferencia por ronda siguiente post-MVP |
-| Mojibake | nombres desde `eventsround`/`lookupteam`; `TextNormalizer` |
+| ~~Mojibake~~ | Descartado en Fase 4: era un artefacto de la consola de Windows al inspeccionar; los 65 fixtures son UTF-8 correcto |
 
 ---
 
@@ -387,6 +387,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: misma ronda dentro del TTL = 0 peticiones; modo avión muestra lo guardado; datos sobreviven reinicio en Android y Chrome.
 
 ### Fase 4 — Fixture  ·  Hito A
+- **Estado**: ✅ completada el 11/10/2026 — T4.1 a T4.3 hechas; 219 tests verdes; validada con datos reales en tablet Android y Chrome. Esperando aprobación para la Fase 5.
 - **Depende de**: Fase 3.
 - **Tareas**
   - **T4.1** Widgets compartidos: `TeamBadge` (según resultado T0.2), `ScoreBox`, `MatchStatusChip`, `KickoffText`, `MatchCard`, `DayHeader`, `EmptyView`, `ErrorView`, `StaleDataBanner` + widget tests.

@@ -71,7 +71,9 @@ void main() {
     await tester.tap(find.text('Competiciones'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Fixture de Primera División'), findsOneWidget);
+    // Fixture real; la API simulada no devuelve partidos.
+    expect(find.text('Primera División'), findsOneWidget);
+    expect(find.text('Sin partidos'), findsOneWidget);
   });
 
   testWidgets('el diagnóstico abre la prueba sin consultar la API', (

@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
-import 'package:futbol_argentino/features/competitions/domain/entities/competition.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/phase.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/stage.dart';
@@ -10,70 +9,10 @@ import 'package:futbol_argentino/features/competitions/domain/repositories/compe
 import 'package:futbol_argentino/features/competitions/domain/services/round_navigator.dart';
 import 'package:futbol_argentino/features/competitions/domain/usecases/resolve_current_stage.dart';
 import 'package:futbol_argentino/features/competitions/domain/usecases/watch_stage_matches.dart';
-import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 
+import '../../../helpers/fakes.dart';
 import '../../../helpers/fixture_matches.dart';
-
-final fetchedAt = DateTime.utc(2026, 10, 11, 20, 35);
-
-/// Repositorio en memoria con rondas reales grabadas.
-class FakeMatchRepository implements MatchRepository {
-  FakeMatchRepository(this.rounds, {this.refreshError});
-
-  final Map<int, List<Match>> rounds;
-  final Failure? refreshError;
-  final queries = <RoundQuery>[];
-
-  @override
-  Stream<DataResult<List<Match>>> watchRound(
-    RoundQuery query, {
-    bool forceRefresh = false,
-  }) {
-    queries.add(query);
-    return Stream.value(
-      DataResult(
-        data: rounds[query.apiRound] ?? const [],
-        origin: refreshError == null ? DataOrigin.remote : DataOrigin.cache,
-        fetchedAt: fetchedAt,
-        refreshError: refreshError,
-      ),
-    );
-  }
-
-  @override
-  Future<void> prefetchRound(RoundQuery query) async {}
-
-  @override
-  Future<DataResult<Match>> getMatch(
-    int matchId, {
-    bool forceRefresh = false,
-  }) => throw UnimplementedError();
-}
-
-class FakeCompetitionRepository implements CompetitionRepository {
-  FakeCompetitionRepository({this.pointers, this.failure});
-
-  final SchedulePointers? pointers;
-  final Failure? failure;
-
-  @override
-  Future<DataResult<Competition>> getCompetition(int competitionId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<DataResult<SchedulePointers>> getSchedulePointers(
-    int competitionId, {
-    bool forceRefresh = false,
-  }) async {
-    if (failure != null) throw failure!;
-    return DataResult(
-      data: pointers!,
-      origin: DataOrigin.remote,
-      fetchedAt: fetchedAt,
-    );
-  }
-}
 
 Stage stageOf(
   CompetitionDefinition definition,

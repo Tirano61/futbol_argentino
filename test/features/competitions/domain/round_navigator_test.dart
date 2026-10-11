@@ -76,7 +76,7 @@ void main() {
     });
 
     test(
-      'Nacional: 36 fechas verificadas en 2026; otra temporada usa el dato descubierto',
+      'Nacional: 36 fechas en 2026, 34 en 2025; sin catálogo usa el dato descubierto',
       () {
         expect(
           RoundNavigator.stagesFor(
@@ -92,12 +92,20 @@ void main() {
             const Season(2025),
             PhaseKey.regular,
           ),
+          hasLength(34),
+        );
+        expect(
+          RoundNavigator.stagesFor(
+            nacional,
+            const Season(2024),
+            PhaseKey.regular,
+          ),
           isEmpty,
         );
         expect(
           RoundNavigator.stagesFor(
             nacional,
-            const Season(2025),
+            const Season(2024),
             PhaseKey.regular,
             knownMaxRound: 38,
           ),
