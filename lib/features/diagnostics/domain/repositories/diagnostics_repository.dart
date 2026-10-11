@@ -1,9 +1,9 @@
 import '../entities/api_query_result.dart';
 
-abstract class MatchRepository {
+abstract class DiagnosticsRepository {
   /// Consulta los partidos de una fecha.
   ///
-  /// Lanza `ApiFailure` si la consulta falla.
+  /// Lanza `Failure` si la consulta falla.
   Future<ApiQueryResult> fetchRound({
     required int leagueId,
     required int round,

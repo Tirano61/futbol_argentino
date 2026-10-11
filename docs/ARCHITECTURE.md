@@ -150,3 +150,21 @@ Estados sealed comunes: `Initial`, `Loading`, `Loaded{data, isRefreshing, origin
 
 ---
 
+
+## Estado de implementación (Fase 1, 11/10/2026)
+
+Implementado:
+- `lib/app/`: `app.dart` (MaterialApp.router, tema M3 claro/oscuro según sistema, `es_AR`), `di/app_dependencies.dart` (composition root), `router/app_router.dart` (`AppRoutes`, `StatefulShellRoute.indexedStack`), `shell/adaptive_shell.dart` (`NavigationBar` < 600 px, `NavigationRail` 600–1199 px, riel extendido ≥ 1200 px), `theme/app_theme.dart`.
+- `lib/core/`: `config/app_config.dart`, `network/` (`TheSportsDbClient`, `RateLimiter`, `ApiException`, `JsonEnvelope`), `error/failure.dart`, `result/data_result.dart`, `time/` (`Clock`, `argentina_time.dart`).
+- `lib/features/diagnostics/`: prueba técnica reubicada (debug o `--dart-define=DIAGNOSTICS=true`), ruta `/diagnostico`.
+- `lib/shared/presentation/widgets/coming_soon_page.dart`: placeholder de Inicio, Competiciones, Equipos y Favoritos.
+
+### Contrato de errores
+- `TheSportsDbClient` lanza `ApiException` (capa de datos): tipo, mensaje real, URI, status, tiempo y cuerpo.
+- Los repositorios lo traducen con `ApiException.toFailure()` y nunca lo dejan pasar al dominio ni a la UI.
+- Un repositorio **lanza** `Failure` solo si no tiene ningún dato; si tiene caché, devuelve `DataResult` con `refreshError`.
+- Reintentos: solo timeout, error de conexión y HTTP 5xx (máx. 2, con 1 s y 3 s + hasta 500 ms al azar). Nunca 4xx, 429 ni JSON inválido. En Web un `ClientException` no se reintenta (puede ser CORS).
+- HTTP 429: el `RateLimiter` se pausa 60 s para todas las consultas.
+
+### URLs en Web
+Por ahora go_router usa la estrategia por defecto con `#` (`/#/diagnostico`), que funciona en cualquier hosting estático sin configuración. Las URLs sin `#` (`usePathUrlStrategy`) requieren que el servidor reescriba todas las rutas a `index.html`; se decidirá cuando se defina dónde se publica la versión Web.

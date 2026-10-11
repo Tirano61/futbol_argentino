@@ -52,3 +52,10 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 ## Comandos
 - `flutter analyze` · `flutter test`
 - `flutter run -d SOP10X2501001122` (tablet) · `flutter run -d chrome`
+- Web release con diagnóstico: `flutter build web --dart-define=DIAGNOSTICS=true`; probar en la tablet con `adb reverse tcp:8080 tcp:8080` y `http://localhost:8080/`.
+- La pantalla de diagnóstico está en `/diagnostico` (botón 🐞 en Inicio, solo en debug o con `DIAGNOSTICS=true`).
+
+## Contrato de red y errores
+- Todo HTTP pasa por `TheSportsDbClient.getJson` (rate limiter 25/min, timeout 15 s, reintentos solo transitorios).
+- Data lanza `ApiException`; los repositorios lo convierten con `toFailure()`. Presentation solo ve `Failure` y `DataResult`.
+- Los tests de red usan `MockClient` + `FakeClock` (`test/helpers/`) y JSON reales de `test/fixtures/api/`.
