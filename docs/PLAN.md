@@ -420,6 +420,9 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: favoritos persisten tras reinicio en Android y Web.
 
 ### Fase 9 — Responsive y estabilización  ·  Hito B
+- **Observaciones del Hito A en la tablet (11/10/2026)** para revisar acá:
+  - Deslizar para actualizar antes de 30 s de la última carga no hace nada y no lo avisa (la regla es correcta; falta feedback, p. ej. «Ya está actualizado»).
+  - La versión Web tardó ~20 s en abrir en la tablet con 4 pestañas de la app abiertas: medir con una sola.
 - **T9.1** Breakpoints (360, 768, 1280, 1920 px), Inicio en 2 columnas, panel de detalle en escritorio, buscador en barra superior.
 - **T9.2** Accesibilidad básica y revisión de errores (offline, 429, timeout, formato) en todas las pantallas.
 - **T9.3** Tests faltantes, `flutter analyze` limpio, builds release (APK + Web), prueba completa; actualizar docs y `CLAUDE.md`.
