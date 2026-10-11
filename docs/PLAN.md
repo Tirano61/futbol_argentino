@@ -377,6 +377,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: `domain/` sin imports de Flutter/http/sembast; todos los tests verdes.
 
 ### Fase 3 — Datos y caché  ·  Hito A
+- **Estado**: ✅ completada el 11/10/2026 — T3.1 a T3.4 hechas; 183 tests verdes; validada en tablet Android y Chrome (TTL sin peticiones, modo avión, reinicio). Esperando aprobación para la Fase 4.
 - **Depende de**: Fase 2.
 - **Tareas**
   - **T3.1** `EventDto` + `EventMapper` + `LeagueDto` + tests con fixtures reales y campos nulos.

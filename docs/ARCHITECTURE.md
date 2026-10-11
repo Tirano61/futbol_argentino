@@ -190,3 +190,12 @@ Dominio implementado (Dart puro, 125 tests):
 - `complete` si trae al menos lo que había visible en la ronda y lo esperado del catálogo; si no, `partial`.
 - En `complete`, los faltantes pasan a `orphaned` y se verifican. En `partial` no hay bajas; solo se verifican faltantes que no aparecen hace más de 24 h (así una respuesta siempre truncada no deja datos viejos para siempre).
 - Verificación (`applyVerification`): no existe → `removed`; misma ronda → `unconfirmed` (visible con aviso); otra ronda → activo en la nueva.
+
+## Estado de implementación (Fase 3, 11/10/2026)
+
+- `features/matches/data/`: `EventDto` (parsing tolerante), `EventMapper`, `MatchRecord` (formato guardado), `MatchRemoteDataSource`, `MatchLocalDataSource`, `RoundCachePolicy`, `MatchRepositoryImpl`.
+- `features/competitions/data/`: `LeagueDto`, `CompetitionRecord`, `CompetitionRemoteDataSource`, `CompetitionRepositoryImpl`.
+- `core/`: `storage/local_database.dart` (+ apertura por plataforma con import condicional), `cache/` (`CacheClass`, `QueryMetadataStore`), `sync/sync_scheduler.dart`, `network/remote_call.dart` (traduce `ApiException`/`JsonShapeException` a `Failure`).
+- `MatchRepository` suma `prefetchRound` (P1, no lanza errores).
+- Diagnóstico suma «Prueba de caché» (`CacheProbeBloc`) para validar la caché en dispositivos.
+- `main` es asíncrono: abre la base antes de `runApp`.

@@ -42,6 +42,9 @@ class FakeMatchRepository implements MatchRepository {
   }
 
   @override
+  Future<void> prefetchRound(RoundQuery query) async {}
+
+  @override
   Future<DataResult<Match>> getMatch(
     int matchId, {
     bool forceRefresh = false,

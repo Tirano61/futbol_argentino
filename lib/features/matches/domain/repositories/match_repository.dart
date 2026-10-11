@@ -38,6 +38,10 @@ abstract interface class MatchRepository {
     bool forceRefresh = false,
   });
 
+  /// Descarga una ronda en segundo plano, con prioridad baja, si lo
+  /// guardado venció (p. ej. la etapa vecina). No lanza errores.
+  Future<void> prefetchRound(RoundQuery query);
+
   /// Un partido por `idEvent` (caché y, si venció, `lookupevent`).
   ///
   /// Lanza `Failure` si no hay datos guardados y la consulta falla.

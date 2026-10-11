@@ -1,10 +1,11 @@
+import 'package:futbol_argentino/features/matches/data/mappers/event_mapper.dart';
+import 'package:futbol_argentino/features/matches/data/models/event_dto.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/kickoff.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match_status.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/score.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/team_ref.dart';
 import 'package:futbol_argentino/features/matches/domain/services/kickoff_resolver.dart';
-import 'package:futbol_argentino/features/matches/domain/services/match_status_mapper.dart';
 
 import 'fixtures.dart';
 
@@ -19,42 +20,21 @@ Kickoff resolveEvent(Map<String, dynamic> e) => KickoffResolver.resolve(
 
 final defaultSeenAt = DateTime.utc(2026, 10, 11, 20, 35);
 
-/// Convierte un evento real en [Match] para tests de dominio. Es una versión
-/// mínima, solo para tests: en la app lo hace `EventMapper` (Fase 3).
+/// Convierte un evento real en [Match] con el `EventMapper` de la app.
+/// [kickoff] y [apiRound] permiten variantes para tests.
 Match matchFromEvent(
   Map<String, dynamic> e, {
   DateTime? seenAt,
   Kickoff? kickoff,
   int? apiRound,
 }) {
-  int? toInt(Object? v) => v == null ? null : int.tryParse('$v'.trim());
-  final home = toInt(e['intHomeScore']);
-  final away = toInt(e['intAwayScore']);
-  return Match(
-    id: toInt(e['idEvent'])!,
-    competitionId: toInt(e['idLeague'])!,
-    competitionName: e['strLeague'] as String,
-    season: e['strSeason'] as String,
-    apiRound: apiRound ?? toInt(e['intRound'])!,
-    home: TeamRef(
-      id: toInt(e['idHomeTeam'])!,
-      name: e['strHomeTeam'] as String,
-      badgeUrl: e['strHomeTeamBadge'] as String?,
-    ),
-    away: TeamRef(
-      id: toInt(e['idAwayTeam'])!,
-      name: e['strAwayTeam'] as String,
-      badgeUrl: e['strAwayTeamBadge'] as String?,
-    ),
-    kickoff: kickoff ?? resolveEvent(e),
-    status: MatchStatusMapper.fromApi(
-      e['strStatus'] as String?,
-      postponed: e['strPostponed'] as String?,
-    ),
-    score: home != null && away != null ? Score(home: home, away: away) : null,
-    venue: e['strVenue'] as String?,
-    lastSeenAt: seenAt ?? defaultSeenAt,
-  );
+  final match = EventMapper.toEntity(
+    EventDto.fromJson(e),
+    seenAt: seenAt ?? defaultSeenAt,
+  )!;
+  return kickoff == null && apiRound == null
+      ? match
+      : rebuild(match, kickoff: kickoff, apiRound: apiRound);
 }
 
 /// Todos los partidos de una respuesta grabada.
