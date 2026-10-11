@@ -6,6 +6,7 @@ import '../../domain/entities/football_match.dart';
 import '../../domain/errors/api_failure.dart';
 import '../bloc/api_test_bloc.dart';
 import '../utils/argentina_time.dart';
+import '../widgets/badge_probe_section.dart';
 
 class ApiTestPage extends StatelessWidget {
   const ApiTestPage({super.key});
@@ -34,6 +35,8 @@ class ApiTestPage extends StatelessWidget {
                 icon: const Icon(Icons.cloud_download),
                 label: const Text('Consultar API'),
               ),
+              const SizedBox(height: 16),
+              const BadgeProbeSection(),
               const SizedBox(height: 16),
               ...switch (state) {
                 ApiTestInitial() => [
