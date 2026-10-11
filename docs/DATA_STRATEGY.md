@@ -83,3 +83,21 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 
 ---
 
+## Estado de implementación (Fase 3, 11/10/2026)
+
+- **Persistencia**: sembast (`lib/core/storage/`). Android: archivo en el directorio de soporte de la app; Web: IndexedDB. Si no se puede abrir (p. ej. modo privado), la app usa una base en memoria y sigue funcionando sin guardar entre sesiones.
+- **Stores**: `events` (partidos por `idEvent`, formato `MatchRecord` con todo lo que produce el merge), `competitions`, `schedule_pointers`, `query_meta`.
+- **Vigencia**: `CacheClass` (TTL de §5.5) + `RoundCachePolicy`. Ajuste: un partido sin cerrar de los últimos 2 días cuenta como «hoy» (10 min), para que el resultado llegue pronto.
+- **Repositorios**: `MatchRepositoryImpl` (rondas y partido) y `CompetitionRepositoryImpl` (liga y próximo/último partido), ambos stale-while-revalidate: caché inmediata, refresco al vencer, caché + `refreshError` si falla, `Failure` solo si no hay nada guardado.
+- **`SyncScheduler`** (Hito A): cola P0/P1, deduplicación por clave, máx. 2 trabajos simultáneos, un P1 sube a P0 si se pide como visible. `prefetchRound` usa P1.
+- **Pendiente (P3, post-MVP)**: la verificación con `lookupevent` de los partidos `orphaned` o faltantes antiguos; por ahora solo se registra en el log.
+
+### Validación en dispositivos (evidencia en `docs/evidence/f3_*`)
+| Prueba | Android (tablet) | Web (Chrome en la tablet) |
+|---|---|---|
+| Primera consulta | RED, 1 petición | RED |
+| Repetida dentro del TTL | CACHÉ, 0 peticiones | CACHÉ, sin refresco |
+| Modo avión + forzar | CACHÉ + `Failed host lookup` (2 reintentos) | CACHÉ + `Failed to fetch` (sin reintentos) |
+| Reinicio sin red | CACHÉ desde el archivo | CACHÉ desde IndexedDB (recarga de página) |
+
+Hallazgo: en Android, sin red y tras reiniciar, los escudos no se ven (`Image.network` no guarda en disco). `TeamBadge` mostrará iniciales; la caché de escudos en disco sigue en el backlog post-MVP.

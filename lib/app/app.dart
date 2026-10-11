@@ -4,7 +4,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config/app_config.dart';
+import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
+import '../features/matches/domain/repositories/match_repository.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -38,6 +40,10 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
         RepositoryProvider<AppConfig>.value(value: deps.config),
         RepositoryProvider<DiagnosticsRepository>.value(
           value: deps.diagnosticsRepository,
+        ),
+        RepositoryProvider<MatchRepository>.value(value: deps.matchRepository),
+        RepositoryProvider<CompetitionRepository>.value(
+          value: deps.competitionRepository,
         ),
       ],
       child: MaterialApp.router(

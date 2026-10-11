@@ -5,6 +5,7 @@ import 'package:futbol_argentino/app/di/app_dependencies.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:sembast/sembast_memory.dart';
 
 void main() {
   late int apiCalls;
@@ -19,7 +20,9 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    final db = await newDatabaseFactoryMemory().openDatabase('app.db');
     final deps = AppDependencies.create(
+      database: db,
       config: AppConfig(apiKey: '123', enableDiagnostics: enableDiagnostics),
       httpClient: MockClient((_) async {
         apiCalls++;

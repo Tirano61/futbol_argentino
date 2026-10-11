@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/diagnostics/domain/repositories/diagnostics_repository.dart';
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
+import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import '../../features/diagnostics/presentation/pages/api_test_page.dart';
+import '../../features/matches/domain/repositories/match_repository.dart';
 import '../../shared/presentation/widgets/coming_soon_page.dart';
 import '../shell/adaptive_shell.dart';
 
@@ -90,9 +92,17 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
       if (enableDiagnostics)
         GoRoute(
           path: AppRoutes.diagnostics,
-          builder: (context, state) => BlocProvider(
-            create: (context) =>
-                ApiTestBloc(context.read<DiagnosticsRepository>()),
+          builder: (context, state) => MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) =>
+                    ApiTestBloc(context.read<DiagnosticsRepository>()),
+              ),
+              BlocProvider(
+                create: (context) =>
+                    CacheProbeBloc(context.read<MatchRepository>()),
+              ),
+            ],
             child: const ApiTestPage(),
           ),
         ),
