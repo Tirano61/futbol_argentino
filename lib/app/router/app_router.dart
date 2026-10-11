@@ -8,6 +8,7 @@ import '../../features/diagnostics/domain/repositories/diagnostics_repository.da
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
 import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import '../../features/diagnostics/presentation/pages/api_test_page.dart';
+import '../../features/match_detail/presentation/pages/match_detail_page.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
 import '../../shared/presentation/widgets/coming_soon_page.dart';
 import '../shell/adaptive_shell.dart';
@@ -18,9 +19,15 @@ abstract final class AppRoutes {
   static const teams = '/equipos';
   static const favorites = '/favoritos';
   static const diagnostics = '/diagnostico';
+  static const match = '/partidos';
+
+  static String matchDetail(int id) => '$match/$id';
 }
 
 GoRouter createAppRouter({required bool enableDiagnostics}) {
+  // En Web, `context.push` (p. ej. abrir un partido) también actualiza la
+  // URL, para poder compartirla.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
   return GoRouter(
     initialLocation: AppRoutes.home,
     routes: [
@@ -100,6 +107,20 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             ],
           ),
         ],
+      ),
+      // Fuera del shell: pantalla completa con «atrás».
+      GoRoute(
+        path: '${AppRoutes.match}/:eventId',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['eventId'] ?? '');
+          return id == null
+              ? const ComingSoonPage(
+                  title: 'Partido',
+                  icon: Icons.sports_soccer,
+                  message: 'El enlace del partido no es válido.',
+                )
+              : MatchDetailPage(key: ValueKey(id), matchId: id);
+        },
       ),
       if (enableDiagnostics)
         GoRoute(
