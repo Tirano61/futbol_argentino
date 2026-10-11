@@ -21,5 +21,5 @@ final class ApiTestSuccess extends ApiTestState {
 final class ApiTestFailure extends ApiTestState {
   const ApiTestFailure(this.failure);
 
-  final ApiFailure failure;
+  final Failure failure;
 }

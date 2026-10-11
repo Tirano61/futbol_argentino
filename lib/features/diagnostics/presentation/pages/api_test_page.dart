@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/api_query_result.dart';
 import '../../domain/entities/football_match.dart';
-import '../../domain/errors/api_failure.dart';
+import '../../../../core/error/failure.dart';
 import '../bloc/api_test_bloc.dart';
-import '../utils/argentina_time.dart';
+import '../../../../core/time/argentina_time.dart';
 import '../widgets/badge_probe_section.dart';
 
 class ApiTestPage extends StatelessWidget {
@@ -80,13 +80,15 @@ class ApiTestPage extends StatelessWidget {
     _RawContentPanel(title: 'Ver JSON completo', content: result.prettyJson),
   ];
 
-  List<Widget> _failureContent(ApiFailure failure) => [
+  List<Widget> _failureContent(Failure failure) => [
     _ErrorCard(failure: failure),
-    if (failure.rawBody != null) ...[
+    if (failure.responseBody != null) ...[
       const SizedBox(height: 8),
       _RawContentPanel(
         title: 'Ver respuesta completa del servidor',
-        content: failure.rawBody!.isEmpty ? '(cuerpo vacío)' : failure.rawBody!,
+        content: failure.responseBody!.isEmpty
+            ? '(cuerpo vacío)'
+            : failure.responseBody!,
       ),
     ],
   ];
@@ -163,10 +165,21 @@ class _MatchCard extends StatelessWidget {
   }
 }
 
+String _label(Failure failure) => switch (failure) {
+  NetworkFailure(issue: NetworkIssue.timeout) => 'Timeout',
+  NetworkFailure(issue: NetworkIssue.connection) => 'Error de conexión',
+  NetworkFailure(issue: NetworkIssue.possibleCors) =>
+    'Error de conexión / posible bloqueo CORS (Flutter Web)',
+  RateLimitFailure() => 'Límite de peticiones (HTTP 429)',
+  ServerFailure() => 'Error HTTP',
+  NotFoundFailure() => 'No encontrado',
+  FormatFailure() => 'Error de formato JSON',
+};
+
 class _ErrorCard extends StatelessWidget {
   const _ErrorCard({required this.failure});
 
-  final ApiFailure failure;
+  final Failure failure;
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +195,7 @@ class _ErrorCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                failure.type.label,
+                _label(failure),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -191,11 +204,11 @@ class _ErrorCard extends StatelessWidget {
               const SizedBox(height: 8),
               if (failure.statusCode != null)
                 Text('Estado HTTP: ${failure.statusCode}'),
-              if (failure.elapsedMs != null)
-                Text('Tiempo: ${failure.elapsedMs} ms'),
+              if (failure.elapsed != null)
+                Text('Tiempo: ${failure.elapsed!.inMilliseconds} ms'),
               const SizedBox(height: 8),
               SelectableText(
-                failure.message,
+                failure.detail,
                 style: const TextStyle(fontFamily: 'monospace'),
               ),
             ],

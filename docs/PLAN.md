@@ -353,6 +353,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Para pasar**: decisión D12 cerrada según el resultado de T0.2.
 
 ### Fase 1 — Base mínima  ·  Hito A
+- **Estado**: ✅ completada el 11/10/2026 — T1.1 a T1.4 hechas; 30 tests verdes; validada en tablet Android y Chrome (escritorio y tablet). Esperando aprobación para la Fase 2.
 - **Objetivo**: esqueleto definitivo con lo mínimo para un fixture.
 - **Depende de**: Fase 0.
 - **Tareas**

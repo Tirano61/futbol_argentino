@@ -1,6 +1,6 @@
 {
-    "name": "futbol_argentino",
-    "short_name": "futbol_argentino",
+    "name": "Fútbol Argentino",
+    "short_name": "Fútbol AR",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

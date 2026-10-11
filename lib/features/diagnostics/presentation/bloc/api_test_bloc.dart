@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/failure.dart';
 import '../../domain/entities/api_query_result.dart';
-import '../../domain/errors/api_failure.dart';
-import '../../domain/repositories/match_repository.dart';
+import '../../domain/repositories/diagnostics_repository.dart';
 
 part 'api_test_event.dart';
 part 'api_test_state.dart';
@@ -18,7 +18,7 @@ class ApiTestBloc extends Bloc<ApiTestEvent, ApiTestState> {
   static const round = 33;
   static const season = 2026;
 
-  final MatchRepository _repository;
+  final DiagnosticsRepository _repository;
 
   Future<void> _onQueryRequested(
     ApiQueryRequested event,
@@ -36,12 +36,8 @@ class ApiTestBloc extends Bloc<ApiTestEvent, ApiTestState> {
         '${result.matches.length} partidos',
       );
       emit(ApiTestSuccess(result));
-    } on ApiFailure catch (failure) {
-      debugPrint(
-        'TheSportsDB ERROR [${failure.type.label}]'
-        '${failure.statusCode != null ? ' HTTP ${failure.statusCode}' : ''}: '
-        '${failure.message}',
-      );
+    } on Failure catch (failure) {
+      debugPrint('TheSportsDB ERROR $failure');
       emit(ApiTestFailure(failure));
     }
   }
