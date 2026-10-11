@@ -39,6 +39,7 @@
 | D12 Escudos Web | Fallback `<img>` (validado en T0.2) | Proxy propio (Cloudflare Worker): servicio extra, requiere aprobación explícita. |
 
 ## Registro de cambios
+- 11/10/2026 — Fase 2: `Match` no guarda la fase (la calcula `PhaseResolver`) para respetar la dirección de dependencias; sin caso de uso `GetMatchDetail` (sería un pasamanos); Clausura 2026 cargado «en curso» (sin fin ni eliminatorias hasta tener datos); duplicados de equipo en una fase → ambos `undetermined`; faltantes en respuestas parciales se verifican si no se ven hace > 24 h.
 - 11/10/2026 — Fase 1: URLs Web con `#` (estrategia por defecto) hasta definir el hosting; `Clock` se creó en T1.2 (lo necesitaba el `RateLimiter`) en lugar de T1.3.
 - 11/10/2026 — D12 cerrada con la evidencia de T0.2 (`docs/evidence/`).
 - 11/10/2026 — Plan v2 aprobado. D5, D6, D9 ajustadas en revisión; D1 y D3 aprobadas explícitamente.

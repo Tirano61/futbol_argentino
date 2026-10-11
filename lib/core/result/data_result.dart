@@ -23,4 +23,12 @@ final class DataResult<T> {
 
   bool get isFromCache => origin == DataOrigin.cache;
   bool get hasRefreshError => refreshError != null;
+
+  /// Transforma los datos conservando origen, fecha y error de refresco.
+  DataResult<R> map<R>(R Function(T data) transform) => DataResult(
+    data: transform(data),
+    origin: origin,
+    fetchedAt: fetchedAt,
+    refreshError: refreshError,
+  );
 }

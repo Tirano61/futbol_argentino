@@ -168,3 +168,25 @@ Implementado:
 
 ### URLs en Web
 Por ahora go_router usa la estrategia por defecto con `#` (`/#/diagnostico`), que funciona en cualquier hosting estático sin configuración. Las URLs sin `#` (`usePathUrlStrategy`) requieren que el servidor reescriba todas las rutas a `index.html`; se decidirá cuando se defina dónde se publica la versión Web.
+
+## Estado de implementación (Fase 2, 11/10/2026)
+
+Dominio implementado (Dart puro, 125 tests):
+- `core/time/`: `CalendarDay`, `ArgentinaTime` (UTC−3 fijo, día argentino, formatos).
+- `features/matches/domain/`: `Match`, `TeamRef`, `Kickoff`, `MatchStatus`, `Score`; servicios `KickoffResolver` (D5), `MatchStatusMapper`, `RoundMergePolicy` (§5.3), `MatchGrouping`; contrato `MatchRepository` + `RoundQuery`.
+- `features/competitions/domain/`: `Competition`, `Season`, `PhaseKey`/`StageKind`, `PhaseAssignment`, `Stage`; `CompetitionCatalog` (4406, 4616, 4500 con ventanas 2025–2026 desde datos reales); servicios `PhaseResolver` (D6), `StageLabeler`, `RoundNavigator`; contrato `CompetitionRepository`; casos de uso `WatchStageMatches`, `ResolveCurrentStage`.
+
+### Ajustes respecto del plan
+- **`Match` no guarda la fase.** La fase depende del catálogo de `competitions` y `matches` no puede depender de `competitions` (§3.1). `PhaseResolver` la calcula por ronda y `WatchStageMatches` devuelve `StageMatches.assignments`. Ventaja extra: corregir el catálogo no exige migrar datos guardados.
+- **Sin caso de uso `GetMatchDetail`**: sería un pasamanos de `MatchRepository.getMatch` (convención: casos de uso solo con lógica). El BLoC de detalle usará el repositorio.
+
+### Reglas de fase implementadas (`PhaseResolver`)
+1. Temporada con catálogo: el día argentino debe caer en el período de **un solo** torneo. Ronda 0 → eliminatorias solo dentro de la ventana de eliminatorias; ronda 16 → octavos si cae en esa ventana, fecha 16 si cae en la regular; fechas 1–15 → solo dentro del período regular.
+2. Un torneo en curso puede no tener fin (`regularTo: null`); sin ventana de eliminatorias verificada, sus partidos de ronda 0 quedan `undetermined`.
+3. Sin catálogo: inferencia solo con exactamente dos grupos de días separados por ≥ 45 días y ≤ 15 partidos cada uno.
+4. Consistencia: si un equipo aparece dos veces en la misma fase y fecha regular, **ambos** partidos quedan `undetermined` (no se puede saber cuál es cuál).
+
+### Política de merge implementada (`RoundMergePolicy`)
+- `complete` si trae al menos lo que había visible en la ronda y lo esperado del catálogo; si no, `partial`.
+- En `complete`, los faltantes pasan a `orphaned` y se verifican. En `partial` no hay bajas; solo se verifican faltantes que no aparecen hace más de 24 h (así una respuesta siempre truncada no deja datos viejos para siempre).
+- Verificación (`applyVerification`): no existe → `removed`; misma ronda → `unconfirmed` (visible con aviso); otra ronda → activo en la nueva.
