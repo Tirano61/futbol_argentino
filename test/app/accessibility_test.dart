@@ -40,6 +40,11 @@ void main() {
 
       await openSection(tester, 'Favoritos');
       await expectGuidelines(tester);
+
+      await openSection(tester, 'Inicio');
+      await tester.tap(find.byTooltip('Ajustes'));
+      await tester.pumpAndSettle();
+      await expectGuidelines(tester);
       semantics.dispose();
     });
   }
@@ -76,6 +81,11 @@ void main() {
     await tester.pump(const Duration(minutes: 1));
 
     await openSection(tester, 'Favoritos');
+
+    await openSection(tester, 'Inicio');
+    await tester.tap(find.byTooltip('Ajustes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Datos guardados'), findsOne);
     // Los desbordes de layout fallan el test por sí solos.
   });
 }

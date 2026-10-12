@@ -1,6 +1,7 @@
 import '../../../../core/error/failure.dart';
 import '../../../../core/result/data_result.dart';
 import '../../../../core/sync/cancel_token.dart';
+import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/calendar_day.dart';
@@ -58,7 +59,7 @@ class WatchTeamDetail {
     Team? info;
     Failure? infoError;
 
-    Future<TeamDetail> build(TeamSyncProgress progress) async {
+    Future<TeamDetail> build(SyncProgress progress) async {
       final stored = await _matches.storedTeamMatches(teamId);
       final season = _seasonOf(stored, today);
       final items = [
@@ -95,7 +96,7 @@ class WatchTeamDetail {
       );
     }
 
-    yield await build(const TeamSyncProgress());
+    yield await build(const SyncProgress());
 
     final infoRequest = _loadInfo(teamId, forceRefresh);
     Failure? failure = await EnsureTeamIndex(_matches, catalog: _catalog)(
@@ -111,7 +112,7 @@ class WatchTeamDetail {
         : _plan(stored, _seasonOf(stored, today), today, forceRefresh);
     var done = 0;
     var fetched = infoFetched ? 1 : 0;
-    yield await build(TeamSyncProgress(total: plan.length, fetched: fetched));
+    yield await build(SyncProgress(total: plan.length, fetched: fetched));
 
     for (final step in plan) {
       try {
@@ -132,12 +133,12 @@ class WatchTeamDetail {
       done++;
       labeler.invalidate(step.query);
       yield await build(
-        TeamSyncProgress(done: done, total: plan.length, fetched: fetched),
+        SyncProgress(done: done, total: plan.length, fetched: fetched),
       );
     }
 
     yield await build(
-      TeamSyncProgress(
+      SyncProgress(
         done: done,
         total: plan.length,
         isRunning: false,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/cache/cache_class.dart';
 import '../../../../core/cache/query_metadata_store.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/network/remote_call.dart';
@@ -117,6 +118,55 @@ class MatchRepositoryImpl implements MatchRepository {
 
   @override
   Future<List<Match>> storedRound(RoundQuery query) => _visibleRound(query);
+
+  @override
+  Future<RoundCacheState> roundCacheState(RoundQuery query) async {
+    final meta = await _metadata.get(roundKey(query));
+    if (meta == null) return RoundCacheState.missing;
+    return RoundCacheState(
+      freshness: meta.isFresh(_clock.now())
+          ? RoundFreshness.fresh
+          : RoundFreshness.stale,
+      fetchedAt: meta.fetchedAt,
+      isClosed: meta.cacheClass == CacheClass.closed,
+      isComplete: meta.quality == ResponseQuality.complete.name,
+    );
+  }
+
+  @override
+  Future<List<Match>> storedSeason(int competitionId, String season) async => [
+    for (final m in await _local.season(
+      competitionId: competitionId,
+      season: season,
+    ))
+      if (m.isVisible) m,
+  ];
+
+  @override
+  Future<List<StoredSeasonSummary>> storedSeasons() => _local.seasonSummaries();
+
+  @override
+  Future<int> deleteSeason(int competitionId, String season) async {
+    // Primero las consultas: si se corta en el medio, quedan partidos sin
+    // consulta registrada (se vuelven a pedir) y nunca una ronda «vigente»
+    // sin sus partidos.
+    final ids = [
+      for (final m in await _local.season(
+        competitionId: competitionId,
+        season: season,
+      ))
+        m.id,
+    ];
+    await _metadata.delete(
+      prefix: 'round:$competitionId:$season:',
+      keys: ids.map(eventKey),
+    );
+    final deleted = await _local.deleteSeason(
+      competitionId: competitionId,
+      season: season,
+    );
+    return deleted.length;
+  }
 
   @override
   Future<List<Match>> storedTeamMatches(int teamId) async => [

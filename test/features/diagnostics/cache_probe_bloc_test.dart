@@ -52,6 +52,22 @@ class _StubRepository implements MatchRepository {
       throw UnimplementedError();
 
   @override
+  Future<RoundCacheState> roundCacheState(RoundQuery query) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<Match>> storedSeason(int competitionId, String season) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<StoredSeasonSummary>> storedSeasons() =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> deleteSeason(int competitionId, String season) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<Match>> storedTeamMatches(int teamId) =>
       throw UnimplementedError();
 

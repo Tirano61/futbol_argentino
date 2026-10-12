@@ -168,3 +168,29 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 | Modo avión + «Actualizar» | datos guardados + aviso, la lista no se vacía | — |
 | Chrome en la tablet (release) | — | Inicio con escudos; acceso a Copa actualiza la URL |
 
+
+## Estado de implementación (Fase 12, 12/10/2026) — Historial a pedido, conservación y limpieza manual
+
+**Vigencia por ronda** — `MatchRepository.roundCacheState` (sin red): `missing` / `fresh` / `stale`, más `isClosed` (clase `closed` al descargarla: todo terminado hace > 48 h) e `isComplete` (última respuesta `complete`). `storedSeason(competición, temporada)`: los partidos visibles de todas las rondas guardadas.
+
+**`CompleteRounds`** (`competitions/domain/usecases/`): completa a pedido las rondas de una temporada (por defecto, todas sus etapas según `RoundNavigator`; se le puede pasar una lista, p. ej. las fechas regulares 1–16). Mismo patrón que la ficha del equipo: emite lo guardado enseguida y después una vez por ronda, con `SyncProgress`; P2 (10 por minuto, de a una, en pausa con la app oculta); `CancelToken`; un error detiene la descarga. Por ronda:
+
+| Estado | Condición | ¿Se pide? |
+|---|---|---|
+| falta | sin `query_meta` | sí |
+| vigente | dentro de su TTL | **nunca** (tampoco con refresco manual) |
+| cerrada | vencida, `isClosed`, respuesta completa y todo con estado final (terminado **con resultado**, cancelado o abandonado) | no; solo con refresco manual |
+| histórica | temporada anterior al año argentino, vencida, respuesta completa y todo con estado final (un postergado también cuenta como final) | no; solo con refresco manual |
+| vencida | el resto (partidos sin jugar o sin resultado, respuesta parcial o vacía) | sí |
+
+**Presupuesto** (test `complete_rounds_test.dart`, JSON del 11/10/2026): en frío Primera 2026 = 17 (fechas 1–16 + ronda 0 de eliminatorias del Apertura; las 1–16 solas = 16), Nacional 2026 = 36, Copa 2026 = 6, Primera 2025 = 16. En caliente = 0. Primera 2025 a los 60 días = 0 (histórica). Primera 2026 a los 31 días = 6 (la 11 por un partido reprogramado al 14/10, la 12 en juego y la 13–16; la 0 y la 1–10 quedan «cerradas»). Ninguna pantalla de uso lo llama todavía: lo usarán las tablas (Fase 13) y el calendario (Fase 18). Se prueba desde «Historial» en `/diagnostico`.
+
+**Conservación**: los partidos de temporadas anteriores quedan en la base; no hay purga automática por temporada.
+
+**Limpieza manual** (`/ajustes` → «Datos guardados»): temporadas guardadas por competición, con la cantidad de partidos; la actual (o una posterior) no se puede borrar (regla en el dominio, `DeleteStoredSeasons`, además de la pantalla). `deleteSeason` borra primero las consultas `round:<competición>:<temporada>:*` y `event:<id>` de `query_meta` y después los partidos: si se corta en el medio, quedan partidos sin consulta registrada (se vuelven a pedir), nunca una ronda «vigente» sin partidos. No toca `favorites`, `teams`, `competitions` ni `schedule_pointers`. Lo borrado se vuelve a descargar si se abre.
+
+**Limpieza automática**: pospuesta. Solo borraría partidos `removed` verificados con `lookupevent` hace más de 30 días, y esa verificación no existe (los `orphaned` solo se registran en el log). Hoy ningún partido llega a `removed`; «Historial» muestra por temporada los `orphaned` y los `removed`.
+
+**Hallazgos con datos reales (tablet, 12/10/2026)**:
+- Copa 2025 en la API: los octavos (r16) traen 4 de 8 partidos (`partial`) y cuartos y semifinales están vacíos. Esas rondas no quedan «históricas» y se vuelven a pedir al completar esa temporada si venció su TTL (15 min y 24 h): hasta 3 peticiones por vez.
+- Nacional 2025: 620 partidos en 34 rondas.

@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/time/clock.dart';
+import '../../features/competitions/domain/usecases/complete_rounds.dart';
 import '../../features/competitions/presentation/pages/competitions_page.dart';
 import '../../features/competitions/presentation/routing/fixture_route.dart';
 import '../../features/diagnostics/domain/repositories/diagnostics_repository.dart';
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
 import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
+import '../../features/diagnostics/presentation/bloc/history_probe_bloc.dart';
 import '../../features/diagnostics/presentation/pages/api_test_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/match_detail/presentation/pages/match_detail_page.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/teams/presentation/pages/team_detail_page.dart';
 import '../../features/teams/presentation/pages/team_search_page.dart';
 import '../../shared/presentation/widgets/coming_soon_page.dart';
@@ -23,6 +27,7 @@ abstract final class AppRoutes {
   static const teams = '/equipos';
   static const favorites = '/favoritos';
   static const diagnostics = '/diagnostico';
+  static const settings = '/ajustes';
   static const match = '/partidos';
 
   static String matchDetail(int id) => '$match/$id';
@@ -124,6 +129,10 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
               : MatchDetailPage(key: ValueKey(id), matchId: id);
         },
       ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsPage(),
+      ),
       if (enableDiagnostics)
         GoRoute(
           path: AppRoutes.diagnostics,
@@ -136,6 +145,15 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
               BlocProvider(
                 create: (context) =>
                     CacheProbeBloc(context.read<MatchRepository>()),
+              ),
+              BlocProvider(
+                create: (context) => HistoryProbeBloc(
+                  completeRounds: CompleteRounds(
+                    context.read<MatchRepository>(),
+                  ),
+                  matches: context.read<MatchRepository>(),
+                  clock: context.read<Clock>(),
+                ),
               ),
             ],
             child: const ApiTestPage(),

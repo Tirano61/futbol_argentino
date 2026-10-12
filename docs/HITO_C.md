@@ -97,6 +97,8 @@ Forma de trabajo de siempre: cada fase cierra con `flutter analyze` sin issues, 
 - **Aceptación:** V8–V14 documentados y fixtures grabados en el README. Zonas y formato de Nacional aprobados por vos antes de las Fases 13 y 14.
 
 ## Fase 12 — Historial a pedido, conservación y limpieza manual
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 13.
+
 Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - `SyncProgress` en `core/sync/` (sale de `TeamSyncProgress`).
 - `MatchRepository` suma `roundCacheState` (falta / vigente / vencida) y `storedSeason`.

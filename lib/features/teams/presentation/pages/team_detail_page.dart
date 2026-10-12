@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_router.dart';
+import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
@@ -277,7 +278,7 @@ class _Header extends StatelessWidget {
 class _SyncStatus extends StatelessWidget {
   const _SyncStatus({required this.progress, required this.onRetry});
 
-  final TeamSyncProgress progress;
+  final SyncProgress progress;
   final VoidCallback onRetry;
 
   @override

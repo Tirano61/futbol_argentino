@@ -125,7 +125,7 @@ test/
 ## 6. Navegación y pantallas
 
 ### 6.1 Rutas (go_router, `StatefulShellRoute.indexedStack`)
-`/` Inicio · `/competiciones/:leagueId?temporada=&fase=&ronda=` · `/equipos?q=` · `/equipos/:teamId` · `/partidos/:eventId` · `/favoritos` · `/diagnostico` (debug).
+`/` Inicio · `/competiciones/:leagueId?temporada=&fase=&ronda=` · `/equipos?q=` · `/equipos/:teamId` · `/partidos/:eventId` · `/favoritos` · `/ajustes` (Fase 12) · `/diagnostico` (debug).
 
 ### 6.2 Layout adaptable
 < 600 px: `NavigationBar` inferior, pull-to-refresh · 600–1199 px: `NavigationRail` · ≥ 1200 px: rail extendido, buscador en barra superior, Inicio en 2 columnas, fixture con panel de detalle, ancho máx. 1200 px. En Web también botón «Actualizar».
@@ -279,3 +279,13 @@ Dominio implementado (Dart puro, 125 tests):
 - **Ficha en una sección oculta**: `TeamDetailPage` escucha `TickerMode.getValuesNotifier` (go_router apaga el `TickerMode` de las secciones inactivas) y manda `TeamDetailPaused`/`TeamDetailResumed`. La pausa tiene su propio handler (sin `restartable`): solo cancela el `CancelToken` y la carga en curso termina sola; al volver, `TeamDetailResumed` (un `TeamDetailLoadEvent`, `restartable`) sigue con lo que falta si la descarga había quedado a medias. Pasar la pausa por `restartable` dejaba los eventos siguientes esperando la cancelación de la carga.
 - **«Ya está actualizado» en la ficha**: `MatchRepository.syncRound` devuelve si consultó la red; `WatchTeamDetail` cuenta las consultas de la carga (`TeamSyncProgress.fetched`, incluye `lookupteam`). Tras un refresco con 0 consultas y sin errores, la ficha avisa «Ya está actualizado.» (`showAlreadyUpToDate` sin hora).
 - **Tests**: `test/app/team_detail_visibility_test.dart` (ficha oculta: sin peticiones; al volver sigue; refrescar con la descarga en curso no la cuelga); `pumpApp(requests:)` registra las peticiones.
+
+## Estado de implementación (Fase 12, 12/10/2026)
+
+- **`SyncProgress`** pasa a `lib/core/sync/sync_progress.dart` (antes `TeamSyncProgress` en `teams`): lo usan la ficha del equipo y `CompleteRounds`.
+- **`MatchRepository`** suma `roundCacheState`, `storedSeason`, `storedSeasons` (resumen por competición y temporada, con `orphaned` y `removed`) y `deleteSeason`. `QueryMetadataStore.delete(prefix:, keys:)`. `MatchLocalDataSource.season`, `seasonSummaries` (sin reconstruir cada partido) y `deleteSeason`.
+- **`CompleteRounds`** (`competitions/domain/usecases/complete_rounds.dart`) emite `SeasonCompletion` (`competitions/domain/entities/season_completion.dart`): partidos guardados de la temporada, estado de cada ronda (`RoundCompletionStatus`: falta, vencida, vigente, cerrada, histórica, descargada) y `SyncProgress`. La regla por ronda es `CompleteRounds.classify` (pura, con tests). `WatchTeamDetail` no cambia (su presupuesto sigue en 25).
+- **Feature `settings`** (nueva): `domain/entities/stored_season.dart`, `domain/usecases/stored_seasons.dart` (`GetStoredSeasons`, `DeleteStoredSeasons`: la temporada actual o posterior no se puede borrar), `presentation/bloc/stored_data_bloc.dart` (`StoredDataStarted`, `StoredDataToggled`, `StoredDataDeleteRequested`; `StoredDataUnavailable` si falla la base local) y `presentation/pages/settings_page.dart`. La Fase 16 le suma el tema.
+- **Rutas**: `/ajustes` fuera del shell (pantalla completa con «atrás»; por enlace directo, «Ir al inicio», como el partido). Acceso: engranaje «Ajustes» en la barra del Inicio.
+- **`/diagnostico` → «Historial»**: `HistoryProbeBloc` (inicio con `restartable`; cancelar en su propio handler, como pide `CLAUDE.md`) y `HistoryProbeSection`: competición y temporada, «Completar temporada», «Forzar vencidas», «Cancelar», estado por ronda, temporadas guardadas y estado de la limpieza automática.
+- **Tests**: `test/features/competitions/complete_rounds_test.dart` (presupuestos, reglas, cancelación, error), `test/features/settings/stored_seasons_test.dart` (vigencia, temporadas, borrado, favoritos intactos), `test/features/settings/settings_page_test.dart` (`bloc_test` y pantalla), `test/features/diagnostics/history_probe_bloc_test.dart`; Ajustes en `responsive_layout_test.dart` (4 anchos) y en `accessibility_test.dart` (pautas y texto al 200 %).
