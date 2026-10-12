@@ -112,6 +112,11 @@ class _HomeView extends StatelessWidget {
                 onPressed: state.isBusy ? null : () => _refresh(context),
                 icon: const Icon(Icons.refresh),
               ),
+              IconButton(
+                tooltip: 'Ajustes',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => context.push(AppRoutes.settings),
+              ),
               if (showDiagnostics)
                 IconButton(
                   tooltip: 'Diagnóstico de la API',

@@ -43,6 +43,25 @@ void main() {
       expect(find.text('Todavía no tenés equipos favoritos'), findsOne);
       // Los desbordes de layout fallan el test por sí solos.
     });
+
+    testWidgets('$width px: Ajustes sin desbordes', (tester) async {
+      await pumpApp(tester, size);
+
+      await tester.tap(find.byTooltip('Ajustes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Datos guardados'), findsOne);
+      // Lo que guardó el Inicio: temporada actual, no se puede borrar.
+      expect(find.text('Primera División'), findsOne);
+      expect(find.byIcon(Icons.lock_outline), findsWidgets);
+      expect(
+        tester.getSize(find.byType(ListView)).width,
+        lessThanOrEqualTo(720),
+      );
+
+      await tester.tap(find.byTooltip('Atrás'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hoy'), findsOne);
+    });
   }
 
   for (final size in [phone, tablet]) {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
+import 'package:futbol_argentino/core/sync/sync_progress.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/teams/domain/entities/team_detail.dart';
 import 'package:futbol_argentino/features/teams/domain/usecases/watch_team_detail.dart';
@@ -92,12 +93,7 @@ void main() {
       expect(
         detail.progress,
         // Consultas: `lookupteam` + 21 rondas (2 ya estaban por el índice).
-        const TeamSyncProgress(
-          done: 23,
-          total: 23,
-          isRunning: false,
-          fetched: 22,
-        ),
+        const SyncProgress(done: 23, total: 23, isRunning: false, fetched: 22),
       );
     });
 

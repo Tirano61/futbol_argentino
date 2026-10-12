@@ -8,6 +8,7 @@ import '../bloc/api_test_bloc.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../widgets/badge_probe_section.dart';
 import '../widgets/cache_probe_section.dart';
+import '../widgets/history_probe_section.dart';
 import '../widgets/package_probe_section.dart';
 
 class ApiTestPage extends StatelessWidget {
@@ -39,6 +40,8 @@ class ApiTestPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const CacheProbeSection(),
+              const SizedBox(height: 16),
+              const HistoryProbeSection(),
               const SizedBox(height: 16),
               const BadgeProbeSection(),
               const SizedBox(height: 16),

@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/sync/sync_progress.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/team_ref.dart';
 import 'team.dart';
@@ -30,35 +31,6 @@ final class TeamMatch extends Equatable {
   List<Object?> get props => [match, competitionName, phaseLabel, stageLabel];
 }
 
-/// Avance de la descarga de las rondas del equipo (P2).
-final class TeamSyncProgress extends Equatable {
-  const TeamSyncProgress({
-    this.done = 0,
-    this.total = 0,
-    this.isRunning = true,
-    this.failure,
-    this.fetched = 0,
-  });
-
-  /// Rondas al día (vigentes o recién descargadas).
-  final int done;
-
-  /// Rondas de la temporada de las competiciones del equipo; `0` mientras
-  /// todavía no se sabe cuáles son.
-  final int total;
-  final bool isRunning;
-
-  /// La descarga se detuvo por este error (se muestran los guardados).
-  final Failure? failure;
-
-  /// Consultas a la red de esta carga (datos del equipo y rondas); `0` si
-  /// todo estaba vigente.
-  final int fetched;
-
-  @override
-  List<Object?> get props => [done, total, isRunning, failure, fetched];
-}
-
 /// Ficha de un equipo: datos y partidos de todas las competiciones
 /// guardadas.
 final class TeamDetail extends Equatable {
@@ -70,7 +42,7 @@ final class TeamDetail extends Equatable {
     this.competitionIds = const [],
     this.upcoming = const [],
     this.played = const [],
-    this.progress = const TeamSyncProgress(),
+    this.progress = const SyncProgress(),
   });
 
   final int teamId;
@@ -92,7 +64,7 @@ final class TeamDetail extends Equatable {
 
   /// Terminados (o con fecha pasada), del más reciente al más viejo.
   final List<TeamMatch> played;
-  final TeamSyncProgress progress;
+  final SyncProgress progress;
 
   @override
   List<Object?> get props => [

@@ -58,4 +58,21 @@ class QueryMetadataStore {
 
   Future<void> put(QueryMetadata metadata) =>
       AppStores.queryMeta.record(metadata.key).put(_db, metadata.toMap());
+
+  /// Borra las consultas cuya clave empieza con [prefix] (p. ej.
+  /// `round:4406:2025:`) y las de [keys].
+  Future<void> delete({String? prefix, Iterable<String> keys = const []}) =>
+      _db.transaction((txn) async {
+        if (prefix != null) {
+          await AppStores.queryMeta.delete(
+            txn,
+            finder: Finder(
+              filter: Filter.custom(
+                (r) => (r.key! as String).startsWith(prefix),
+              ),
+            ),
+          );
+        }
+        await AppStores.queryMeta.records(keys).delete(txn);
+      });
 }

@@ -80,6 +80,31 @@ class FakeMatchRepository implements MatchRepository {
       if (m.isVisible) m,
   ];
 
+  /// Lo que responde [roundCacheState] por `apiRound` (por defecto, falta).
+  final cacheStates = <int, RoundCacheState>{};
+
+  @override
+  Future<RoundCacheState> roundCacheState(RoundQuery query) async =>
+      cacheStates[query.apiRound] ?? RoundCacheState.missing;
+
+  @override
+  Future<List<Match>> storedSeason(int competitionId, String season) async => [
+    for (final round in rounds.values)
+      for (final m in round)
+        if (m.competitionId == competitionId &&
+            m.season == season &&
+            m.isVisible)
+          m,
+  ];
+
+  @override
+  Future<List<StoredSeasonSummary>> storedSeasons() =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> deleteSeason(int competitionId, String season) =>
+      throw UnimplementedError();
+
   @override
   Future<List<Match>> storedTeamMatches(int teamId) async => [
     for (final round in rounds.values)
