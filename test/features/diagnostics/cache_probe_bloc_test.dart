@@ -54,6 +54,10 @@ class _StubRepository implements MatchRepository {
   @override
   Future<List<Match>> storedTeamMatches(int teamId) =>
       throw UnimplementedError();
+
+  @override
+  Stream<List<Match>> watchStoredTeamsMatches(Set<int> teamIds) =>
+      throw UnimplementedError();
 }
 
 void main() {

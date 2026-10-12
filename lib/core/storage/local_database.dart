@@ -7,7 +7,7 @@ import 'database_opener_io.dart'
 
 /// Base local de la app: un archivo en Android (documentos de la app) e
 /// IndexedDB en Web. Es la caché de partidos, competiciones, metadatos de
-/// consultas y, más adelante, favoritos.
+/// consultas y favoritos.
 abstract final class LocalDatabase {
   static const fileName = 'futbol_argentino.db';
 
@@ -46,4 +46,7 @@ abstract final class AppStores {
 
   /// Metadatos de consultas por clave (`round:4406:2026:12`…).
   static final queryMeta = stringMapStoreFactory.store('query_meta');
+
+  /// Equipos favoritos por `idTeam` (solo locales, sin red).
+  static final favorites = intMapStoreFactory.store('favorites');
 }

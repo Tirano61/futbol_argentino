@@ -10,6 +10,7 @@ import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
+import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../domain/entities/team_detail.dart';
@@ -56,6 +57,8 @@ class _TeamDetailView extends StatelessWidget {
               _ => 'Equipo',
             }),
             actions: [
+              if (state case TeamDetailLoaded(detail: TeamDetail(:final team?)))
+                FavoriteButton(team: team),
               IconButton(
                 tooltip: 'Actualizar',
                 onPressed: state.isBusy ? null : refresh,

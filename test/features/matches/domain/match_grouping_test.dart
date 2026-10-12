@@ -69,4 +69,44 @@ void main() {
 
     expect(result.single.lastSeenAt, DateTime.utc(2026, 10, 1));
   });
+
+  group('isPlayed', () {
+    const today = CalendarDay(2026, 10, 11);
+
+    test('terminados sí; en juego y por jugarse hoy, no', () {
+      final finished = matches.where((m) => m.status.isFinished);
+      final inPlay = matches.where((m) => m.status.isInPlay);
+      final laterToday = matches.where(
+        (m) => m.status.isScheduled && m.kickoff.argentinaDay == today,
+      );
+
+      expect(finished, isNotEmpty);
+      expect(inPlay, isNotEmpty);
+      expect(laterToday, isNotEmpty);
+      expect(finished.every((m) => MatchGrouping.isPlayed(m, today)), isTrue);
+      expect(inPlay.any((m) => MatchGrouping.isPlayed(m, today)), isFalse);
+      expect(laterToday.any((m) => MatchGrouping.isPlayed(m, today)), isFalse);
+    });
+
+    test('sin actualizar con fecha pasada: no se muestra como próximo', () {
+      // Fecha 13 del Clausura: el 18/10, grabada sin jugar.
+      final pending = fixtureMatches('eventsround_4406_r13_s2026').where(
+        (m) =>
+            m.status.isScheduled &&
+            m.kickoff.argentinaDay == const CalendarDay(2026, 10, 18),
+      );
+
+      expect(pending, isNotEmpty);
+      for (final m in pending) {
+        expect(
+          MatchGrouping.isPlayed(m, const CalendarDay(2026, 10, 18)),
+          isFalse,
+        );
+        expect(
+          MatchGrouping.isPlayed(m, const CalendarDay(2026, 10, 19)),
+          isTrue,
+        );
+      }
+    });
+  });
 }

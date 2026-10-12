@@ -66,6 +66,10 @@ abstract interface class MatchRepository {
   /// que la API dio de baja (sin red).
   Future<List<Match>> storedTeamMatches(int teamId);
 
+  /// Partidos guardados de esos equipos, salvo los dados de baja (sin red).
+  /// Emite enseguida y de nuevo cada vez que se guardan partidos.
+  Stream<List<Match>> watchStoredTeamsMatches(Set<int> teamIds);
+
   /// Un partido por `idEvent` (caché y, si venció, `lookupevent`).
   ///
   /// Lanza `Failure` si no hay datos guardados y la consulta falla.

@@ -7,6 +7,8 @@ import '../core/config/app_config.dart';
 import '../core/time/clock.dart';
 import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
+import '../features/favorites/domain/repositories/favorites_repository.dart';
+import '../features/favorites/presentation/bloc/favorites_bloc.dart';
 import '../features/matches/domain/repositories/match_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import 'di/app_dependencies.dart';
@@ -63,17 +65,28 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
           value: deps.competitionRepository,
         ),
         RepositoryProvider<TeamRepository>.value(value: deps.teamRepository),
+        RepositoryProvider<FavoritesRepository>.value(
+          value: deps.favoritesRepository,
+        ),
       ],
-      child: MaterialApp.router(
-        title: 'Fútbol Argentino',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.system,
-        locale: const Locale('es', 'AR'),
-        supportedLocales: const [Locale('es', 'AR'), Locale('es')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        routerConfig: _router,
+      // Global: la estrella de cualquier pantalla y la lista de Favoritos
+      // comparten el mismo estado.
+      child: BlocProvider(
+        create: (context) => FavoritesBloc(
+          favorites: deps.favoritesRepository,
+          clock: deps.clock,
+        )..add(const FavoritesSubscribed()),
+        child: MaterialApp.router(
+          title: 'Fútbol Argentino',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
+          locale: const Locale('es', 'AR'),
+          supportedLocales: const [Locale('es', 'AR'), Locale('es')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          routerConfig: _router,
+        ),
       ),
     );
   }

@@ -10,16 +10,21 @@ import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
+import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../competitions/domain/repositories/competition_repository.dart';
 import '../../../competitions/presentation/routing/fixture_route.dart';
+import '../../../favorites/domain/repositories/favorites_repository.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../domain/entities/favorite_team_overview.dart';
 import '../../domain/entities/home_feed.dart';
 import '../../domain/usecases/get_home_feed.dart';
+import '../../domain/usecases/watch_favorite_teams.dart';
 import '../bloc/home_bloc.dart';
+import '../bloc/home_favorites_bloc.dart';
 
-/// Inicio: partidos de hoy, próximos 7 días y de ayer de todas las
-/// competiciones, con accesos a cada fixture y al buscador.
+/// Inicio: tus equipos, partidos de hoy, próximos 7 días y de ayer de todas
+/// las competiciones, con accesos a cada fixture y al buscador.
 class HomePage extends StatelessWidget {
   const HomePage({super.key, this.showDiagnostics = false});
 
@@ -28,14 +33,29 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HomeBloc(
-        getHomeFeed: GetHomeFeed(
-          competitions: context.read<CompetitionRepository>(),
-          matches: context.read<MatchRepository>(),
+    final matches = context.read<MatchRepository>();
+    final clock = context.read<Clock>();
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => HomeBloc(
+            getHomeFeed: GetHomeFeed(
+              competitions: context.read<CompetitionRepository>(),
+              matches: matches,
+            ),
+            clock: clock,
+          )..add(const HomeStarted()),
         ),
-        clock: context.read<Clock>(),
-      )..add(const HomeStarted()),
+        BlocProvider(
+          create: (context) => HomeFavoritesBloc(
+            watchFavoriteTeams: WatchFavoriteTeams(
+              favorites: context.read<FavoritesRepository>(),
+              matches: matches,
+            ),
+            clock: clock,
+          )..add(const HomeFavoritesStarted()),
+        ),
+      ],
       child: _HomeView(showDiagnostics: showDiagnostics),
     );
   }
@@ -151,6 +171,7 @@ class _FeedView extends StatelessWidget {
               ),
             ),
           const _Shortcuts(),
+          _FavoriteTeams(now: now),
 
           SectionHeader(title: 'Hoy', subtitle: MatchLabels.day(feed.today)),
           if (today.isEmpty)
@@ -215,6 +236,79 @@ class _FeedView extends StatelessWidget {
   /// «Primera División · Clausura · Fecha 12».
   static String _contextLabel(HomeMatch m) =>
       [m.competitionName, ?m.phaseLabel, m.stageLabel].join(' · ');
+}
+
+/// «Tus equipos»: próximo y último partido de cada favorito, con lo
+/// guardado (sin peticiones).
+class _FavoriteTeams extends StatelessWidget {
+  const _FavoriteTeams({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (context.watch<HomeFavoritesBloc>().state) {
+      HomeFavoritesLoading() => const SizedBox.shrink(),
+      HomeFavoritesLoaded(:final teams) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionHeader(title: 'Tus equipos'),
+          if (teams.isEmpty)
+            const _EmptySection(
+              'Tocá la estrella de un equipo, en el buscador o en su ficha, '
+              'para seguirlo desde acá.',
+            )
+          else
+            for (final t in teams)
+              _FavoriteTeam(key: ValueKey(t.team.teamId), team: t, now: now),
+        ],
+      ),
+    };
+  }
+}
+
+class _FavoriteTeam extends StatelessWidget {
+  const _FavoriteTeam({super.key, required this.team, required this.now});
+
+  final FavoriteTeamOverview team;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final favorite = team.team;
+    final next = team.next;
+    final last = team.last;
+    // Sin encabezados de día: el día va en la tarjeta.
+    Widget card(String prefix, HomeMatch m) => MatchCard(
+      match: m.match,
+      now: now,
+      subtitle:
+          '$prefix · ${MatchLabels.day(m.match.kickoff.argentinaDay)}\n'
+          '${_FeedView._contextLabel(m)}',
+      onTap: () => context.push(AppRoutes.matchDetail(m.match.id)),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          leading: TeamBadge(name: favorite.name, url: favorite.badgeUrl),
+          title: Text(favorite.name),
+          trailing: const Icon(Icons.chevron_right),
+          // La ficha dentro de Favoritos: «atrás» vuelve a la lista.
+          onTap: () => context.go(AppRoutes.favoriteTeam(favorite.teamId)),
+        ),
+        if (!team.hasMatches)
+          const _EmptySection(
+            'Sin partidos guardados. Abrí la ficha para buscarlos.',
+          ),
+        if (next != null)
+          card(next.match.status.isInPlay ? 'En juego' : 'Próximo', next),
+        if (last != null) card('Último', last),
+      ],
+    );
+  }
 }
 
 /// Accesos al buscador y a cada competición.

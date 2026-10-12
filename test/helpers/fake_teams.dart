@@ -33,6 +33,11 @@ List<TeamSummary> recordedTeamSummaries() {
   ];
 }
 
+/// Equipo real de la primera etapa 2026, por nombre.
+TeamRef recordedTeam(String name) => recordedTeamSummaries()
+    .map((s) => s.team)
+    .firstWhere((t) => t.name == name);
+
 /// Equipos reales de una respuesta grabada de `lookupteam`/`searchteams`.
 List<Team> recordedTeams(String fixture) => [
   for (final t in fixtureJson(fixture)['teams'] as List? ?? const [])

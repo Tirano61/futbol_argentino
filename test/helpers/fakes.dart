@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
@@ -81,6 +83,26 @@ class FakeMatchRepository implements MatchRepository {
         if (m.involvesTeam(teamId) && m.membership != MatchMembership.removed)
           m,
   ];
+
+  final _storedChanges = StreamController<void>.broadcast(sync: true);
+
+  /// Simula que se guardaron partidos nuevos en [rounds].
+  void notifyStored() => _storedChanges.add(null);
+
+  @override
+  Stream<List<Match>> watchStoredTeamsMatches(Set<int> teamIds) async* {
+    List<Match> stored() => [
+      for (final round in rounds.values)
+        for (final m in round)
+          if (teamIds.any(m.involvesTeam) &&
+              m.membership != MatchMembership.removed)
+            m,
+    ];
+    yield stored();
+    await for (final _ in _storedChanges.stream) {
+      yield stored();
+    }
+  }
 
   @override
   Future<DataResult<Match>> getMatch(

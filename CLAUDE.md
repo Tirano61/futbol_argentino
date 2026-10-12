@@ -35,6 +35,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Copa: rondas `64, 32, 16, 125 (cuartos), 150 (semis), 200 (final)` (V2 validada con la final 2025).
 - Inicio (`GetHomeFeed`): por competición, punteros + ≤ 2 rondas (último partido + etapa siguiente) → ≤ 12 peticiones en frío, 0 en caliente. No agregar consultas al Inicio sin revisar ese presupuesto (test `home_request_budget_test.dart`).
 - Equipos: índice local derivado de los partidos guardados + bootstrap de la primera etapa de cada competición (3 peticiones). Ficha: `lookupteam` + rondas de la temporada con P2 (Boca en frío = 25 peticiones, en caliente 0; test `team_detail_sync_test.dart`).
+- Favoritos: solo locales (store `favorites`, `FavoritesBloc` global). «Tus equipos» del Inicio lee lo guardado: 0 peticiones (tests `watch_favorite_teams_test.dart`, `home_page_test.dart`).
 - Identificadores: `idEvent` (partidos, deduplicación), `idTeam` (equipos), `idLeague`.
 
 ## Escudos
@@ -70,3 +71,4 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Todo HTTP pasa por `TheSportsDbClient.getJson` (rate limiter 25/min, timeout 15 s, reintentos solo transitorios).
 - Data lanza `ApiException`; los repositorios lo convierten con `toFailure()`. Presentation solo ve `Failure` y `DataResult`.
 - Los tests de red usan `MockClient` + `FakeClock` (`test/helpers/`) y JSON reales de `test/fixtures/api/`.
+- En `testWidgets`, toda llamada directa a sembast va dentro de `outsideFakeAsync` (`test/helpers/favorites.dart`, usa `tester.runAsync`); si no, el test se cuelga.

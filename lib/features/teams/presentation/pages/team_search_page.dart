@@ -11,6 +11,7 @@ import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
+import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../domain/entities/team_summary.dart';
 import '../../domain/repositories/team_repository.dart';
@@ -207,7 +208,7 @@ class _TeamTile extends StatelessWidget {
         leading: TeamBadge(name: team.team.name, url: team.team.badgeUrl),
         title: Text(team.team.name),
         subtitle: competitions.isEmpty ? null : Text(competitions.join(' · ')),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: FavoriteButton(team: team.team),
         onTap: () => context.push(AppRoutes.teamDetail(team.team.id)),
       ),
     );

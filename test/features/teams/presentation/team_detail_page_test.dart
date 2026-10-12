@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
+import 'package:futbol_argentino/features/favorites/domain/repositories/favorites_repository.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/features/teams/domain/repositories/team_repository.dart';
 import 'package:futbol_argentino/features/teams/presentation/pages/team_detail_page.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../helpers/fake_teams.dart';
+import '../../../helpers/favorites.dart';
 import '../../../helpers/fakes.dart';
 import '../../../helpers/fixture_matches.dart';
 
@@ -32,7 +34,10 @@ Future<void> pumpDetail(
   WidgetTester tester, {
   required FakeMatchRepository matches,
   required FakeTeamRepository teams,
+  FavoritesRepository? favorites,
 }) async {
+  // Domingo 11/10/2026, 17:35 en Argentina.
+  final clock = FixedClock(DateTime.utc(2026, 10, 11, 20, 35));
   tester.view
     ..physicalSize = const Size(900, 6000)
     ..devicePixelRatio = 1;
@@ -60,12 +65,13 @@ Future<void> pumpDetail(
       providers: [
         RepositoryProvider<MatchRepository>.value(value: matches),
         RepositoryProvider<TeamRepository>.value(value: teams),
-        // Domingo 11/10/2026, 17:35 en Argentina.
-        RepositoryProvider<Clock>.value(
-          value: FixedClock(DateTime.utc(2026, 10, 11, 20, 35)),
-        ),
+        RepositoryProvider<Clock>.value(value: clock),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      child: withFavorites(
+        favorites: favorites ?? await outsideFakeAsync(tester, memoryFavorites),
+        clock: clock,
+        child: MaterialApp.router(routerConfig: router),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -87,6 +93,36 @@ void main() {
     expect(find.text('Primera División · Clausura · Fecha 12'), findsOneWidget);
     // Terminó la descarga: sin barra de progreso.
     expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('la estrella de la barra agrega y quita de favoritos', (
+    tester,
+  ) async {
+    final favorites = await outsideFakeAsync(tester, memoryFavorites);
+    await pumpDetail(
+      tester,
+      matches: primera2026(),
+      teams: boca(),
+      favorites: favorites,
+    );
+
+    await tester.tap(find.byTooltip('Agregar a favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Boca Juniors se agregó a favoritos'), findsOneWidget);
+    final stored = (await outsideFakeAsync(
+      tester,
+      () => favorites.watchAll().first,
+    )).single;
+    expect(stored.teamId, bocaId);
+    expect(stored.name, 'Boca Juniors');
+    expect(stored.badgeUrl, isNotNull);
+
+    await tester.tap(find.byTooltip('Quitar de favoritos'));
+    await tester.pumpAndSettle();
+    expect(
+      await outsideFakeAsync(tester, () => favorites.contains(bocaId)),
+      isFalse,
+    );
   });
 
   testWidgets('el más reciente de los disputados va primero', (tester) async {

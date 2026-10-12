@@ -52,6 +52,22 @@ class MatchLocalDataSource {
     return [for (final r in records) MatchRecord.fromMap(r.value)];
   }
 
+  /// Partidos de esos equipos; emite enseguida y cada vez que se guardan
+  /// partidos.
+  Stream<List<Match>> watchByTeams(Set<int> teamIds) => _store
+      .query(
+        finder: Finder(
+          filter: Filter.or([
+            for (final id in teamIds)
+              Filter.equals('teamIds', id, anyInList: true),
+          ]),
+        ),
+      )
+      .onSnapshots(_db)
+      .map(
+        (records) => [for (final r in records) MatchRecord.fromMap(r.value)],
+      );
+
   /// Equipos de todos los partidos guardados (para el índice de búsqueda).
   Future<List<TeamSighting>> teamSightings() async => [
     for (final r in await _store.find(_db))

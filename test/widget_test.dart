@@ -76,6 +76,17 @@ void main() {
     expect(find.text('Sin partidos'), findsOneWidget);
   });
 
+  testWidgets('Favoritos: lista local, sin consultar la API', (tester) async {
+    await pumpApp(tester, size: const Size(400, 800));
+    apiCalls = 0;
+
+    await tester.tap(find.text('Favoritos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todavía no tenés equipos favoritos'), findsOneWidget);
+    expect(apiCalls, 0);
+  });
+
   testWidgets('el diagnóstico abre la prueba sin consultar la API', (
     tester,
   ) async {
