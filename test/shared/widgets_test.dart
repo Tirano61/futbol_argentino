@@ -5,6 +5,7 @@ import 'package:futbol_argentino/core/time/calendar_day.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match_status.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/team_ref.dart';
+import 'package:futbol_argentino/shared/presentation/formatters/failure_messages.dart';
 import 'package:futbol_argentino/shared/presentation/formatters/match_labels.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_day_list.dart';
@@ -181,6 +182,35 @@ void main() {
         'Domingo 11/10/2026',
       );
     });
+  });
+
+  test('cada error tiene su mensaje para el usuario', () {
+    String title(Failure f) => failureMessage(f).title;
+
+    expect(
+      title(const NetworkFailure(issue: NetworkIssue.connection, detail: '')),
+      'Sin conexión',
+    );
+    // En Web, CORS y falta de red no se distinguen: se informa como red.
+    expect(
+      title(const NetworkFailure(issue: NetworkIssue.possibleCors, detail: '')),
+      'Sin conexión',
+    );
+    expect(
+      title(const NetworkFailure(issue: NetworkIssue.timeout, detail: '')),
+      'La consulta tardó demasiado',
+    );
+    expect(title(const RateLimitFailure(detail: '')), 'Demasiadas consultas');
+    expect(
+      title(const ServerFailure(detail: '', statusCode: 503)),
+      'TheSportsDB no respondió bien',
+    );
+    expect(
+      failureMessage(const ServerFailure(detail: '', statusCode: 503)).message,
+      contains('HTTP 503'),
+    );
+    expect(title(const FormatFailure(detail: '')), 'Datos inesperados');
+    expect(title(const NotFoundFailure(detail: '')), 'No se encontraron datos');
   });
 
   group('vistas de estado', () {

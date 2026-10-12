@@ -63,4 +63,20 @@ void main() {
 
     expect(clock.delays, [const Duration(seconds: 60)]);
   });
+
+  test('informa la pausa y hasta cuándo dura', () async {
+    final pauses = <DateTime>[];
+    limiter.pauses.listen(pauses.add);
+    final until = clock.now().add(const Duration(seconds: 60));
+
+    limiter
+      ..pauseFor(const Duration(seconds: 60))
+      ..pauseFor(const Duration(seconds: 5));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(pauses, [until], reason: 'la pausa más corta no cambia nada');
+    expect(limiter.pausedUntil, until);
+    clock.advance(const Duration(seconds: 60));
+    expect(limiter.pausedUntil, isNull);
+  });
 }

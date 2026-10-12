@@ -47,21 +47,28 @@ class FixtureSelectors extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (season != null && state.seasons.isNotEmpty)
-              DropdownButton<Season>(
-                value: season,
-                underline: const SizedBox.shrink(),
-                items: [
-                  for (final s in state.seasons)
-                    DropdownMenuItem(
-                      value: s,
-                      child: Text('Temporada ${s.apiValue}'),
-                    ),
-                ],
-                onChanged: (s) {
-                  if (s != null && s != season) {
-                    bloc.add(FixtureSeasonChanged(s));
-                  }
-                },
+              // Su ancho natural, sin pasar el de la fila (texto grande).
+              IntrinsicWidth(
+                child: DropdownButton<Season>(
+                  value: season,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    for (final s in state.seasons)
+                      DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          'Temporada ${s.apiValue}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (s) {
+                    if (s != null && s != season) {
+                      bloc.add(FixtureSeasonChanged(s));
+                    }
+                  },
+                ),
               ),
             if (showPhases)
               for (final p in state.phases)

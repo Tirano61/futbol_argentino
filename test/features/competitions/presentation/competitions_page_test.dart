@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/phase.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
@@ -12,21 +13,32 @@ import 'package:futbol_argentino/features/competitions/presentation/routing/fixt
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/shared/presentation/formatters/match_labels.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../helpers/fakes.dart';
 import '../../../helpers/fixture_matches.dart';
 
-Future<void> pumpPage(WidgetTester tester, FixtureOpened initial) async {
+Future<void> pumpPage(
+  WidgetTester tester,
+  FixtureOpened initial, {
+  double width = 900,
+  Failure? failure,
+  Failure? refreshError,
+}) async {
   tester.view
-    ..physicalSize = const Size(900, 6000)
+    ..physicalSize = Size(width, 6000)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  final matches = FakeMatchRepository({
-    for (var r = 0; r <= 16; r++)
-      r: fixtureMatches('eventsround_4406_r${r}_s2026'),
-    125: fixtureMatches('eventsround_4500_r125_s2026'),
-  });
+  final matches = FakeMatchRepository(
+    {
+      for (var r = 0; r <= 16; r++)
+        r: fixtureMatches('eventsround_4406_r${r}_s2026'),
+      125: fixtureMatches('eventsround_4500_r125_s2026'),
+    },
+    refreshError: refreshError,
+    failure: failure,
+  );
   final competitions = FakeCompetitionRepository(
     pointers: SchedulePointers(
       next: fixtureMatches('eventsnextleague_4406').single,
@@ -42,7 +54,22 @@ Future<void> pumpPage(WidgetTester tester, FixtureOpened initial) async {
           value: FixedClock(DateTime.utc(2026, 10, 11, 21)),
         ),
       ],
-      child: MaterialApp(home: CompetitionsPage(initialEvent: initial)),
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) =>
+                  CompetitionsPage(initialEvent: initial),
+            ),
+            GoRoute(
+              path: '/partidos/:id',
+              builder: (context, state) =>
+                  Scaffold(body: Text('Partido ${state.pathParameters['id']}')),
+            ),
+          ],
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -126,6 +153,135 @@ void main() {
     );
 
     expect(find.text('Sin partidos'), findsOneWidget);
+  });
+
+  testWidgets('tablet: tocar un partido abre su pantalla', (tester) async {
+    await pumpPage(tester, const FixtureOpened(competitionId: 4406));
+
+    final first = tester.widget<MatchCard>(find.byType(MatchCard).first);
+    await tester.tap(find.byType(MatchCard).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partido ${first.match.id}'), findsOneWidget);
+  });
+
+  testWidgets('escritorio: el partido se abre en el panel de detalle', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      const FixtureOpened(competitionId: 4406),
+      width: 1400,
+    );
+    expect(find.text('Elegí un partido de la lista para verlo acá.'), findsOne);
+
+    final first = tester.widget<MatchCard>(find.byType(MatchCard).first);
+    await tester.tap(find.byType(MatchCard).first);
+    await tester.pumpAndSettle();
+
+    // Sigue en el fixture, con el partido resaltado y su detalle al lado.
+    expect(find.byType(MatchCard), findsNWidgets(15));
+    expect(
+      tester.widget<MatchCard>(find.byType(MatchCard).first).selected,
+      isTrue,
+    );
+    expect(find.text('Partido'), findsOneWidget);
+    expect(find.text('Hora (Argentina)'), findsOneWidget);
+    expect(find.text('Partido ${first.match.id}'), findsNothing);
+
+    await tester.tap(find.byTooltip('Cerrar detalle'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Elegí un partido de la lista para verlo acá.'), findsOne);
+    expect(find.byTooltip('Cerrar detalle'), findsNothing);
+  });
+
+  testWidgets('escritorio: buscador en la barra superior', (tester) async {
+    await pumpPage(
+      tester,
+      const FixtureOpened(competitionId: 4406),
+      width: 1400,
+    );
+
+    expect(find.widgetWithText(TextField, 'Buscar equipo'), findsOneWidget);
+  });
+
+  testWidgets('actualizar antes de 30 s avisa que ya está actualizado', (
+    tester,
+  ) async {
+    await pumpPage(tester, const FixtureOpened(competitionId: 4406));
+
+    await tester.tap(find.byTooltip('Actualizar'));
+    await tester.pumpAndSettle();
+
+    // El repositorio devuelve los mismos datos (misma hora de descarga).
+    expect(
+      find.text('Ya está actualizado: los datos son de las 17:35.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('etapa vacía: deslizar para actualizar termina', (tester) async {
+    await pumpPage(
+      tester,
+      const FixtureOpened(
+        competitionId: 4500,
+        phase: PhaseKey.unica,
+        apiRound: 200,
+        kind: StageKind.knockout,
+      ),
+    );
+
+    // La vista mide 6000 px: el gesto debe ser largo para activarse.
+    await tester.drag(find.text('Sin partidos'), const Offset(0, 3000));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RefreshProgressIndicator), findsNothing);
+    expect(find.textContaining('Ya está actualizado'), findsOneWidget);
+  });
+
+  group('errores', () {
+    for (final (failure, title) in [
+      (
+        const NetworkFailure(issue: NetworkIssue.connection, detail: 'x'),
+        'Sin conexión',
+      ),
+      (
+        const NetworkFailure(issue: NetworkIssue.timeout, detail: 'x'),
+        'La consulta tardó demasiado',
+      ),
+      (const RateLimitFailure(detail: 'x'), 'Demasiadas consultas'),
+      (const FormatFailure(detail: 'x'), 'Datos inesperados'),
+    ]) {
+      testWidgets('sin datos: $title, con reintento', (tester) async {
+        await pumpPage(
+          tester,
+          const FixtureOpened(competitionId: 4406),
+          failure: failure,
+        );
+
+        expect(find.text(title), findsOneWidget);
+        expect(find.text('Reintentar'), findsOneWidget);
+        expect(find.byType(MatchCard), findsNothing);
+      });
+    }
+
+    testWidgets('con datos guardados: los muestra con el aviso', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        const FixtureOpened(competitionId: 4406),
+        refreshError: const NetworkFailure(
+          issue: NetworkIssue.connection,
+          detail: 'x',
+        ),
+      );
+
+      expect(find.byType(MatchCard), findsNWidgets(15));
+      expect(find.textContaining('Mostrando datos guardados'), findsOneWidget);
+      expect(find.textContaining('Sin conexión'), findsOneWidget);
+    });
   });
 
   group('FixtureRoute', () {

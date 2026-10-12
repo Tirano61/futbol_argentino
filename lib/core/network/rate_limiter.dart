@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:collection';
 
 import '../time/clock.dart';
+import 'rate_limit_status.dart';
 
 typedef Delay = Future<void> Function(Duration duration);
 
@@ -9,7 +11,7 @@ Future<void> _realDelay(Duration duration) => Future<void>.delayed(duration);
 /// Limita las peticiones a [maxRequests] por [window] (ventana deslizante) y
 /// las atiende en orden de llegada. Tras un HTTP 429 se pausa todo con
 /// [pauseFor].
-class RateLimiter {
+class RateLimiter implements RateLimitStatus {
   RateLimiter({
     required this.maxRequests,
     this.window = const Duration(minutes: 1),
@@ -26,6 +28,16 @@ class RateLimiter {
   final _sentAt = Queue<DateTime>();
   DateTime? _pausedUntil;
   Future<void> _tail = Future<void>.value();
+  final _pauses = StreamController<DateTime>.broadcast();
+
+  @override
+  DateTime? get pausedUntil {
+    final until = _pausedUntil;
+    return until != null && _clock.now().isBefore(until) ? until : null;
+  }
+
+  @override
+  Stream<DateTime> get pauses => _pauses.stream;
 
   /// Espera hasta que haya cupo y lo reserva.
   Future<void> acquire() {
@@ -38,7 +50,10 @@ class RateLimiter {
   void pauseFor(Duration duration) {
     final until = _clock.now().add(duration);
     final current = _pausedUntil;
-    if (current == null || until.isAfter(current)) _pausedUntil = until;
+    if (current == null || until.isAfter(current)) {
+      _pausedUntil = until;
+      _pauses.add(until);
+    }
   }
 
   Future<void> _waitForSlot() async {

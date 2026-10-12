@@ -22,28 +22,35 @@ class EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (action != null) ...[const SizedBox(height: 16), action!],
-          ],
-        ),
+    final content = Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 56, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (action != null) ...[const SizedBox(height: 16), action!],
+        ],
+      ),
+    );
+    // Con alto fijo (pantalla vacía) se desplaza si no entra, p. ej. con
+    // el texto agrandado; dentro de una lista ya se desplaza la lista.
+    return LayoutBuilder(
+      builder: (context, constraints) => Center(
+        child: constraints.hasBoundedHeight
+            ? SingleChildScrollView(child: content)
+            : content,
       ),
     );
   }

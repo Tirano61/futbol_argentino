@@ -21,3 +21,8 @@ final class HomeFavoritesLoaded extends HomeFavoritesState {
   @override
   List<Object?> get props => [teams];
 }
+
+/// No se pudo leer lo guardado (falla de la base local).
+final class HomeFavoritesUnavailable extends HomeFavoritesState {
+  const HomeFavoritesUnavailable();
+}

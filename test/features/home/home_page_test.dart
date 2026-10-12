@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +39,7 @@ Future<void> pumpHome(
   FakeCompetitionRepository? competitions,
   FavoritesRepository? favorites,
   bool showDiagnostics = false,
+  bool settle = true,
 }) async {
   // Domingo 11/10/2026, 17:00 en Argentina.
   final clock = FixedClock(DateTime.utc(2026, 10, 11, 20));
@@ -93,7 +96,24 @@ Future<void> pumpHome(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) await tester.pumpAndSettle();
+}
+
+/// Favoritos que se leen cuando el test lo decide.
+class _PendingFavorites implements FavoritesRepository {
+  final controller = StreamController<List<FavoriteTeam>>.broadcast();
+
+  @override
+  Stream<List<FavoriteTeam>> watchAll() => controller.stream;
+
+  @override
+  Future<bool> contains(int teamId) async => false;
+
+  @override
+  Future<void> save(FavoriteTeam team) async {}
+
+  @override
+  Future<void> remove(int teamId) async {}
 }
 
 void main() {
@@ -214,6 +234,12 @@ void main() {
 
     expect(competitions.pointerCalls.where((c) => c.force), hasLength(3));
     expect(find.byType(MatchCard), findsNWidgets(62));
+    // Los repositorios devolvieron la misma hora de descarga: no hubo nada
+    // nuevo que pedir (refresco dentro de los 30 s).
+    expect(
+      find.text('Ya está actualizado: los datos son de las 17:35.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('acceso al diagnóstico solo si está habilitado', (tester) async {
@@ -225,6 +251,40 @@ void main() {
   });
 
   group('Tus equipos', () {
+    testWidgets('el Inicio espera a tenerlos: no aparecen después', (
+      tester,
+    ) async {
+      final favorites = _PendingFavorites();
+      await pumpHome(tester, favorites: favorites, settle: false);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(MatchCard), findsNothing);
+      expect(find.bySemanticsLabel('Cargando partidos'), findsOneWidget);
+
+      favorites.controller.add(const []);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tus equipos'), findsOneWidget);
+      expect(find.byType(MatchCard), findsNWidgets(62));
+    });
+
+    testWidgets('si no se pueden leer, lo dice y muestra el resto', (
+      tester,
+    ) async {
+      final favorites = _PendingFavorites();
+      await pumpHome(tester, favorites: favorites, settle: false);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      favorites.controller.addError(StateError('base local'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No se pudieron leer tus equipos guardados.'),
+        findsOneWidget,
+      );
+      expect(find.byType(MatchCard), findsNWidgets(62));
+    });
+
     testWidgets('sin favoritos: explica cómo agregarlos', (tester) async {
       await pumpHome(tester);
 

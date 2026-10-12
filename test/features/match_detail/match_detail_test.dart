@@ -138,7 +138,11 @@ void main() {
   });
 
   group('MatchDetailPage', () {
-    Future<void> pumpPage(WidgetTester tester, int id) async {
+    Future<void> pumpPage(
+      WidgetTester tester,
+      int id, {
+      FakeMatchRepository? repository,
+    }) async {
       tester.view
         ..physicalSize = const Size(800, 2400)
         ..devicePixelRatio = 1;
@@ -146,7 +150,9 @@ void main() {
       await tester.pumpWidget(
         MultiRepositoryProvider(
           providers: [
-            RepositoryProvider<MatchRepository>.value(value: realRepository()),
+            RepositoryProvider<MatchRepository>.value(
+              value: repository ?? realRepository(),
+            ),
             RepositoryProvider<Clock>.value(
               value: FixedClock(DateTime.utc(2026, 10, 11, 21)),
             ),
@@ -190,6 +196,39 @@ void main() {
       expect(find.text('Estado'), findsNothing);
       expect(find.text('Primera Nacional'), findsOneWidget);
       expect(find.text('Fecha 34'), findsOneWidget);
+    });
+
+    testWidgets('sin datos ni red: pantalla de error con reintento', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        2397877,
+        repository: realRepository()
+          ..failure = const NetworkFailure(
+            issue: NetworkIssue.timeout,
+            detail: 'x',
+          ),
+      );
+
+      expect(find.text('La consulta tardó demasiado'), findsOneWidget);
+      expect(find.text('Reintentar'), findsOneWidget);
+    });
+
+    testWidgets('con datos guardados: los muestra con el aviso', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        2397877,
+        repository: FakeMatchRepository({
+          12: fixtureMatches('eventsround_4406_r12_s2026'),
+        }, refreshError: const RateLimitFailure(detail: '429')),
+      );
+
+      expect(find.text('1 – 0'), findsOneWidget);
+      expect(find.textContaining('Mostrando datos guardados'), findsOneWidget);
+      expect(find.textContaining('Demasiadas consultas'), findsOneWidget);
     });
   });
 }

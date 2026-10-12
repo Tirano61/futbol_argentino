@@ -115,8 +115,9 @@ class FakeMatchRepository implements MatchRepository {
         if (m.id == matchId) {
           return DataResult(
             data: m,
-            origin: DataOrigin.remote,
+            origin: refreshError == null ? DataOrigin.remote : DataOrigin.cache,
             fetchedAt: fakeFetchedAt,
+            refreshError: refreshError,
           );
         }
       }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,8 +7,10 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
+import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
@@ -16,6 +19,7 @@ import '../../../competitions/domain/repositories/competition_repository.dart';
 import '../../../competitions/presentation/routing/fixture_route.dart';
 import '../../../favorites/domain/repositories/favorites_repository.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/favorite_team_overview.dart';
 import '../../domain/entities/home_feed.dart';
 import '../../domain/usecases/get_home_feed.dart';
@@ -66,8 +70,35 @@ class _HomeView extends StatelessWidget {
 
   final bool showDiagnostics;
 
+  /// Actualiza y, si no hizo falta consultar la red (se actualizó hace
+  /// menos de 30 s), lo avisa.
+  static Future<void> _refresh(BuildContext context) async {
+    final bloc = context.read<HomeBloc>();
+    final before = _fetchTimes(bloc.state);
+    bloc.add(const HomeRefreshRequested());
+    final after = await bloc.stream.firstWhere((s) => !s.isBusy);
+    if (after case HomeLoaded(:final feed)
+        when context.mounted &&
+            feed.refreshError == null &&
+            feed.failedCompetitions.isEmpty &&
+            listEquals(_fetchTimes(after), before)) {
+      showAlreadyUpToDate(context, feed.fetchedAt!);
+    }
+  }
+
+  static List<DateTime?> _fetchTimes(HomeState state) => switch (state) {
+    HomeLoaded(:final feed) => [for (final c in feed.competitions) c.fetchedAt],
+    _ => const [],
+  };
+
   @override
   Widget build(BuildContext context) {
+    // «Tus equipos» va arriba de todo: se espera a tenerlo para que no
+    // aparezca después y corra el resto (solo lee lo guardado).
+    final favoritesReady = context.select<HomeFavoritesBloc, bool>(
+      (bloc) => bloc.state is! HomeFavoritesLoading,
+    );
+    final expanded = Breakpoints.isExpanded(context);
     return BlocBuilder<HomeBloc, HomeState>(
       builder: (context, state) {
         final bloc = context.read<HomeBloc>();
@@ -75,16 +106,10 @@ class _HomeView extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Fútbol Argentino'),
             actions: [
-              IconButton(
-                tooltip: 'Buscar equipo',
-                onPressed: () => context.go(AppRoutes.teams),
-                icon: const Icon(Icons.search),
-              ),
+              const TopBarTeamSearch(showButtonWhenNarrow: true),
               IconButton(
                 tooltip: 'Actualizar',
-                onPressed: state.isBusy
-                    ? null
-                    : () => bloc.add(const HomeRefreshRequested()),
+                onPressed: state.isBusy ? null : () => _refresh(context),
                 icon: const Icon(Icons.refresh),
               ),
               if (showDiagnostics)
@@ -98,19 +123,21 @@ class _HomeView extends StatelessWidget {
           body: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
+              constraints: BoxConstraints(
+                maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
+              ),
               child: switch (state) {
-                HomeInitial() || HomeLoading() => Center(
-                  child: Semantics(
-                    label: 'Cargando partidos',
-                    child: const CircularProgressIndicator(),
-                  ),
-                ),
+                HomeInitial() || HomeLoading() => const _Loading(),
+                HomeLoaded() when !favoritesReady => const _Loading(),
                 HomeFailure(:final failure) => ErrorView(
                   failure: failure,
                   onRetry: () => bloc.add(const HomeRefreshRequested()),
                 ),
-                HomeLoaded(:final feed) => _FeedView(feed: feed),
+                HomeLoaded(:final feed) => _FeedView(
+                  feed: feed,
+                  twoColumns: expanded,
+                  onRefresh: () => _refresh(context),
+                ),
               },
             ),
           ),
@@ -120,15 +147,31 @@ class _HomeView extends StatelessWidget {
   }
 }
 
+class _Loading extends StatelessWidget {
+  const _Loading();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Semantics(
+      label: 'Cargando partidos',
+      child: const CircularProgressIndicator(),
+    ),
+  );
+}
+
 class _FeedView extends StatelessWidget {
-  const _FeedView({required this.feed});
+  const _FeedView({
+    required this.feed,
+    required this.twoColumns,
+    required this.onRefresh,
+  });
 
   final HomeFeed feed;
 
-  Future<void> _refresh(BuildContext context) async {
-    final bloc = context.read<HomeBloc>()..add(const HomeRefreshRequested());
-    await bloc.stream.firstWhere((s) => !s.isBusy);
-  }
+  /// Escritorio: Hoy y Próximos a la izquierda; accesos, tus equipos y
+  /// Recientes a la derecha.
+  final bool twoColumns;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -147,88 +190,133 @@ class _FeedView extends StatelessWidget {
     final refreshError = feed.refreshError;
     final failed = feed.failedCompetitions;
 
+    final notices = [
+      if (feed.isLoading) const LinearProgressIndicator(),
+      if (refreshError != null && fetchedAt != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: StaleDataBanner(
+            fetchedAt: fetchedAt,
+            failure: refreshError,
+            onRetry: retry,
+          ),
+        ),
+      if (failed.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: _FailedCompetitionsNotice(
+            competitions: failed,
+            onRetry: retry,
+          ),
+        ),
+    ];
+
+    final todaySection = [
+      SectionHeader(title: 'Hoy', subtitle: MatchLabels.day(feed.today)),
+      if (today.isEmpty)
+        _EmptySection(
+          feed.isLoading ? 'Buscando partidos…' : 'No hay partidos hoy.',
+        )
+      else
+        for (final m in today)
+          MatchCard(
+            key: ValueKey(m.match.id),
+            match: m.match,
+            now: now,
+            subtitle: labels[m.match.id],
+            onTap: () => open(m.match.id),
+          ),
+    ];
+
+    final upcomingSection = [
+      const SectionHeader(title: 'Próximos 7 días'),
+      if (upcoming.isEmpty)
+        _EmptySection(
+          feed.isLoading
+              ? 'Buscando partidos…'
+              : 'No hay partidos en los próximos 7 días.',
+        )
+      else
+        ...matchDayItems(
+          matches: [for (final m in upcoming) m.match],
+          now: now,
+          subtitle: (m) => labels[m.id],
+          onTap: (m) => open(m.id),
+        ),
+    ];
+
+    final recentSection = [
+      const SectionHeader(title: 'Recientes', subtitle: 'Partidos de ayer'),
+      if (recent.isEmpty)
+        _EmptySection(
+          feed.isLoading ? 'Buscando partidos…' : 'No hubo partidos ayer.',
+        )
+      else
+        ...matchDayItems(
+          matches: [for (final m in recent) m.match],
+          now: now,
+          subtitle: (m) => labels[m.id],
+          onTap: (m) => open(m.id),
+        ),
+    ];
+
+    final footer = [
+      if (fetchedAt != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Text(
+            'Actualizado el '
+            '${ArgentinaTime.formatDay(ArgentinaTime.dayOf(fetchedAt))} '
+            'a las ${ArgentinaTime.formatTime(fetchedAt)} · '
+            'Horarios de Argentina',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+    ];
+
+    Widget column(List<Widget> children) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+
     return RefreshIndicator(
-      onRefresh: () => _refresh(context),
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-        children: [
-          if (feed.isLoading) const LinearProgressIndicator(),
-          if (refreshError != null && fetchedAt != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: StaleDataBanner(
-                fetchedAt: fetchedAt,
-                failure: refreshError,
-                onRetry: retry,
-              ),
-            ),
-          if (failed.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _FailedCompetitionsNotice(
-                competitions: failed,
-                onRetry: retry,
-              ),
-            ),
-          const _Shortcuts(),
-          _FavoriteTeams(now: now),
-
-          SectionHeader(title: 'Hoy', subtitle: MatchLabels.day(feed.today)),
-          if (today.isEmpty)
-            _EmptySection(
-              feed.isLoading ? 'Buscando partidos…' : 'No hay partidos hoy.',
-            )
-          else
-            for (final m in today)
-              MatchCard(
-                key: ValueKey(m.match.id),
-                match: m.match,
-                now: now,
-                subtitle: labels[m.match.id],
-                onTap: () => open(m.match.id),
-              ),
-
-          const SectionHeader(title: 'Próximos 7 días'),
-          if (upcoming.isEmpty)
-            _EmptySection(
-              feed.isLoading
-                  ? 'Buscando partidos…'
-                  : 'No hay partidos en los próximos 7 días.',
-            )
-          else
-            ...matchDayItems(
-              matches: [for (final m in upcoming) m.match],
-              now: now,
-              subtitle: (m) => labels[m.id],
-              onTap: (m) => open(m.id),
-            ),
-
-          const SectionHeader(title: 'Recientes', subtitle: 'Partidos de ayer'),
-          if (recent.isEmpty)
-            _EmptySection(
-              feed.isLoading ? 'Buscando partidos…' : 'No hubo partidos ayer.',
-            )
-          else
-            ...matchDayItems(
-              matches: [for (final m in recent) m.match],
-              now: now,
-              subtitle: (m) => labels[m.id],
-              onTap: (m) => open(m.id),
-            ),
-
-          if (fetchedAt != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                'Actualizado el '
-                '${ArgentinaTime.formatDay(ArgentinaTime.dayOf(fetchedAt))} '
-                'a las ${ArgentinaTime.formatTime(fetchedAt)} · '
-                'Horarios de Argentina',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-            ),
-        ],
+        children: twoColumns
+            ? [
+                ...notices,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: column([...todaySection, ...upcomingSection]),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 2,
+                      child: column([
+                        // El buscador está en la barra superior.
+                        const _Shortcuts(showSearch: false),
+                        _FavoriteTeams(now: now),
+                        ...recentSection,
+                      ]),
+                    ),
+                  ],
+                ),
+                ...footer,
+              ]
+            : [
+                ...notices,
+                const _Shortcuts(showSearch: true),
+                _FavoriteTeams(now: now),
+                ...todaySection,
+                ...upcomingSection,
+                ...recentSection,
+                ...footer,
+              ],
       ),
     );
   }
@@ -249,6 +337,13 @@ class _FavoriteTeams extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (context.watch<HomeFavoritesBloc>().state) {
       HomeFavoritesLoading() => const SizedBox.shrink(),
+      HomeFavoritesUnavailable() => const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionHeader(title: 'Tus equipos'),
+          _EmptySection('No se pudieron leer tus equipos guardados.'),
+        ],
+      ),
       HomeFavoritesLoaded(:final teams) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -313,7 +408,9 @@ class _FavoriteTeam extends StatelessWidget {
 
 /// Accesos al buscador y a cada competición.
 class _Shortcuts extends StatelessWidget {
-  const _Shortcuts();
+  const _Shortcuts({required this.showSearch});
+
+  final bool showSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -322,15 +419,17 @@ class _Shortcuts extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.search),
-              title: const Text('Buscar equipo'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.go(AppRoutes.teams),
+          if (showSearch) ...[
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('Buscar equipo'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go(AppRoutes.teams),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           Wrap(
             spacing: 8,
             runSpacing: 8,

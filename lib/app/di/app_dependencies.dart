@@ -3,6 +3,7 @@ import 'package:sembast/sembast.dart';
 
 import '../../core/cache/query_metadata_store.dart';
 import '../../core/config/app_config.dart';
+import '../../core/network/rate_limit_status.dart';
 import '../../core/network/rate_limiter.dart';
 import '../../core/network/thesportsdb_client.dart';
 import '../../core/sync/sync_scheduler.dart';
@@ -30,6 +31,7 @@ class AppDependencies {
     required this.clock,
     required this.database,
     required this.apiClient,
+    required this.rateLimitStatus,
     required this.syncScheduler,
     required this.matchRepository,
     required this.competitionRepository,
@@ -47,13 +49,14 @@ class AppDependencies {
   }) {
     final appConfig = config ?? AppConfig.fromEnvironment();
     final client = httpClient ?? http.Client();
+    final rateLimiter = RateLimiter(
+      maxRequests: appConfig.maxRequestsPerMinute,
+      clock: clock,
+    );
     final apiClient = TheSportsDbClient(
       config: appConfig,
       httpClient: client,
-      rateLimiter: RateLimiter(
-        maxRequests: appConfig.maxRequestsPerMinute,
-        clock: clock,
-      ),
+      rateLimiter: rateLimiter,
     );
     final scheduler = SyncScheduler(clock: clock);
     final metadata = QueryMetadataStore(database);
@@ -64,6 +67,7 @@ class AppDependencies {
       clock: clock,
       database: database,
       apiClient: apiClient,
+      rateLimitStatus: rateLimiter,
       syncScheduler: scheduler,
       matchRepository: MatchRepositoryImpl(
         remote: MatchRemoteDataSource(apiClient),
@@ -97,6 +101,9 @@ class AppDependencies {
   final Clock clock;
   final Database database;
   final TheSportsDbClient apiClient;
+
+  /// Pausa por HTTP 429 (para avisarla en pantalla).
+  final RateLimitStatus rateLimitStatus;
 
   /// Cola de sincronización (se pausa con la app en segundo plano).
   final SyncScheduler syncScheduler;

@@ -118,4 +118,18 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('el aviso con «Deshacer» se cierra solo', (tester) async {
+    final favorites = await outsideFakeAsync(tester, memoryFavorites);
+    await outsideFakeAsync(tester, () => save(favorites, 'Boca Juniors'));
+    await pumpFavorites(tester, favorites);
+
+    await tester.tap(find.byTooltip('Quitar de favoritos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Boca Juniors se quitó de favoritos'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Boca Juniors se quitó de favoritos'), findsNothing);
+  });
 }

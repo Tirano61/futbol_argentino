@@ -78,9 +78,15 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             routes: [
               GoRoute(
                 path: AppRoutes.teams,
-                builder: (context, state) => TeamSearchPage(
-                  initialQuery: state.uri.queryParameters['q'] ?? '',
-                ),
+                builder: (context, state) {
+                  final query = state.uri.queryParameters['q'] ?? '';
+                  // Una búsqueda nueva desde la barra superior reemplaza a
+                  // la anterior.
+                  return TeamSearchPage(
+                    key: ValueKey(query),
+                    initialQuery: query,
+                  );
+                },
                 routes: [
                   // Anidada: «atrás» vuelve al buscador, también desde un
                   // enlace directo.

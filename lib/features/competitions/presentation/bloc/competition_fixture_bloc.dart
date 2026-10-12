@@ -86,9 +86,14 @@ class CompetitionFixtureBloc
             : RoundNavigator.previous(state.stages, current);
         if (previous != null) await _selectStage(emit, previous);
       case FixtureRefreshRequested():
-        final content = state.content;
-        if (content is FixtureLoaded) {
-          emit(state.copyWith(content: content.copyWith(isRefreshing: true)));
+        // También con la etapa vacía: la pantalla espera el fin del
+        // refresco.
+        switch (state.content) {
+          case final FixtureLoaded content:
+            emit(state.copyWith(content: content.copyWith(isRefreshing: true)));
+          case final FixtureEmpty content:
+            emit(state.copyWith(content: content.copyWith(isRefreshing: true)));
+          case _:
         }
         await _load(emit, forceRefresh: true);
     }
@@ -251,21 +256,23 @@ class CompetitionFixtureBloc
       onData: (result) {
         if (state.stage != stage) return state;
         final data = result.data;
+        // Un refresco manual sigue en curso mientras solo llegó caché.
+        final refreshing =
+            forceRefresh &&
+            result.origin == DataOrigin.cache &&
+            result.refreshError == null;
         final FixtureContent content = data.matches.isEmpty
             ? FixtureEmpty(
                 fetchedAt: result.fetchedAt,
                 refreshError: result.refreshError,
+                isRefreshing: refreshing,
               )
             : FixtureLoaded(
                 matches: data,
                 origin: result.origin,
                 fetchedAt: result.fetchedAt,
                 refreshError: result.refreshError,
-                // Un refresco manual sigue en curso mientras solo llegó caché.
-                isRefreshing:
-                    forceRefresh &&
-                    result.origin == DataOrigin.cache &&
-                    result.refreshError == null,
+                isRefreshing: refreshing,
               );
         return state.copyWith(
           content: content,
@@ -276,21 +283,30 @@ class CompetitionFixtureBloc
         if (error is! Failure) Error.throwWithStackTrace(error, stackTrace);
         final content = state.content;
         return state.copyWith(
-          content: content is FixtureLoaded
-              ? FixtureLoaded(
-                  matches: content.matches,
-                  origin: content.origin,
-                  fetchedAt: content.fetchedAt,
-                  refreshError: error,
-                )
-              : FixtureFailure(error),
+          content: switch (content) {
+            FixtureLoaded() => FixtureLoaded(
+              matches: content.matches,
+              origin: content.origin,
+              fetchedAt: content.fetchedAt,
+              refreshError: error,
+            ),
+            // Una etapa vacía ya consultada sigue vacía, con el aviso.
+            FixtureEmpty(:final fetchedAt?) => FixtureEmpty(
+              fetchedAt: fetchedAt,
+              refreshError: error,
+            ),
+            _ => FixtureFailure(error),
+          },
         );
       },
     );
 
-    final content = state.content;
-    if (content is FixtureLoaded && content.isRefreshing) {
-      emit(state.copyWith(content: content.copyWith(isRefreshing: false)));
+    switch (state.content) {
+      case final FixtureLoaded content when content.isRefreshing:
+        emit(state.copyWith(content: content.copyWith(isRefreshing: false)));
+      case final FixtureEmpty content when content.isRefreshing:
+        emit(state.copyWith(content: content.copyWith(isRefreshing: false)));
+      case _:
     }
 
     final next = RoundNavigator.next(state.stages, stage);
