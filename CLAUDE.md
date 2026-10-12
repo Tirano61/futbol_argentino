@@ -44,6 +44,11 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Tests de layout y accesibilidad de la app completa con `pumpApp` (`test/helpers/recorded_app.dart`): 360/768/1280/1920 px, pautas `meetsGuideline` y texto al 200 %. Un desborde falla el test.
 - Un `SnackBar` con acción queda fijo por defecto en este Flutter: usar `persist: false`.
 
+## Paquetes nativos
+- Después de agregar un plugin, `flutter clean` antes del build Web: la compilación puede reutilizar un `web_plugin_registrant.dart` viejo y el plugin da `MissingPluginException` (visto con `share_plus`).
+- `add_2_calendar` fijado en 3.0.1 (la 3.1.x requiere un AGP/Kotlin más nuevo). `cached_network_image` solo en Android: en Web falla por CORS.
+- Grabaciones nuevas que repiten una consulta ya grabada: en una carpeta de instantánea (`test/fixtures/api/snapshot_AAAAMMDD/`), nunca pisando los archivos que usan los tests.
+
 ## Escudos
 - Siempre mediante `TeamBadge`, con `Image.network(..., webHtmlElementStrategy: WebHtmlElementStrategy.fallback)`: `r2.thesportsdb.com` no envía CORS y en Web la carga normal falla (validado en T0.2).
 - Variantes de tamaño: `/tiny` (listas), `/small` (fichas).
@@ -57,7 +62,8 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 ## Mantenimiento periódico
 - Cada semestre: actualizar en `CompetitionCatalog` (`lib/features/competitions/domain/catalog/competition_catalog.dart`) las ventanas de Primera **a partir de datos reales grabados** en `test/fixtures/api/`. Pendiente: cierre y eliminatorias del Clausura 2026 (hoy «en curso»), temporada 2027.
 - Al cerrar una ventana, el test `competition_catalog_test.dart` verifica que cada partido grabado caiga en un solo torneo.
-- Revisar los pendientes V2–V7 de `docs/API.md` cuando haya datos nuevos.
+- Revisar los pendientes V2–V7 y V15 de `docs/API.md` cuando haya datos nuevos.
+- Cada temporada: zonas con `idTeam` y reglamento (desempates) de Primera y de Nacional, verificados contra los partidos grabados (ver V12/V14 en `docs/API.md`).
 
 ## Comandos
 - `flutter analyze` · `flutter test`
