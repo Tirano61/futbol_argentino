@@ -30,5 +30,7 @@ class HomeFavoritesBloc extends Bloc<HomeFavoritesEvent, HomeFavoritesState> {
   ) => emit.forEach<List<FavoriteTeamOverview>>(
     _watchFavoriteTeams(now: _clock.now),
     onData: HomeFavoritesLoaded.new,
+    // El Inicio espera esta sección: un error no puede dejarlo cargando.
+    onError: (error, stackTrace) => const HomeFavoritesUnavailable(),
   );
 }

@@ -432,6 +432,11 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: favoritos persisten tras reinicio en Android y Web.
 
 ### Fase 9 — Responsive y estabilización  ·  Hito B
+- **Estado**: ✅ completada el 12/10/2026 — T9.1 a T9.3 hechas; 397 tests verdes; builds release APK y Web; validada en la tablet (app Android en vertical y horizontal, Chrome de la tablet en vertical y horizontal). **Hito B (MVP) completo**: esperando revisión y aprobación.
+- **Aceptación verificada**: layout sin desbordes a 360, 768, 1280 y 1920 px (`test/app/responsive_layout_test.dart`); pautas de Flutter de objetivos ≥ 48 px, controles con nombre y contraste en todas las secciones a 360 y 1280 px; texto al 200 % sin desbordes en un teléfono (`test/app/accessibility_test.dart`); offline, 429, timeout y formato con su mensaje en cada pantalla.
+- **Observaciones resueltas**: «Tus equipos» ya no aparece después (el Inicio espera a tenerlo); el aviso de favoritos se cierra solo (con acción, Flutter lo dejaba fijo) y no pasa a otra sección; actualizar antes de 30 s avisa «Ya está actualizado»; durante una pausa por 429 se avisa hasta qué hora. Web en la tablet: ~10–12 s hasta ver el Inicio (medido a mano, con otras 8 pestañas de la app inactivas; antes ~20 s).
+- **Ajustes**: ver «Estado de implementación (Fase 9)» en ARCHITECTURE y el registro de DECISIONS.
+- **Observaciones para revisar**: al volver de un partido abierto a pantalla completa, la URL Web del fixture queda en `#/competiciones` (sin la fecha; ya pasaba antes); la ficha de un equipo sigue sincronizando si se cambia de sección sin cerrarla (la sección queda viva en segundo plano); la ficha no avisa «Ya está actualizado».
 - **Observaciones de la Fase 8** (ver arriba): aparición tardía de «Tus equipos» en Web; aviso de favoritos que persiste entre secciones.
 - **Observaciones del Hito A en la tablet (11/10/2026)** para revisar acá:
   - Deslizar para actualizar antes de 30 s de la última carga no hace nada y no lo avisa (la regla es correcta; falta feedback, p. ej. «Ya está actualizado»).

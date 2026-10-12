@@ -13,6 +13,7 @@ class MatchCard extends StatelessWidget {
     required this.now,
     this.subtitle,
     this.onTap,
+    this.selected = false,
   });
 
   final Match match;
@@ -24,6 +25,9 @@ class MatchCard extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
 
+  /// Es el partido abierto en el panel de detalle (escritorio).
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -31,9 +35,11 @@ class MatchCard extends StatelessWidget {
 
     return Semantics(
       button: onTap != null,
+      selected: selected,
       label: MatchLabels.semantics(match, overdue: overdue),
       excludeSemantics: true,
       child: Card(
+        color: selected ? theme.colorScheme.secondaryContainer : null,
         child: InkWell(
           onTap: onTap,
           child: Padding(

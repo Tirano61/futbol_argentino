@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_router.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
+import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/favorite_team.dart';
 import '../bloc/favorites_bloc.dart';
 import '../widgets/favorite_button.dart';
@@ -16,7 +17,10 @@ class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Favoritos')),
+      appBar: AppBar(
+        title: const Text('Favoritos'),
+        actions: const [TopBarTeamSearch()],
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(

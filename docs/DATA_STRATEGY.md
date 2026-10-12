@@ -114,6 +114,14 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 
 ---
 
+## Estado de implementación (Fase 9, 12/10/2026) — Estabilización
+
+- **Pausa por 429**: el `RateLimiter` expone la pausa (`RateLimitStatus`); mientras dura, la app avisa arriba hasta qué hora y las consultas siguen solas al terminar. La consulta que recibió el 429 falla con `RateLimitFailure` (la pantalla lo muestra con «Reintentar»); las demás esperan en la cola. Sin peticiones nuevas.
+- **Refresco manual dentro de los 30 s**: no consulta la red (regla de §5.5) y ahora lo dice («Ya está actualizado»). Se detecta en la pantalla comparando la hora de descarga antes y después (Inicio: la de cada competición).
+- Sin cambios en TTL, prioridades ni presupuestos (Inicio ≤ 12 en frío, 0 en caliente; tests de presupuesto sin cambios).
+
+---
+
 ## Estado de implementación (Fase 3, 11/10/2026)
 
 - **Persistencia**: sembast (`lib/core/storage/`). Android: archivo en el directorio de soporte de la app; Web: IndexedDB. Si no se puede abrir (p. ej. modo privado), la app usa una base en memoria y sigue funcionando sin guardar entre sesiones.

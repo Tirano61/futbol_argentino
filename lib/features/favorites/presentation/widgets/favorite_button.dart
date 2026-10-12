@@ -22,6 +22,8 @@ class FavoriteButton extends StatelessWidget {
                 ? '${team.name} se quitó de favoritos'
                 : '${team.name} se agregó a favoritos',
           ),
+          // Con acción, el aviso queda fijo por defecto: se cierra solo.
+          persist: false,
           action: SnackBarAction(
             label: 'Deshacer',
             onPressed: () => bloc.add(FavoriteToggled(team)),

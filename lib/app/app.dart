@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config/app_config.dart';
+import '../core/network/rate_limit_status.dart';
 import '../core/time/clock.dart';
 import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
@@ -13,6 +14,7 @@ import '../features/matches/domain/repositories/match_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
+import 'shell/rate_limit_notice.dart';
 import 'theme/app_theme.dart';
 
 class FutbolArgentinoApp extends StatefulWidget {
@@ -57,6 +59,7 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
       providers: [
         RepositoryProvider<AppConfig>.value(value: deps.config),
         RepositoryProvider<Clock>.value(value: deps.clock),
+        RepositoryProvider<RateLimitStatus>.value(value: deps.rateLimitStatus),
         RepositoryProvider<DiagnosticsRepository>.value(
           value: deps.diagnosticsRepository,
         ),
@@ -86,6 +89,8 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
           supportedLocales: const [Locale('es', 'AR'), Locale('es')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           routerConfig: _router,
+          builder: (context, child) =>
+              RateLimitNotice(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );

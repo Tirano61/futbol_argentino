@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../shared/presentation/layout/breakpoints.dart';
+
 /// Contenedor de las 4 secciones principales. Navegación inferior en
 /// pantallas angostas y riel lateral en tablets y escritorio.
-class AdaptiveShell extends StatelessWidget {
+class AdaptiveShell extends StatefulWidget {
   const AdaptiveShell({super.key, required this.navigationShell});
 
-  /// Por debajo de este ancho se usa `NavigationBar`.
-  static const compactMaxWidth = 600.0;
+  final StatefulNavigationShell navigationShell;
 
-  /// Desde este ancho el riel muestra los textos al costado de los íconos.
-  static const expandedMinWidth = 1200.0;
+  @override
+  State<AdaptiveShell> createState() => _AdaptiveShellState();
+}
 
+class _AdaptiveShellState extends State<AdaptiveShell> {
   static const _destinations = [
     (label: 'Inicio', icon: Icons.home_outlined, selected: Icons.home),
     (
@@ -23,23 +26,35 @@ class AdaptiveShell extends StatelessWidget {
     (label: 'Favoritos', icon: Icons.star_outline, selected: Icons.star),
   ];
 
-  final StatefulNavigationShell navigationShell;
+  StatefulNavigationShell get _shell => widget.navigationShell;
 
-  void _onSelected(int index) => navigationShell.goBranch(
+  @override
+  void didUpdateWidget(AdaptiveShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Un aviso («se agregó a favoritos») es de la sección donde se dio: no
+    // sigue en la siguiente, se llegue por el menú o por un enlace.
+    // Se quita al terminar el frame: durante el build no se puede.
+    if (oldWidget.navigationShell.currentIndex != _shell.currentIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
+      });
+    }
+  }
+
+  void _onSelected(int index) => _shell.goBranch(
     index,
     // Tocar la sección actual vuelve a su pantalla inicial.
-    initialLocation: index == navigationShell.currentIndex,
+    initialLocation: index == _shell.currentIndex,
   );
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-
-    if (width < compactMaxWidth) {
+    if (Breakpoints.isCompact(context)) {
       return Scaffold(
-        body: navigationShell,
+        body: _shell,
         bottomNavigationBar: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
+          selectedIndex: _shell.currentIndex,
           onDestinationSelected: _onSelected,
           destinations: [
             for (final d in _destinations)
@@ -53,7 +68,7 @@ class AdaptiveShell extends StatelessWidget {
       );
     }
 
-    final extended = width >= expandedMinWidth;
+    final extended = Breakpoints.isExpanded(context);
     return Scaffold(
       body: Row(
         children: [
@@ -61,7 +76,7 @@ class AdaptiveShell extends StatelessWidget {
             child: NavigationRail(
               extended: extended,
               labelType: extended ? null : NavigationRailLabelType.all,
-              selectedIndex: navigationShell.currentIndex,
+              selectedIndex: _shell.currentIndex,
               onDestinationSelected: _onSelected,
               destinations: [
                 for (final d in _destinations)
@@ -74,7 +89,7 @@ class AdaptiveShell extends StatelessWidget {
             ),
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: navigationShell),
+          Expanded(child: _shell),
         ],
       ),
     );

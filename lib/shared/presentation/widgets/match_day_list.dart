@@ -9,13 +9,14 @@ import 'match_card.dart';
 /// del día + tarjetas), para usar dentro de un `ListView`.
 ///
 /// [newestFirst]: días del más reciente al más viejo (dentro de cada día,
-/// por hora).
+/// por hora). [selectedId]: partido resaltado (abierto en el panel).
 List<Widget> matchDayItems({
   required List<Match> matches,
   required DateTime now,
   String? Function(Match match)? subtitle,
   void Function(Match match)? onTap,
   bool newestFirst = false,
+  int? selectedId,
 }) => [
   for (final group
       in newestFirst
@@ -29,6 +30,7 @@ List<Widget> matchDayItems({
         now: now,
         subtitle: subtitle?.call(m),
         onTap: onTap == null ? null : () => onTap(m),
+        selected: m.id == selectedId,
       ),
   ],
 ];

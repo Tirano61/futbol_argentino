@@ -54,14 +54,25 @@ final class FixtureLoaded extends FixtureContent {
 
 /// La etapa no tiene partidos (o la temporada no tiene etapas conocidas).
 final class FixtureEmpty extends FixtureContent {
-  const FixtureEmpty({this.fetchedAt, this.refreshError});
+  const FixtureEmpty({
+    this.fetchedAt,
+    this.refreshError,
+    this.isRefreshing = false,
+  });
 
   /// Cuándo se obtuvo la ronda vacía (si se consultó).
   final DateTime? fetchedAt;
   final Failure? refreshError;
+  final bool isRefreshing;
+
+  FixtureEmpty copyWith({bool? isRefreshing}) => FixtureEmpty(
+    fetchedAt: fetchedAt,
+    refreshError: refreshError,
+    isRefreshing: isRefreshing ?? this.isRefreshing,
+  );
 
   @override
-  List<Object?> get props => [fetchedAt, refreshError];
+  List<Object?> get props => [fetchedAt, refreshError, isRefreshing];
 }
 
 /// Error sin datos guardados.
@@ -104,6 +115,7 @@ final class CompetitionFixtureState extends Equatable {
   bool get isRefreshing => switch (content) {
     FixtureLoading() => true,
     FixtureLoaded(:final isRefreshing) => isRefreshing,
+    FixtureEmpty(:final isRefreshing) => isRefreshing,
     _ => false,
   };
 

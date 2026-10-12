@@ -8,6 +8,7 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/widgets/match_status_chip.dart';
+import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/entities/phase.dart';
@@ -20,6 +21,7 @@ import '../../domain/entities/match_detail.dart';
 import '../../domain/usecases/get_match_detail.dart';
 import '../bloc/match_detail_bloc.dart';
 
+/// Detalle de un partido a pantalla completa (`/partidos/:id`).
 class MatchDetailPage extends StatelessWidget {
   const MatchDetailPage({super.key, required this.matchId});
 
@@ -28,11 +30,56 @@ class MatchDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          MatchDetailBloc(GetMatchDetail(context.read<MatchRepository>()))
-            ..add(MatchDetailStarted(matchId)),
+      create: (context) => _createBloc(context, matchId),
       child: const _MatchDetailView(),
     );
+  }
+}
+
+/// Detalle de un partido dentro de otra pantalla (panel del fixture en
+/// escritorio).
+class MatchDetailPanel extends StatelessWidget {
+  const MatchDetailPanel({
+    super.key,
+    required this.matchId,
+    required this.onClose,
+  });
+
+  final int matchId;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => _createBloc(context, matchId),
+      child: _MatchDetailPanelView(matchId: matchId, onClose: onClose),
+    );
+  }
+}
+
+MatchDetailBloc _createBloc(BuildContext context, int matchId) =>
+    MatchDetailBloc(GetMatchDetail(context.read<MatchRepository>()))
+      ..add(MatchDetailStarted(matchId));
+
+bool _isRefreshing(MatchDetailState state) =>
+    state is MatchDetailLoading ||
+    state is MatchDetailLoaded && state.isRefreshing;
+
+/// Actualiza y, si no hizo falta consultar la red (se actualizó hace menos
+/// de 30 s), lo avisa.
+Future<void> _refresh(BuildContext context) async {
+  final bloc = context.read<MatchDetailBloc>();
+  final before = switch (bloc.state) {
+    MatchDetailLoaded(:final result) => result.fetchedAt,
+    _ => null,
+  };
+  bloc.add(const MatchDetailRefreshRequested());
+  final after = await bloc.stream.firstWhere((s) => !_isRefreshing(s));
+  if (after case MatchDetailLoaded(:final result)
+      when context.mounted &&
+          result.refreshError == null &&
+          result.fetchedAt == before) {
+    showAlreadyUpToDate(context, result.fetchedAt);
   }
 }
 
@@ -41,12 +88,8 @@ class _MatchDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<MatchDetailBloc>();
     return BlocBuilder<MatchDetailBloc, MatchDetailState>(
       builder: (context, state) {
-        final refreshing =
-            state is MatchDetailLoading ||
-            state is MatchDetailLoaded && state.isRefreshing;
         return Scaffold(
           appBar: AppBar(
             // Por enlace directo no hay a dónde volver: se ofrece el inicio.
@@ -61,37 +104,102 @@ class _MatchDetailView extends StatelessWidget {
             actions: [
               IconButton(
                 tooltip: 'Actualizar',
-                onPressed: refreshing
+                onPressed: _isRefreshing(state)
                     ? null
-                    : () => bloc.add(const MatchDetailRefreshRequested()),
+                    : () => _refresh(context),
                 icon: const Icon(Icons.refresh),
               ),
             ],
           ),
-          body: switch (state) {
-            MatchDetailInitial() || MatchDetailLoading() => Center(
-              child: Semantics(
-                label: 'Cargando partido',
-                child: const CircularProgressIndicator(),
-              ),
-            ),
-            MatchDetailFailure(:final failure) => ErrorView(
-              failure: failure,
-              onRetry: () => bloc.add(const MatchDetailRefreshRequested()),
-            ),
-            MatchDetailLoaded() => RefreshIndicator(
-              onRefresh: () async {
-                bloc.add(const MatchDetailRefreshRequested());
-                await bloc.stream.firstWhere(
-                  (s) => !(s is MatchDetailLoaded && s.isRefreshing),
-                );
-              },
-              child: _DetailBody(state: state),
-            ),
-          },
+          body: _MatchDetailContent(state: state),
         );
       },
     );
+  }
+}
+
+class _MatchDetailPanelView extends StatelessWidget {
+  const _MatchDetailPanelView({required this.matchId, required this.onClose});
+
+  final int matchId;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MatchDetailBloc, MatchDetailState>(
+      builder: (context, state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        'Partido',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Actualizar',
+                    onPressed: _isRefreshing(state)
+                        ? null
+                        : () => _refresh(context),
+                    icon: const Icon(Icons.refresh),
+                  ),
+                  IconButton(
+                    tooltip: 'Abrir en pantalla completa',
+                    onPressed: () =>
+                        context.push(AppRoutes.matchDetail(matchId)),
+                    icon: const Icon(Icons.open_in_full),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar detalle',
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(child: _MatchDetailContent(state: state)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MatchDetailContent extends StatelessWidget {
+  const _MatchDetailContent({required this.state});
+
+  final MatchDetailState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = this.state;
+    return switch (state) {
+      MatchDetailInitial() || MatchDetailLoading() => Center(
+        child: Semantics(
+          label: 'Cargando partido',
+          child: const CircularProgressIndicator(),
+        ),
+      ),
+      MatchDetailFailure(:final failure) => ErrorView(
+        failure: failure,
+        onRetry: () => context.read<MatchDetailBloc>().add(
+          const MatchDetailRefreshRequested(),
+        ),
+      ),
+      MatchDetailLoaded() => RefreshIndicator(
+        onRefresh: () => _refresh(context),
+        child: _DetailBody(state: state),
+      ),
+    };
   }
 }
 
