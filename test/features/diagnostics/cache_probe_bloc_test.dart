@@ -40,7 +40,7 @@ class _StubRepository implements MatchRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> syncRound(
+  Future<bool> syncRound(
     RoundQuery query, {
     SyncPriority priority = SyncPriority.context,
     bool forceRefresh = false,

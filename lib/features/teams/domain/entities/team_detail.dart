@@ -37,6 +37,7 @@ final class TeamSyncProgress extends Equatable {
     this.total = 0,
     this.isRunning = true,
     this.failure,
+    this.fetched = 0,
   });
 
   /// Rondas al día (vigentes o recién descargadas).
@@ -50,8 +51,12 @@ final class TeamSyncProgress extends Equatable {
   /// La descarga se detuvo por este error (se muestran los guardados).
   final Failure? failure;
 
+  /// Consultas a la red de esta carga (datos del equipo y rondas); `0` si
+  /// todo estaba vigente.
+  final int fetched;
+
   @override
-  List<Object?> get props => [done, total, isRunning, failure];
+  List<Object?> get props => [done, total, isRunning, failure, fetched];
 }
 
 /// Ficha de un equipo: datos y partidos de todas las competiciones

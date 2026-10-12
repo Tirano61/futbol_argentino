@@ -1,4 +1,5 @@
 import '../../../../core/error/failure.dart';
+import '../../../../core/result/data_result.dart';
 import '../../../../core/sync/cancel_token.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/argentina_time.dart';
@@ -100,7 +101,8 @@ class WatchTeamDetail {
     Failure? failure = await EnsureTeamIndex(_matches, catalog: _catalog)(
       now: now,
     );
-    (info, infoError) = await infoRequest;
+    final bool infoFetched;
+    (info, infoError, infoFetched) = await infoRequest;
     if (cancelToken.isCancelled) return;
 
     final stored = await _matches.storedTeamMatches(teamId);
@@ -108,16 +110,18 @@ class WatchTeamDetail {
         ? const <({RoundQuery query, bool force})>[]
         : _plan(stored, _seasonOf(stored, today), today, forceRefresh);
     var done = 0;
-    yield await build(TeamSyncProgress(total: plan.length));
+    var fetched = infoFetched ? 1 : 0;
+    yield await build(TeamSyncProgress(total: plan.length, fetched: fetched));
 
     for (final step in plan) {
       try {
-        await _matches.syncRound(
+        final queried = await _matches.syncRound(
           step.query,
           priority: step.force ? SyncPriority.visible : SyncPriority.team,
           forceRefresh: step.force,
           cancelToken: cancelToken,
         );
+        if (queried) fetched++;
       } on SyncCancelled {
         return;
       } on Failure catch (error) {
@@ -127,7 +131,9 @@ class WatchTeamDetail {
       if (cancelToken.isCancelled) return;
       done++;
       labeler.invalidate(step.query);
-      yield await build(TeamSyncProgress(done: done, total: plan.length));
+      yield await build(
+        TeamSyncProgress(done: done, total: plan.length, fetched: fetched),
+      );
     }
 
     yield await build(
@@ -136,6 +142,7 @@ class WatchTeamDetail {
         total: plan.length,
         isRunning: false,
         failure: failure,
+        fetched: fetched,
       ),
     );
   }
@@ -157,12 +164,21 @@ class WatchTeamDetail {
   CompetitionDefinition? _definition(int id) =>
       _catalog.where((d) => d.id == id).firstOrNull;
 
-  Future<(Team?, Failure?)> _loadInfo(int teamId, bool forceRefresh) async {
+  /// Datos del equipo, el error si no hay, y si se intentó la red.
+  Future<(Team?, Failure?, bool)> _loadInfo(
+    int teamId,
+    bool forceRefresh,
+  ) async {
     try {
       final result = await _teams.getTeam(teamId, forceRefresh: forceRefresh);
-      return (result.data, null);
+      // Con error de refresco también se intentó la red.
+      return (
+        result.data,
+        null,
+        result.origin == DataOrigin.remote || result.hasRefreshError,
+      );
     } on Failure catch (failure) {
-      return (null, failure);
+      return (null, failure, true);
     }
   }
 

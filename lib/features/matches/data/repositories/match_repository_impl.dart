@@ -95,7 +95,7 @@ class MatchRepositoryImpl implements MatchRepository {
   }
 
   @override
-  Future<void> syncRound(
+  Future<bool> syncRound(
     RoundQuery query, {
     SyncPriority priority = SyncPriority.context,
     bool forceRefresh = false,
@@ -104,7 +104,7 @@ class MatchRepositoryImpl implements MatchRepository {
     final key = roundKey(query);
     final meta = await _metadata.get(key);
     if (meta != null && !meta.needsRefresh(_clock.now(), force: forceRefresh)) {
-      return;
+      return false;
     }
     await _scheduler.run(
       key,
@@ -112,6 +112,7 @@ class MatchRepositoryImpl implements MatchRepository {
       () => _refreshRound(query, key),
       cancelToken: cancelToken,
     );
+    return true;
   }
 
   @override

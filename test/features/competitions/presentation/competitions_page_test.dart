@@ -315,6 +315,48 @@ void main() {
       );
     });
 
+    test('al volver al fixture se repone la URL de la etapa', () {
+      const stage = Stage(
+        competitionId: 4406,
+        season: Season(2026),
+        phase: PhaseKey.clausura,
+        apiRound: 12,
+        kind: StageKind.regular,
+        label: 'Fecha 12',
+        order: 27,
+      );
+      const url = '/competiciones/4406?temporada=2026&fase=clausura&ronda=12';
+
+      // Sin la etapa (vuelta de un partido o de otra sección): se repone.
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones'), stage),
+        Uri.parse(url),
+      );
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), stage),
+        Uri.parse(url),
+      );
+      // Se abrió en otra competición y se cambió desde los selectores.
+      expect(
+        FixtureRoute.urlToRestore(
+          Uri.parse('/competiciones/4616?temporada=2026&ronda=33'),
+          stage,
+        ),
+        Uri.parse(url),
+      );
+      // Ya la tiene o es otra pantalla: no se toca.
+      expect(FixtureRoute.urlToRestore(Uri.parse(url), stage), isNull);
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/partidos/2398130'), stage),
+        isNull,
+      );
+      expect(FixtureRoute.urlToRestore(Uri.parse('/'), stage), isNull);
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones'), null),
+        isNull,
+      );
+    });
+
     test('valores desconocidos se ignoran', () {
       final event = FixtureRoute.parse(leagueId: '999', query: {'fase': 'x'});
 

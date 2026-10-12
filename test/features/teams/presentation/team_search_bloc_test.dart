@@ -278,7 +278,7 @@ class _IndexingMatchRepository extends FakeMatchRepository {
   final void Function() onSync;
 
   @override
-  Future<void> syncRound(
+  Future<bool> syncRound(
     RoundQuery query, {
     SyncPriority priority = SyncPriority.context,
     bool forceRefresh = false,
@@ -286,5 +286,6 @@ class _IndexingMatchRepository extends FakeMatchRepository {
   }) async {
     await Future<void>.delayed(debounce);
     onSync();
+    return true;
   }
 }

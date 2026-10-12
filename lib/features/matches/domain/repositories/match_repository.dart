@@ -50,9 +50,12 @@ abstract interface class MatchRepository {
   /// Actualiza una ronda guardada si venció (o si [forceRefresh] y pasó el
   /// mínimo entre refrescos), sin devolver sus partidos.
   ///
+  /// Devuelve `true` si consultó la red y `false` si la ronda estaba
+  /// vigente (o, con [forceRefresh], se actualizó hace menos de 30 s).
+  ///
   /// Lanza `Failure` si la consulta falla y `SyncCancelled` si
   /// [cancelToken] se cancela antes de empezar.
-  Future<void> syncRound(
+  Future<bool> syncRound(
     RoundQuery query, {
     SyncPriority priority = SyncPriority.context,
     bool forceRefresh = false,
