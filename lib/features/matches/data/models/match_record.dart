@@ -5,6 +5,14 @@ import '../../domain/entities/match_status.dart';
 import '../../domain/entities/score.dart';
 import '../../domain/entities/team_ref.dart';
 
+/// Un equipo visto en un partido guardado.
+typedef TeamSighting = ({
+  TeamRef team,
+  int competitionId,
+  String season,
+  DateTime seenAt,
+});
+
 /// Forma en que se guarda un [Match] en la base local. Conserva todo lo que
 /// produjo el merge (certeza del horario, ronda anterior, membresía…), que
 /// no se puede reconstruir desde el JSON de la API.
@@ -79,6 +87,24 @@ abstract final class MatchRecord {
       membership: MatchMembership.values.byName(map['membership']! as String),
       lastSeenAt: _date(map['lastSeenAt'])!,
     );
+  }
+
+  /// Los dos equipos de un partido guardado, sin reconstruir el partido
+  /// (para el índice de equipos). Vacío si la API lo dio de baja.
+  static List<TeamSighting> sightingsFromMap(Map<String, Object?> map) {
+    if (map['membership'] == MatchMembership.removed.name) return const [];
+    final competitionId = map['competitionId']! as int;
+    final season = map['season']! as String;
+    final seenAt = _date(map['lastSeenAt'])!;
+    return [
+      for (final side in ['home', 'away'])
+        (
+          team: _teamFrom(map[side]! as Map<String, Object?>),
+          competitionId: competitionId,
+          season: season,
+          seenAt: seenAt,
+        ),
+    ];
   }
 
   static Map<String, Object?> _team(TeamRef t) => {

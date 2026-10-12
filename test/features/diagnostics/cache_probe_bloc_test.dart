@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
+import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
@@ -37,6 +38,22 @@ class _StubRepository implements MatchRepository {
     int matchId, {
     bool forceRefresh = false,
   }) => throw UnimplementedError();
+
+  @override
+  Future<void> syncRound(
+    RoundQuery query, {
+    SyncPriority priority = SyncPriority.context,
+    bool forceRefresh = false,
+    CancelToken? cancelToken,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<Match>> storedRound(RoundQuery query) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<Match>> storedTeamMatches(int teamId) =>
+      throw UnimplementedError();
 }
 
 void main() {

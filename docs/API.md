@@ -91,6 +91,13 @@ Evidencia: `docs/evidence/t0_2_android_nativo.jpg`, `t0_2_web_chrome_escritorio.
 - **Horarios `00:00` UTC**: en los datos grabados hay 42 casos con `strTimeLocal = 21:00` (corroborados) y 7 sin corroborar (`strTimeLocal` 16:00, 18:00, 19:00, 19:30, 19:45 o vacío).
 - **`strTime` sin segundos** (`"20:00"`) en 16 eventos.
 
+## Hallazgos de la Fase 7 (12/10/2026, 6 respuestas reales más)
+
+- **`searchteams.php?t=`** (1 resultado con la clave gratuita): `t=River` → River-PI (Brasil); `t=River Plate` → River Plate; `t=Boca` → Boca Unidos (Federal A). El espacio como `+` o `%20` da la misma respuesta (verificado por hash) y no distingue mayúsculas. Por eso es solo un respaldo: el índice local encuentra «river» y «boca» sin red.
+- **`lookupteam`** trae `strStadium`, `strLocation` y `idLeague…idLeague7` (Boca: 4406, 5428, 4500, 4724). La app no usa esas ligas para decidir qué rondas descargar: las competiciones salen de los partidos guardados.
+- **Copa Argentina 2026**: 16avos (`r=32`, 16 partidos, abr–jul) y octavos (`r=16`, 8, ago–sep) grabados. Boca aparece en 32avos, 16avos, octavos, cuartos y semifinales.
+- **Primera 2027** (`r=1`): `events: null` al 12/10/2026 (sirve para probar que el índice recurre a la temporada anterior).
+
 ## Corrección y hallazgos de la Fase 4 (11/10/2026)
 
 - **No hay mojibake en la API.** Lo informado en la Fase 0 (`eventsday` con `R�­o Cuarto`) fue un error de inspección: Python en Windows decodifica los pipes como cp1252 y los `repr` escapan `­`. Verificado decodificando explícitamente como UTF-8: los 65 fixtures (incluido `eventsday`) son UTF-8 correcto. `RoundMergePolicy.looksGarbled` queda como defensa barata.

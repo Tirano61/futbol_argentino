@@ -52,6 +52,12 @@ class MatchLocalDataSource {
     return [for (final r in records) MatchRecord.fromMap(r.value)];
   }
 
+  /// Equipos de todos los partidos guardados (para el índice de búsqueda).
+  Future<List<TeamSighting>> teamSightings() async => [
+    for (final r in await _store.find(_db))
+      ...MatchRecord.sightingsFromMap(r.value),
+  ];
+
   Future<void> saveAll(List<Match> matches) async {
     if (matches.isEmpty) return;
     await _db.transaction((txn) async {

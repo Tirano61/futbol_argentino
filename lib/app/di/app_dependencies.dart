@@ -16,6 +16,9 @@ import '../../features/matches/data/datasources/match_local_data_source.dart';
 import '../../features/matches/data/datasources/match_remote_data_source.dart';
 import '../../features/matches/data/repositories/match_repository_impl.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
+import '../../features/teams/data/datasources/team_remote_data_source.dart';
+import '../../features/teams/data/repositories/team_repository_impl.dart';
+import '../../features/teams/domain/repositories/team_repository.dart';
 
 /// Composition root: construye una sola vez los servicios y repositorios de
 /// la app. Los widgets los obtienen mediante `RepositoryProvider`.
@@ -25,8 +28,10 @@ class AppDependencies {
     required this.clock,
     required this.database,
     required this.apiClient,
+    required this.syncScheduler,
     required this.matchRepository,
     required this.competitionRepository,
+    required this.teamRepository,
     required this.diagnosticsRepository,
     required http.Client httpClient,
   }) : _httpClient = httpClient;
@@ -47,23 +52,33 @@ class AppDependencies {
         clock: clock,
       ),
     );
-    final scheduler = SyncScheduler();
+    final scheduler = SyncScheduler(clock: clock);
     final metadata = QueryMetadataStore(database);
+    final matchLocal = MatchLocalDataSource(database);
 
     return AppDependencies._(
       config: appConfig,
       clock: clock,
       database: database,
       apiClient: apiClient,
+      syncScheduler: scheduler,
       matchRepository: MatchRepositoryImpl(
         remote: MatchRemoteDataSource(apiClient),
-        local: MatchLocalDataSource(database),
+        local: matchLocal,
         metadata: metadata,
         scheduler: scheduler,
         clock: clock,
       ),
       competitionRepository: CompetitionRepositoryImpl(
         remote: CompetitionRemoteDataSource(apiClient),
+        database: database,
+        metadata: metadata,
+        scheduler: scheduler,
+        clock: clock,
+      ),
+      teamRepository: TeamRepositoryImpl(
+        remote: TeamRemoteDataSource(apiClient),
+        matches: matchLocal,
         database: database,
         metadata: metadata,
         scheduler: scheduler,
@@ -78,8 +93,12 @@ class AppDependencies {
   final Clock clock;
   final Database database;
   final TheSportsDbClient apiClient;
+
+  /// Cola de sincronización (se pausa con la app en segundo plano).
+  final SyncScheduler syncScheduler;
   final MatchRepository matchRepository;
   final CompetitionRepository competitionRepository;
+  final TeamRepository teamRepository;
   final DiagnosticsRepository diagnosticsRepository;
   final http.Client _httpClient;
 

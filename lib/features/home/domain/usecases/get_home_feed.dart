@@ -289,16 +289,12 @@ class GetHomeFeed {
                 apiRound: match.apiRound,
                 matches: [match],
               )[match.id]!);
-    final determined = phase.isDetermined;
+    final labels = StageLabeler.describe(definition, match.apiRound, phase);
     return HomeMatch(
       match: match,
       competitionName: definition.name,
-      phaseLabel: determined && definition.phases.length > 1
-          ? phase.phase.label
-          : null,
-      stageLabel: determined
-          ? StageLabeler.label(definition, match.apiRound, phase.stageKind)
-          : 'Ronda ${match.apiRound}',
+      phaseLabel: labels.phase,
+      stageLabel: labels.stage,
     );
   }
 }

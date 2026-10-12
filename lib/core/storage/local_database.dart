@@ -35,6 +35,9 @@ abstract final class AppStores {
   /// Partidos por `idEvent`.
   static final events = intMapStoreFactory.store('events');
 
+  /// Equipos por `idTeam` (`lookupteam`).
+  static final teams = intMapStoreFactory.store('teams');
+
   /// Competiciones por `idLeague`.
   static final competitions = intMapStoreFactory.store('competitions');
 

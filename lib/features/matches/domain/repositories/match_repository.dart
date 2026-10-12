@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/result/data_result.dart';
+import '../../../../core/sync/cancel_token.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../entities/match.dart';
 
@@ -45,6 +46,25 @@ abstract interface class MatchRepository {
   /// Descarga una ronda en segundo plano, con prioridad baja, si lo
   /// guardado venció (p. ej. la etapa vecina). No lanza errores.
   Future<void> prefetchRound(RoundQuery query);
+
+  /// Actualiza una ronda guardada si venció (o si [forceRefresh] y pasó el
+  /// mínimo entre refrescos), sin devolver sus partidos.
+  ///
+  /// Lanza `Failure` si la consulta falla y `SyncCancelled` si
+  /// [cancelToken] se cancela antes de empezar.
+  Future<void> syncRound(
+    RoundQuery query, {
+    SyncPriority priority = SyncPriority.context,
+    bool forceRefresh = false,
+    CancelToken? cancelToken,
+  });
+
+  /// Partidos visibles guardados de una ronda (sin red).
+  Future<List<Match>> storedRound(RoundQuery query);
+
+  /// Partidos guardados de un equipo, de todas las competiciones, salvo los
+  /// que la API dio de baja (sin red).
+  Future<List<Match>> storedTeamMatches(int teamId);
 
   /// Un partido por `idEvent` (caché y, si venció, `lookupevent`).
   ///

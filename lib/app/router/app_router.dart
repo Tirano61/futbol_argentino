@@ -11,6 +11,8 @@ import '../../features/diagnostics/presentation/pages/api_test_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/match_detail/presentation/pages/match_detail_page.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
+import '../../features/teams/presentation/pages/team_detail_page.dart';
+import '../../features/teams/presentation/pages/team_search_page.dart';
 import '../../shared/presentation/widgets/coming_soon_page.dart';
 import '../shell/adaptive_shell.dart';
 
@@ -23,6 +25,7 @@ abstract final class AppRoutes {
   static const match = '/partidos';
 
   static String matchDetail(int id) => '$match/$id';
+  static String teamDetail(int id) => '$teams/$id';
 }
 
 GoRouter createAppRouter({required bool enableDiagnostics}) {
@@ -73,11 +76,28 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             routes: [
               GoRoute(
                 path: AppRoutes.teams,
-                builder: (context, state) => const ComingSoonPage(
-                  title: 'Equipos',
-                  icon: Icons.shield,
-                  message: 'Buscá un equipo para ver sus partidos.',
+                builder: (context, state) => TeamSearchPage(
+                  initialQuery: state.uri.queryParameters['q'] ?? '',
                 ),
+                routes: [
+                  // Anidada: «atrás» vuelve al buscador, también desde un
+                  // enlace directo.
+                  GoRoute(
+                    path: ':teamId',
+                    builder: (context, state) {
+                      final id = int.tryParse(
+                        state.pathParameters['teamId'] ?? '',
+                      );
+                      return id == null
+                          ? const ComingSoonPage(
+                              title: 'Equipo',
+                              icon: Icons.shield,
+                              message: 'El enlace del equipo no es válido.',
+                            )
+                          : TeamDetailPage(key: ValueKey(id), teamId: id);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

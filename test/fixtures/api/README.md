@@ -75,3 +75,9 @@ Los estados (`NS`, `1H`, `FT`…) reflejan el momento de la grabación.
 | `eventsnextleague_4500.json` | `eventsnextleague.php?id=4500` | 200 | `events` = 1 | 2026-10: 1 | 11/10/2026 23:34 UTC | `6f4bbc103a4e` |
 | `eventspastleague_4500.json` | `eventspastleague.php?id=4500` | 200 | `events` = 1 | 2026-10: 1 | 11/10/2026 23:34 UTC | `29155decc8d3` |
 | `eventsround_4500_r200_s2026.json` | `eventsround.php?id=4500&r=200&s=2026` | 200 | `events` = null |  | 11/10/2026 23:34 UTC | `ac165cc3ca83` |
+| `eventsround_4500_r32_s2026.json` | `eventsround.php?id=4500&r=32&s=2026` | 200 | `events` = 16 | 2026-04: 2, 2026-05: 8, 2026-06: 1, 2026-07: 5 | 12/10/2026 14:44 UTC | `297e44b07320` |
+| `eventsround_4500_r16_s2026.json` | `eventsround.php?id=4500&r=16&s=2026` | 200 | `events` = 8 | 2026-08: 7, 2026-09: 1 | 12/10/2026 14:44 UTC | `44c1f086f208` |
+| `searchteams_River.json` | `searchteams.php?t=River` | 200 | `teams` = 1 (River-PI, Brasil) |  | 12/10/2026 14:44 UTC | `ecc04789fe25` |
+| `searchteams_River_Plate.json` | `searchteams.php?t=River%20Plate` | 200 | `teams` = 1 (River Plate, Argentina) |  | 12/10/2026 14:44 UTC | `761453afc9b6` |
+| `searchteams_Boca.json` | `searchteams.php?t=Boca` | 200 | `teams` = 1 (Boca Unidos, Argentina, Federal A) |  | 12/10/2026 14:44 UTC | `587d71762c7d` |
+| `eventsround_4406_r1_s2027.json` | `eventsround.php?id=4406&r=1&s=2027` | 200 | `events` = null |  | 12/10/2026 14:48 UTC | `ac165cc3ca83` |

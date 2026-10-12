@@ -403,7 +403,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Entrega Hito A**: build de prueba en tablet y Chrome; revisión tuya antes de seguir.
 
 ### Fase 6 — Inicio  ·  Hito B
-- **Estado**: ✅ completada el 11/10/2026 — T6.1 y T6.2 hechas; 267 tests verdes; validada en tablet Android y Chrome (escritorio y tablet): frío = 12 peticiones, caliente = 0. Esperando aprobación para la Fase 7.
+- **Estado**: ✅ completada el 11/10/2026 — T6.1 y T6.2 hechas; 267 tests verdes; validada en tablet Android y Chrome (escritorio y tablet): frío = 12 peticiones, caliente = 0.
 - **Ajuste en T6.1**: «ronda actual/anterior» se resolvió como *ronda del último partido + etapa siguiente* (o la del próximo partido si es otra), máx. 2 por competición, más los partidos de los punteros aunque su ronda no se cargue. Motivo: con la fecha en curso, próximo y último caen en la misma ronda (caso real del 11/10) y la fecha siguiente quedaba fuera de «Próximos».
 - **Observaciones para revisar**: «Recientes» cubre solo ayer (ventana del plan): entre semana suele quedar vacío; se podría ampliar a «últimos 3 días» sin peticiones extra (las rondas ya están cargadas).
 - **T6.1** `GetHomeFeed` (ronda actual/anterior de cada competición → ayer…+7 días) + `HomeBloc` + tests.
@@ -411,6 +411,10 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: frío ≤ 12 peticiones; caliente 0 dentro del TTL.
 
 ### Fase 7 — Equipos  ·  Hito B
+- **Estado**: ✅ completada el 12/10/2026 — T7.1 a T7.4 hechas; 343 tests verdes; validada en la tablet (app Android y Chrome de la tablet). Esperando aprobación para la Fase 8.
+- **Aceptación verificada**: «river» → River Plate sin red (test, y tablet en modo avión tras reiniciar la app); la ficha de Boca reúne Primera + Copa (23 rondas: 17 + 6); salir de la ficha detiene su sync (test, y tablet: 0 peticiones en los 80 s siguientes).
+- **Presupuesto medido (Boca, en frío)**: 25 peticiones = `lookupteam` + 3 del índice + 21 rondas P2 (10 por minuto: 0 s, 60 s, 120 s). En caliente: 0.
+- **Ajustes**: ver «Estado de implementación (Fase 7)» en ARCHITECTURE y el registro de DECISIONS.
 - **T7.1** Índice local de equipos + bootstrap (3 peticiones) + `TextNormalizer` + tests.
 - **T7.2** `TeamSearchBloc` (debounce, restartable, respaldo remoto) + `TeamSearchPage`.
 - **T7.3** `SyncScheduler` P2 con `CancelToken` por dueño, cupo 10/min, pausa en segundo plano + tests de presupuesto y cancelación.
