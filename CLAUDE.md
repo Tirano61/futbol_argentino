@@ -8,6 +8,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - `docs/API.md` — endpoints verificados, topes de la clave gratuita, hallazgos de datos.
 - `docs/DATA_STRATEGY.md` — carga por rondas, TTL, merge, sincronización incremental.
 - `docs/DECISIONS.md` — decisiones y alternativas.
+- `docs/HITO_C.md` — plan detallado del Hito C v3 (Fases 11–19, post-MVP).
 
 ## Forma de trabajo
 - Se trabaja **por fases**. Dentro de una fase se avanza tarea por tarea; **al terminar cada fase**: validar, informar, actualizar docs y **esperar aprobación** antes de la siguiente.

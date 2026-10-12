@@ -455,6 +455,7 @@ Se hace por etapas, cada una con su aprobación (acordado el 12/10/2026). **Noti
 - **10.2 y 10.3**: reemplazadas por el plan del Hito C v3 (abajo).
 
 ### Hito C v3 — Más datos y mejoras de uso (aprobado el 12/10/2026)
+Detalle completo (tareas, aceptación y tests por fase): [`docs/HITO_C.md`](HITO_C.md).
 Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso diario (Fases 16–18). Las tareas de una fase se hacen seguidas; al cerrar cada fase se presentan resultados, verificaciones y problemas, y se espera aprobación. Commits y PRs: el usuario. Historial **a pedido** (P2, cancelable, con avance; sin P3) y **sin borrado automático de temporadas**. Tablas según el **Reglamento Torneos Primera División 2026** (ver D15 en DECISIONS). Fuera: notificaciones.
 
 - **Fase 11 — Validaciones post-MVP.** ✅ Completada el 12/10/2026 (V8–V14 resueltos; V15 pendiente; ver `docs/API.md`). Esperando aprobación de zonas y formato de Nacional para seguir con la Fase 12.
