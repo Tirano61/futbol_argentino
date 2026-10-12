@@ -83,6 +83,29 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 
 ---
 
+## Estado de implementación (Fase 7, 12/10/2026) — Equipos y P2
+
+**Índice de equipos (§5.7)**
+- Se arma con los partidos guardados (store `events`, sin reconstruir cada partido): no hay un índice aparte que mantener sincronizado.
+- Bootstrap (`EnsureTeamIndex`, P1): primera etapa de cada competición del catálogo (Primera fecha 1 = 30 equipos, Nacional fecha 1 = 36, Copa 32avos = 64) → 81 equipos en 2026. 3 peticiones en frío; esas rondas suelen estar cerradas (TTL 30 días).
+- Competiciones de cada equipo: las de su temporada más reciente guardada (un equipo que jugó la Copa 2025 pero no la 2026 no la muestra).
+- Respaldo en línea: solo sin coincidencias locales, con ≥ 3 letras y con el índice ya cargado; `searchteams` filtrado a `strCountry = Argentina` y `strSport = Soccer`.
+
+**Ficha del equipo (P2)** — `WatchTeamDetail`
+1. Emite lo guardado enseguida.
+2. `lookupteam` (P0, TTL 7 días) + bootstrap del índice (P1): con la fecha 1 / 32avos de la temporada se sabe en qué competiciones juega (sin depender de `idLeague…` de la API, que puede estar desactualizado).
+3. Todas las rondas de la temporada de esas competiciones (Boca: 17 de Primera + 6 de Copa = 23), **de a una** con P2: de la última a la primera, alternando competiciones. Las vigentes no generan peticiones (las del Inicio ya están).
+4. Un error detiene la descarga (las siguientes fallarían igual) y se avisa «No se pudieron completar los partidos (n/N)» con «Reintentar».
+5. Refresco manual: fuerza con P0 solo las rondas con partidos del equipo sin terminar entre ayer y +7 días; el resto respeta la vigencia (no se gastan 23 peticiones).
+
+**`SyncScheduler`**
+- P2: cupo de **10 inicios por minuto** (ventana deslizante; `Clock`/`Delay` inyectables), **de a uno** (siempre queda lugar para P0/P1) y **en pausa con la app oculta** (`pause`/`resume`; P0/P1 siguen). Un P2 en cola pedido como P0 sube de prioridad y no espera el cupo.
+- `CancelToken` por dueño: al cancelar se descartan los trabajos **en cola** que solo esperaba ese dueño (`SyncCancelled`); un trabajo compartido con otro (p. ej. una ronda que también pidió el Inicio) sigue; uno en curso termina y sus datos se guardan.
+
+**Medido**: Boca en frío = 25 peticiones (1 + 3 + 21 P2 en tandas de 10 a los 0, 60 y 120 s); en caliente = 0. En la tablet: al salir de la ficha con 8 rondas pendientes, 0 peticiones en los 80 s siguientes; con la app en segundo plano, 0 peticiones aun con cupo libre, y al volver siguió sola.
+
+---
+
 ## Estado de implementación (Fase 3, 11/10/2026)
 
 - **Persistencia**: sembast (`lib/core/storage/`). Android: archivo en el directorio de soporte de la app; Web: IndexedDB. Si no se puede abrir (p. ej. modo privado), la app usa una base en memoria y sigue funcionando sin guardar entre sesiones.

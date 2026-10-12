@@ -4,6 +4,7 @@ import '../../../../core/cache/query_metadata_store.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/network/remote_call.dart';
 import '../../../../core/result/data_result.dart';
+import '../../../../core/sync/cancel_token.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/clock.dart';
 import '../../domain/entities/match.dart';
@@ -86,19 +87,41 @@ class MatchRepositoryImpl implements MatchRepository {
 
   @override
   Future<void> prefetchRound(RoundQuery query) async {
-    final key = roundKey(query);
-    final meta = await _metadata.get(key);
-    if (meta != null && meta.isFresh(_clock.now())) return;
     try {
-      await _scheduler.run(
-        key,
-        SyncPriority.context,
-        () => _refreshRound(query, key),
-      );
+      await syncRound(query);
     } on Failure catch (failure) {
-      debugPrint('$key: prefetch falló: $failure');
+      debugPrint('${roundKey(query)}: prefetch falló: $failure');
     }
   }
+
+  @override
+  Future<void> syncRound(
+    RoundQuery query, {
+    SyncPriority priority = SyncPriority.context,
+    bool forceRefresh = false,
+    CancelToken? cancelToken,
+  }) async {
+    final key = roundKey(query);
+    final meta = await _metadata.get(key);
+    if (meta != null && !meta.needsRefresh(_clock.now(), force: forceRefresh)) {
+      return;
+    }
+    await _scheduler.run(
+      key,
+      priority,
+      () => _refreshRound(query, key),
+      cancelToken: cancelToken,
+    );
+  }
+
+  @override
+  Future<List<Match>> storedRound(RoundQuery query) => _visibleRound(query);
+
+  @override
+  Future<List<Match>> storedTeamMatches(int teamId) async => [
+    for (final m in await _local.byTeam(teamId))
+      if (m.membership != MatchMembership.removed) m,
+  ];
 
   @override
   Future<DataResult<Match>> getMatch(

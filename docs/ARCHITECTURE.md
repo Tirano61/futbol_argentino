@@ -228,3 +228,18 @@ Dominio implementado (Dart puro, 125 tests):
 - `MatchRepository.watchRound` y `CompetitionRepository.getSchedulePointers` aceptan `priority`: el Inicio carga con P1 y el refresco manual con P0.
 - `shared/presentation/widgets/section_header.dart` (`SectionHeader`).
 
+## Estado de implementación (Fase 7, 12/10/2026)
+
+- **Feature `teams`** (`teams → competitions, matches`; desvío del plan, que decía `teams → matches`: la ficha necesita catálogo, fases y etapas, igual que `home` y `match_detail`).
+  - `domain/entities`: `Team` (`lookupteam`), `TeamSummary` (ítem de búsqueda: `TeamRef` + competiciones), `TeamDetail` / `TeamMatch` / `TeamSyncProgress`.
+  - `domain/services/team_index.dart` (`TeamIndex`): cada palabra buscada debe aparecer en el nombre normalizado; orden: empieza con la búsqueda → alguna palabra empieza con ella → resto; alfabético dentro de cada grupo. Búsqueda en línea solo desde 3 letras.
+  - `domain/usecases`: `EnsureTeamIndex` (primera etapa de cada competición del catálogo = todos sus equipos; temporada = año argentino, o la anterior si la primera etapa todavía está vacía), `SearchTeamsOnline` (respaldo `searchteams`), `WatchTeamDetail` (stream: guardado → `lookupteam` P0 + índice P1 → rondas de la temporada P2 de a una, alternando competiciones, de la última a la primera).
+  - `data`: `TeamDto`, `TeamRecord` (store `teams`), `TeamRemoteDataSource` (`lookupteam`, `searchteams`), `TeamRepositoryImpl` (índice desde los partidos guardados sin reconstruirlos, con `MatchLocalDataSource.teamSightings`; nombre y escudo del partido visto más recientemente; competiciones de la temporada más reciente; `lookupteam` con TTL 7 días; búsqueda en línea filtrada a fútbol de Argentina).
+  - `presentation`: `TeamSearchBloc` (búsqueda `restartable` con debounce de 350 ms dentro del handler; la carga del índice va aparte y solo repite la búsqueda si el índice nuevo cambia el resultado), `TeamSearchPage` (`/equipos?q=`; en Web la URL refleja la búsqueda), `TeamDetailBloc` (`restartable`; un `CancelToken` por carga, cancelado al reemplazarla o al cerrar), `TeamDetailPage` (`/equipos/:teamId`, anidada: «atrás» vuelve al buscador; encabezado con estadio y competiciones, «Completando partidos… n/N», Próximos y Disputados del más reciente al más viejo).
+- **`core/text/text_normalizer.dart`**: minúsculas, sin acentos; apóstrofos y puntos se quitan («Newell's» → «newells»); el resto de los signos separa palabras.
+- **`core/sync/`**: `SyncPriority.team` (P2) y `cancel_token.dart` (`CancelToken`, `SyncCancelled`). Ver DATA_STRATEGY.
+- **`MatchRepository`** suma `syncRound` (actualiza una ronda vencida sin emitirla; acepta prioridad y `CancelToken`), `storedRound` y `storedTeamMatches` (lecturas locales). `prefetchRound` usa `syncRound`.
+- **`StageLabeler.describe`**: «fase · etapa» de un partido (la usan el Inicio y la ficha).
+- **`matchDayItems(newestFirst:)`**: días del más reciente al más viejo (Disputados).
+- **App**: `AppLifecycleListener` pausa la cola P2 al ocultarse la app (`onHide`) y la reanuda al volver (`onShow`).
+

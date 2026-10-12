@@ -8,6 +8,7 @@ import '../core/time/clock.dart';
 import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
 import '../features/matches/domain/repositories/match_repository.dart';
+import '../features/teams/domain/repositories/team_repository.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -26,8 +27,22 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
     enableDiagnostics: widget.dependencies.config.enableDiagnostics,
   );
 
+  /// Con la app oculta (Android en segundo plano, pestaña Web oculta) no
+  /// empiezan sincronizaciones de fondo (P2).
+  late final AppLifecycleListener _lifecycle = AppLifecycleListener(
+    onHide: widget.dependencies.syncScheduler.pause,
+    onShow: widget.dependencies.syncScheduler.resume,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle;
+  }
+
   @override
   void dispose() {
+    _lifecycle.dispose();
     _router.dispose();
     super.dispose();
   }
@@ -47,6 +62,7 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
         RepositoryProvider<CompetitionRepository>.value(
           value: deps.competitionRepository,
         ),
+        RepositoryProvider<TeamRepository>.value(value: deps.teamRepository),
       ],
       child: MaterialApp.router(
         title: 'Fútbol Argentino',

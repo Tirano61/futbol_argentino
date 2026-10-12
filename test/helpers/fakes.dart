@@ -1,5 +1,6 @@
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
+import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/competition.dart';
@@ -53,6 +54,33 @@ class FakeMatchRepository implements MatchRepository {
 
   @override
   Future<void> prefetchRound(RoundQuery query) async => prefetched.add(query);
+
+  final synced = <({RoundQuery query, bool force, SyncPriority priority})>[];
+
+  @override
+  Future<void> syncRound(
+    RoundQuery query, {
+    SyncPriority priority = SyncPriority.context,
+    bool forceRefresh = false,
+    CancelToken? cancelToken,
+  }) async {
+    synced.add((query: query, force: forceRefresh, priority: priority));
+    if (failure != null) throw failure!;
+  }
+
+  @override
+  Future<List<Match>> storedRound(RoundQuery query) async => [
+    for (final m in rounds[query.apiRound] ?? const <Match>[])
+      if (m.isVisible) m,
+  ];
+
+  @override
+  Future<List<Match>> storedTeamMatches(int teamId) async => [
+    for (final round in rounds.values)
+      for (final m in round)
+        if (m.involvesTeam(teamId) && m.membership != MatchMembership.removed)
+          m,
+  ];
 
   @override
   Future<DataResult<Match>> getMatch(

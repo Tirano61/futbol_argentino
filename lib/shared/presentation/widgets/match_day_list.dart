@@ -7,13 +7,20 @@ import 'match_card.dart';
 
 /// Ítems de una lista de partidos agrupados por día argentino (encabezado
 /// del día + tarjetas), para usar dentro de un `ListView`.
+///
+/// [newestFirst]: días del más reciente al más viejo (dentro de cada día,
+/// por hora).
 List<Widget> matchDayItems({
   required List<Match> matches,
   required DateTime now,
   String? Function(Match match)? subtitle,
   void Function(Match match)? onTap,
+  bool newestFirst = false,
 }) => [
-  for (final group in MatchGrouping.byArgentinaDay(matches)) ...[
+  for (final group
+      in newestFirst
+          ? MatchGrouping.byArgentinaDay(matches).reversed
+          : MatchGrouping.byArgentinaDay(matches)) ...[
     DayHeader(group: group),
     for (final m in group.matches)
       MatchCard(
