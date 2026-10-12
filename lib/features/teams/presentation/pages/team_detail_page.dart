@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
+import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
@@ -41,8 +43,53 @@ class TeamDetailPage extends StatelessWidget {
   }
 }
 
-class _TeamDetailView extends StatelessWidget {
+class _TeamDetailView extends StatefulWidget {
   const _TeamDetailView();
+
+  @override
+  State<_TeamDetailView> createState() => _TeamDetailViewState();
+}
+
+class _TeamDetailViewState extends State<_TeamDetailView> {
+  /// Se apaga cuando la sección de la ficha queda oculta (otra sección del
+  /// menú) y se prende al volver.
+  ValueListenable<TickerModeData>? _visible;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.getValuesNotifier(context);
+    if (visible == _visible) return;
+    _visible?.removeListener(_onVisibilityChanged);
+    _visible = visible..addListener(_onVisibilityChanged);
+  }
+
+  void _onVisibilityChanged() => context.read<TeamDetailBloc>().add(
+    _visible!.value.enabled
+        ? const TeamDetailResumed()
+        : const TeamDetailPaused(),
+  );
+
+  @override
+  void dispose() {
+    _visible?.removeListener(_onVisibilityChanged);
+    super.dispose();
+  }
+
+  /// Actualiza y, si no hizo falta consultar la red (se actualizó hace
+  /// menos de 30 s), lo avisa.
+  Future<void> _refresh() async {
+    final bloc = context.read<TeamDetailBloc>()
+      ..add(const TeamDetailRefreshRequested());
+    final after = await bloc.stream.firstWhere((s) => !s.isBusy);
+    if (after case TeamDetailLoaded(:final detail)
+        when mounted &&
+            detail.progress.fetched == 0 &&
+            detail.progress.failure == null &&
+            detail.infoError == null) {
+      showAlreadyUpToDate(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +108,7 @@ class _TeamDetailView extends StatelessWidget {
                 FavoriteButton(team: team),
               IconButton(
                 tooltip: 'Actualizar',
-                onPressed: state.isBusy ? null : refresh,
+                onPressed: state.isBusy ? null : _refresh,
                 icon: const Icon(Icons.refresh),
               ),
             ],
@@ -82,10 +129,7 @@ class _TeamDetailView extends StatelessWidget {
                   onRetry: refresh,
                 ),
                 TeamDetailLoaded(:final detail) => RefreshIndicator(
-                  onRefresh: () async {
-                    refresh();
-                    await bloc.stream.firstWhere((s) => !s.isBusy);
-                  },
+                  onRefresh: _refresh,
                   child: _DetailBody(detail: detail, onRetry: refresh),
                 ),
               },

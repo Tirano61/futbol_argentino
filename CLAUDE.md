@@ -20,6 +20,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 ## Convenciones de código
 - DDD por features (`lib/features/<feature>/{data,domain,presentation}`), `lib/core`, `lib/shared`, `lib/app`.
 - `flutter_bloc` con `Bloc` y events/states `sealed`. **Prohibido `Cubit`.**
+- Con `restartable`, un evento que solo cancela (p. ej. pausar) va en su propio handler: si pasa por `restartable`, los eventos siguientes esperan a que termine la cancelación de la carga en curso.
 - `domain/` es Dart puro: sin imports de `flutter`, `http` ni `sembast`.
 - Sin HTTP en widgets, sin lógica de negocio en presentation, sin DTO/JSON en pantallas.
 - El parsing de JSON vive en los DTO (`fromJson`); mappers DTO → entidad.

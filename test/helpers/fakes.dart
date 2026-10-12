@@ -59,8 +59,11 @@ class FakeMatchRepository implements MatchRepository {
 
   final synced = <({RoundQuery query, bool force, SyncPriority priority})>[];
 
+  /// Lo que responde [syncRound]: si consultó la red.
+  bool syncFetches = true;
+
   @override
-  Future<void> syncRound(
+  Future<bool> syncRound(
     RoundQuery query, {
     SyncPriority priority = SyncPriority.context,
     bool forceRefresh = false,
@@ -68,6 +71,7 @@ class FakeMatchRepository implements MatchRepository {
   }) async {
     synced.add((query: query, force: forceRefresh, priority: priority));
     if (failure != null) throw failure!;
+    return syncFetches;
   }
 
   @override

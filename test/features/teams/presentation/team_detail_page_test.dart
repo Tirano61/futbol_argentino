@@ -186,4 +186,28 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('actualizar sin nada que consultar avisa que ya está al día', (
+    tester,
+  ) async {
+    final matches = primera2026()..syncFetches = false;
+    final teams = boca()..teamFromCache = true;
+    await pumpDetail(tester, matches: matches, teams: teams);
+
+    await tester.tap(find.byTooltip('Actualizar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ya está actualizado.'), findsOneWidget);
+  });
+
+  testWidgets('actualizar con consultas a la red no muestra el aviso', (
+    tester,
+  ) async {
+    await pumpDetail(tester, matches: primera2026(), teams: boca());
+
+    await tester.tap(find.byTooltip('Actualizar'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Ya está actualizado'), findsNothing);
+  });
 }

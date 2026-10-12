@@ -91,7 +91,13 @@ void main() {
     test('progreso completo: 23 rondas (17 de Primera + 6 de Copa)', () {
       expect(
         detail.progress,
-        const TeamSyncProgress(done: 23, total: 23, isRunning: false),
+        // Consultas: `lookupteam` + 21 rondas (2 ya estaban por el índice).
+        const TeamSyncProgress(
+          done: 23,
+          total: 23,
+          isRunning: false,
+          fetched: 22,
+        ),
       );
     });
 
@@ -136,6 +142,7 @@ void main() {
       final again = await load();
 
       expect(api.requests, isEmpty);
+      expect(again.progress.fetched, 0);
       expect(again.upcoming, detail.upcoming);
       expect(again.played, detail.played);
     });
@@ -192,6 +199,81 @@ void main() {
 
     expect(api.requests.length, lessThanOrEqualTo(atClose + 1));
     expect(api.requests.length, lessThan(25));
+  });
+
+  test(
+    'pausar detiene la descarga y retomar completa solo lo que falta',
+    () async {
+      final bloc = TeamDetailBloc(
+        watchTeamDetail: watch(),
+        clock: _ClockOf(clock),
+      )..add(const TeamDetailStarted(bocaId));
+      await bloc.stream.firstWhere(
+        (s) => s is TeamDetailLoaded && s.detail.progress.done >= 2,
+      );
+
+      bloc.add(const TeamDetailPaused());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final atPause = api.requests.length;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(api.requests.length, atPause, reason: 'en pausa no pide nada');
+      expect(api.requests.length, lessThan(25));
+
+      bloc.add(const TeamDetailResumed());
+      final done =
+          await bloc.stream.firstWhere(
+                (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
+              )
+              as TeamDetailLoaded;
+
+      expect(done.detail.progress.done, 23);
+      // Las mismas 25 peticiones que sin pausa: nada se repite.
+      expect(api.requests, hasLength(25));
+      await bloc.close();
+    },
+  );
+
+  test('actualizar con la descarga en curso la reemplaza y termina', () async {
+    final bloc = TeamDetailBloc(
+      watchTeamDetail: watch(),
+      clock: _ClockOf(clock),
+    )..add(const TeamDetailStarted(bocaId));
+    await bloc.stream.firstWhere(
+      (s) => s is TeamDetailLoaded && s.detail.progress.done >= 2,
+    );
+
+    bloc.add(const TeamDetailRefreshRequested());
+    final done =
+        await bloc.stream
+                .firstWhere(
+                  (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
+                )
+                .timeout(const Duration(seconds: 5))
+            as TeamDetailLoaded;
+
+    expect(done.detail.progress.done, done.detail.progress.total);
+    await bloc.close();
+  });
+
+  test('retomar sin descarga pendiente no hace nada', () async {
+    final bloc = TeamDetailBloc(
+      watchTeamDetail: watch(),
+      clock: _ClockOf(clock),
+    )..add(const TeamDetailStarted(bocaId));
+    await bloc.stream.firstWhere(
+      (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
+    );
+    final states = <TeamDetailState>[];
+    final sub = bloc.stream.listen(states.add);
+
+    bloc
+      ..add(const TeamDetailPaused())
+      ..add(const TeamDetailResumed());
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(states, isEmpty);
+    await sub.cancel();
+    await bloc.close();
   });
 
   group('sin red', () {

@@ -40,6 +40,20 @@ abstract final class FixtureRoute {
     );
   }
 
+  /// URL a reponer cuando el router vuelve a la ubicación del fixture (p. ej.
+  /// al volver de un partido o de otra sección): la ubicación del router es
+  /// la que abrió la pantalla y no sigue los cambios de competición, fase o
+  /// etapa. Devuelve la URL de [stage] si [location] es del fixture y no la
+  /// tiene; si no, `null`.
+  static Uri? urlToRestore(Uri location, Stage? stage) {
+    if (stage == null) return null;
+    final segments = location.pathSegments;
+    if (segments.isEmpty || '/${segments.first}' != basePath) return null;
+    if (segments.length > 2) return null;
+    final target = uriFor(stage);
+    return location.toString() == target.toString() ? null : target;
+  }
+
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(
     path: '$basePath/${stage.competitionId}',

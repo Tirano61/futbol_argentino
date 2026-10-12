@@ -57,6 +57,44 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   /// Partido abierto en el panel de detalle (escritorio).
   int? _selectedMatchId;
 
+  /// En Web: al volver a esta pantalla (de un partido o de otra sección),
+  /// el router pone su ubicación, que no tiene la etapa.
+  GoRouter? _router;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!kIsWeb) return;
+    final router = GoRouter.maybeOf(context);
+    if (router == _router) return;
+    _router?.routerDelegate.removeListener(_restoreUrl);
+    _router = router?..routerDelegate.addListener(_restoreUrl);
+  }
+
+  @override
+  void dispose() {
+    _router?.routerDelegate.removeListener(_restoreUrl);
+    super.dispose();
+  }
+
+  void _restoreUrl() {
+    final router = _router;
+    if (router == null || !mounted) return;
+    final uri = FixtureRoute.urlToRestore(
+      // Incluye lo abierto con `push` (p. ej. un partido).
+      router.state.uri,
+      context.read<CompetitionFixtureBloc>().state.stage,
+    );
+    if (uri == null) return;
+    // Después de que el router informe su ubicación (también al final del
+    // frame), para que quede la de la etapa; solo si esta pantalla sigue a
+    // la vista (el router pudo abrir otra competición en su lugar).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      SystemNavigator.routeInformationUpdated(uri: uri, replace: true);
+    });
+  }
+
   /// Ancho del panel de detalle.
   static const _panelWidth = 440.0;
 

@@ -90,8 +90,11 @@ class FakeTeamRepository implements TeamRepository {
     if (team == null) throw NotFoundFailure(detail: 'sin equipo $teamId');
     return DataResult(
       data: team,
-      origin: DataOrigin.remote,
+      origin: teamFromCache ? DataOrigin.cache : DataOrigin.remote,
       fetchedAt: fakeFetchedAt,
     );
   }
+
+  /// `lookupteam` responde con lo guardado (sin consultar la red).
+  bool teamFromCache = false;
 }

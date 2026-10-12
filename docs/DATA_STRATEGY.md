@@ -120,6 +120,12 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 - **Refresco manual dentro de los 30 s**: no consulta la red (regla de §5.5) y ahora lo dice («Ya está actualizado»). Se detecta en la pantalla comparando la hora de descarga antes y después (Inicio: la de cada competición).
 - Sin cambios en TTL, prioridades ni presupuestos (Inicio ≤ 12 en frío, 0 en caliente; tests de presupuesto sin cambios).
 
+## Estado de implementación (Fase 10.1, 12/10/2026)
+
+- **P2 con la ficha oculta**: si se cambia de sección sin cerrar la ficha, se cancela su descarga (como al cerrarla: como mucho termina la petición en curso) y, al volver, sigue solo con las rondas que faltan (las ya descargadas están vigentes). Tablet: 0 peticiones en 98 s con la ficha de Chacarita oculta a 25/36; al volver pidió las 4 que faltaban (y la ronda en juego, vencida).
+- `syncRound` informa si consultó la red: la ficha lo usa para decir «Ya está actualizado».
+- **Pendiente**: la espera por el tope propio de 25/min (`RateLimiter`) no se avisa en pantalla; solo la pausa por 429.
+
 ---
 
 ## Estado de implementación (Fase 3, 11/10/2026)

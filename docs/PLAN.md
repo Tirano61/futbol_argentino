@@ -436,7 +436,7 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación verificada**: layout sin desbordes a 360, 768, 1280 y 1920 px (`test/app/responsive_layout_test.dart`); pautas de Flutter de objetivos ≥ 48 px, controles con nombre y contraste en todas las secciones a 360 y 1280 px; texto al 200 % sin desbordes en un teléfono (`test/app/accessibility_test.dart`); offline, 429, timeout y formato con su mensaje en cada pantalla.
 - **Observaciones resueltas**: «Tus equipos» ya no aparece después (el Inicio espera a tenerlo); el aviso de favoritos se cierra solo (con acción, Flutter lo dejaba fijo) y no pasa a otra sección; actualizar antes de 30 s avisa «Ya está actualizado»; durante una pausa por 429 se avisa hasta qué hora. Web en la tablet: ~10–12 s hasta ver el Inicio (medido a mano, con otras 8 pestañas de la app inactivas; antes ~20 s).
 - **Ajustes**: ver «Estado de implementación (Fase 9)» en ARCHITECTURE y el registro de DECISIONS.
-- **Observaciones para revisar**: al volver de un partido abierto a pantalla completa, la URL Web del fixture queda en `#/competiciones` (sin la fecha; ya pasaba antes); la ficha de un equipo sigue sincronizando si se cambia de sección sin cerrarla (la sección queda viva en segundo plano); la ficha no avisa «Ya está actualizado».
+- **Observaciones para revisar** (resueltas en la Fase 10.1): al volver de un partido abierto a pantalla completa, la URL Web del fixture queda en `#/competiciones` (sin la fecha; ya pasaba antes); la ficha de un equipo sigue sincronizando si se cambia de sección sin cerrarla (la sección queda viva en segundo plano); la ficha no avisa «Ya está actualizado».
 - **Observaciones de la Fase 8** (ver arriba): aparición tardía de «Tus equipos» en Web; aviso de favoritos que persiste entre secciones.
 - **Observaciones del Hito A en la tablet (11/10/2026)** para revisar acá:
   - Deslizar para actualizar antes de 30 s de la última carga no hace nada y no lo avisa (la regla es correcta; falta feedback, p. ej. «Ya está actualizado»).
@@ -446,6 +446,17 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **T9.3** Tests faltantes, `flutter analyze` limpio, builds release (APK + Web), prueba completa; actualizar docs y `CLAUDE.md`.
 
 ### Fase 10 — Post-MVP  ·  Hito C
+Se hace por etapas, cada una con su aprobación (acordado el 12/10/2026). **Notificaciones: fuera** (sin backend no se pueden mandar con la app cerrada; queda en el backlog).
+- **10.1 Pendientes de la Fase 9** — ✅ completada el 12/10/2026; 405 tests verdes; validada en la tablet (app Android y Chrome de la tablet). Esperando aprobación para la 10.2.
+  - URL Web del fixture: al volver de un partido o de otra sección se repone la de la etapa (`FixtureRoute.urlToRestore`).
+  - La ficha de un equipo se pausa cuando su sección queda oculta y sigue con lo que falta al volver (`TeamDetailPaused`/`TeamDetailResumed`). Tablet: 0 peticiones en 98 s con la ficha oculta; al volver, siguió con las rondas que faltaban.
+  - La ficha avisa «Ya está actualizado.» si un refresco no consultó la red (`syncRound` devuelve si consultó; `TeamSyncProgress.fetched`).
+  - **Observación nueva**: la espera por el tope propio de 25 consultas/min no se avisa (solo la pausa por 429). En Web, abrir en frío Inicio + Nacional + Primera en un minuto dejó Primera cargando ~1 min sin explicación.
+- **10.2 Mejoras de uso**: selector manual de tema, compartir partido, agregar al calendario, calendario mensual, caché de escudos en disco (Android), auto-refresco con partidos en vivo (D11).
+- **10.3 Más datos**: sync P3 (historial, temporada anterior) y purga de temporadas viejas, tabla de posiciones calculada localmente, otras competiciones del equipo (D8), más competiciones (5215, 5523, 5524).
+- **Cuando haya datos reales** (nov–dic 2026): Reducido de Nacional y zonas si se aprueba D7-b, playoffs del Clausura (V3), final de Copa 2026, «Avanza X» tras penales y cuadro de llaves.
+
+Backlog original:
 Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · Otras competiciones del equipo (D8) · Auto-refresco con partidos en vivo (D11) · Selector manual de tema · Caché de escudos en disco (Android) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · Más competiciones (5215, 5523, 5524).
 
 ---

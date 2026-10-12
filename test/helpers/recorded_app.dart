@@ -43,12 +43,13 @@ class _PumpedClock implements Clock {
 /// La app completa con datos reales grabados, el domingo 11/10/2026 a las
 /// 17:00 de Argentina. [respond] puede reemplazar una respuesta (si
 /// devuelve `null`, se usa la grabada). Sin [settle] no espera a que
-/// terminen las cargas.
+/// terminen las cargas. Cada petición se agrega a [requests].
 Future<void> pumpApp(
   WidgetTester tester,
   Size size, {
   http.Response? Function(Uri url)? respond,
   bool settle = true,
+  List<Uri>? requests,
 }) async {
   tester.view
     ..physicalSize = size
@@ -60,9 +61,10 @@ Future<void> pumpApp(
     database: db,
     config: const AppConfig(apiKey: '123', enableDiagnostics: false),
     clock: _PumpedClock(tester, DateTime.utc(2026, 10, 11, 20)),
-    httpClient: MockClient(
-      (request) async => respond?.call(request.url) ?? _recorded(request.url),
-    ),
+    httpClient: MockClient((request) async {
+      requests?.add(request.url);
+      return respond?.call(request.url) ?? _recorded(request.url);
+    }),
   );
   addTearDown(deps.dispose);
 
