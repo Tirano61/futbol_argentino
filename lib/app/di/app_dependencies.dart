@@ -12,6 +12,8 @@ import '../../features/competitions/data/repositories/competition_repository_imp
 import '../../features/competitions/domain/repositories/competition_repository.dart';
 import '../../features/diagnostics/data/repositories/diagnostics_repository_impl.dart';
 import '../../features/diagnostics/domain/repositories/diagnostics_repository.dart';
+import '../../features/favorites/data/repositories/favorites_repository_impl.dart';
+import '../../features/favorites/domain/repositories/favorites_repository.dart';
 import '../../features/matches/data/datasources/match_local_data_source.dart';
 import '../../features/matches/data/datasources/match_remote_data_source.dart';
 import '../../features/matches/data/repositories/match_repository_impl.dart';
@@ -32,6 +34,7 @@ class AppDependencies {
     required this.matchRepository,
     required this.competitionRepository,
     required this.teamRepository,
+    required this.favoritesRepository,
     required this.diagnosticsRepository,
     required http.Client httpClient,
   }) : _httpClient = httpClient;
@@ -84,6 +87,7 @@ class AppDependencies {
         scheduler: scheduler,
         clock: clock,
       ),
+      favoritesRepository: FavoritesRepositoryImpl(database),
       diagnosticsRepository: DiagnosticsRepositoryImpl(apiClient),
       httpClient: client,
     );
@@ -99,6 +103,7 @@ class AppDependencies {
   final MatchRepository matchRepository;
   final CompetitionRepository competitionRepository;
   final TeamRepository teamRepository;
+  final FavoritesRepository favoritesRepository;
   final DiagnosticsRepository diagnosticsRepository;
   final http.Client _httpClient;
 

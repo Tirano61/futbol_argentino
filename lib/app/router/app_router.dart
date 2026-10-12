@@ -8,6 +8,7 @@ import '../../features/diagnostics/domain/repositories/diagnostics_repository.da
 import '../../features/diagnostics/presentation/bloc/api_test_bloc.dart';
 import '../../features/diagnostics/presentation/bloc/cache_probe_bloc.dart';
 import '../../features/diagnostics/presentation/pages/api_test_page.dart';
+import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/match_detail/presentation/pages/match_detail_page.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
@@ -26,6 +27,7 @@ abstract final class AppRoutes {
 
   static String matchDetail(int id) => '$match/$id';
   static String teamDetail(int id) => '$teams/$id';
+  static String favoriteTeam(int id) => '$favorites/$id';
 }
 
 GoRouter createAppRouter({required bool enableDiagnostics}) {
@@ -82,21 +84,7 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
                 routes: [
                   // Anidada: «atrás» vuelve al buscador, también desde un
                   // enlace directo.
-                  GoRoute(
-                    path: ':teamId',
-                    builder: (context, state) {
-                      final id = int.tryParse(
-                        state.pathParameters['teamId'] ?? '',
-                      );
-                      return id == null
-                          ? const ComingSoonPage(
-                              title: 'Equipo',
-                              icon: Icons.shield,
-                              message: 'El enlace del equipo no es válido.',
-                            )
-                          : TeamDetailPage(key: ValueKey(id), teamId: id);
-                    },
-                  ),
+                  GoRoute(path: ':teamId', builder: _teamDetail),
                 ],
               ),
             ],
@@ -105,12 +93,12 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
             routes: [
               GoRoute(
                 path: AppRoutes.favorites,
-                builder: (context, state) => const ComingSoonPage(
-                  title: 'Favoritos',
-                  icon: Icons.star,
-                  message:
-                      'Tus equipos favoritos, guardados en este dispositivo.',
-                ),
+                builder: (context, state) => const FavoritesPage(),
+                routes: [
+                  // La ficha también dentro de Favoritos: «atrás» vuelve a
+                  // la lista.
+                  GoRoute(path: ':teamId', builder: _teamDetail),
+                ],
               ),
             ],
           ),
@@ -149,4 +137,15 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
         ),
     ],
   );
+}
+
+Widget _teamDetail(BuildContext context, GoRouterState state) {
+  final id = int.tryParse(state.pathParameters['teamId'] ?? '');
+  return id == null
+      ? const ComingSoonPage(
+          title: 'Equipo',
+          icon: Icons.shield,
+          message: 'El enlace del equipo no es válido.',
+        )
+      : TeamDetailPage(key: ValueKey(id), teamId: id);
 }

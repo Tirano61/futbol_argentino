@@ -5,12 +5,16 @@ import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/domain/repositories/competition_repository.dart';
+import 'package:futbol_argentino/features/favorites/domain/entities/favorite_team.dart';
+import 'package:futbol_argentino/features/favorites/domain/repositories/favorites_repository.dart';
 import 'package:futbol_argentino/features/home/presentation/pages/home_page.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../helpers/fake_teams.dart';
 import '../../helpers/fakes.dart';
+import '../../helpers/favorites.dart';
 import '../../helpers/recorded_home.dart';
 
 const offline = NetworkFailure(
@@ -31,8 +35,11 @@ Future<void> pumpHome(
   WidgetTester tester, {
   FakeMatchRepository? matches,
   FakeCompetitionRepository? competitions,
+  FavoritesRepository? favorites,
   bool showDiagnostics = false,
 }) async {
+  // Domingo 11/10/2026, 17:00 en Argentina.
+  final clock = FixedClock(DateTime.utc(2026, 10, 11, 20));
   tester.view
     ..physicalSize = const Size(900, 12000)
     ..devicePixelRatio = 1;
@@ -55,6 +62,11 @@ Future<void> pumpHome(
             placeholder('Fixture ${state.pathParameters['id']}'),
       ),
       GoRoute(
+        path: '/favoritos/:id',
+        builder: (context, state) =>
+            placeholder('Favorito ${state.pathParameters['id']}'),
+      ),
+      GoRoute(
         path: '/partidos/:id',
         builder: (context, state) =>
             placeholder('Partido ${state.pathParameters['id']}'),
@@ -72,12 +84,13 @@ Future<void> pumpHome(
         RepositoryProvider<CompetitionRepository>.value(
           value: competitions ?? recordedCompetitions(),
         ),
-        // Domingo 11/10/2026, 17:00 en Argentina.
-        RepositoryProvider<Clock>.value(
-          value: FixedClock(DateTime.utc(2026, 10, 11, 20)),
-        ),
+        RepositoryProvider<Clock>.value(value: clock),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      child: withFavorites(
+        favorites: favorites ?? await outsideFakeAsync(tester, memoryFavorites),
+        clock: clock,
+        child: MaterialApp.router(routerConfig: router),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -209,5 +222,87 @@ void main() {
 
     await pumpHome(tester, showDiagnostics: true);
     expect(find.byTooltip('Diagnóstico de la API'), findsOneWidget);
+  });
+
+  group('Tus equipos', () {
+    testWidgets('sin favoritos: explica cómo agregarlos', (tester) async {
+      await pumpHome(tester);
+
+      expect(find.text('Tus equipos'), findsOneWidget);
+      expect(
+        find.textContaining('Tocá la estrella de un equipo'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('próximo y último de cada favorito, sin peticiones extra', (
+      tester,
+    ) async {
+      final without = FakeMatchRepository(recordedRounds());
+      await pumpHome(tester, matches: without);
+
+      final favorites = await outsideFakeAsync(tester, memoryFavorites);
+      final boca = recordedTeam('Boca Juniors');
+      await outsideFakeAsync(
+        tester,
+        () => favorites.save(
+          FavoriteTeam.fromRef(boca, addedAt: DateTime.utc(2026, 10, 1)),
+        ),
+      );
+      final matches = FakeMatchRepository(recordedRounds());
+      await pumpHome(tester, matches: matches, favorites: favorites);
+
+      expect(find.widgetWithText(ListTile, 'Boca Juniors'), findsOneWidget);
+      expect(
+        find.text(
+          'Próximo · Domingo 18/10/2026\n'
+          'Primera División · Clausura · Fecha 13',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Último · Viernes 09/10/2026\n'
+          'Primera División · Clausura · Fecha 12',
+        ),
+        findsOneWidget,
+      );
+      // «Tus equipos» va antes de «Hoy».
+      expect(
+        tester.getTopLeft(find.text('Tus equipos')).dy <
+            tester.getTopLeft(find.text('Hoy')).dy,
+        isTrue,
+      );
+      // Solo lee lo guardado: las mismas consultas que sin favoritos.
+      expect(matches.calls, hasLength(without.calls.length));
+      expect(matches.synced, isEmpty);
+
+      await tester.tap(find.widgetWithText(ListTile, 'Boca Juniors'));
+      await tester.pumpAndSettle();
+      expect(find.text('Favorito ${boca.id}'), findsOneWidget);
+    });
+
+    testWidgets('favorito sin partidos guardados', (tester) async {
+      // Equipo real de los 32avos de la Copa que no juega en las rondas
+      // que carga el Inicio.
+      final inRounds = {
+        for (final round in recordedRounds().values)
+          for (final m in round) ...[m.home.id, m.away.id],
+      };
+      final team = recordedTeamSummaries()
+          .map((s) => s.team)
+          .firstWhere((t) => !inRounds.contains(t.id));
+      final favorites = await outsideFakeAsync(tester, memoryFavorites);
+      await outsideFakeAsync(
+        tester,
+        () => favorites.save(
+          FavoriteTeam.fromRef(team, addedAt: DateTime.utc(2026, 10, 1)),
+        ),
+      );
+      await pumpHome(tester, favorites: favorites);
+
+      expect(find.widgetWithText(ListTile, team.name), findsOneWidget);
+      expect(find.textContaining('Sin partidos guardados'), findsOneWidget);
+    });
   });
 }

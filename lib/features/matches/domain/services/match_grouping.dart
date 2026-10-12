@@ -30,6 +30,15 @@ abstract final class MatchGrouping {
     return a.id.compareTo(b.id);
   }
 
+  /// Disputado: terminado, o con fecha pasada y sin estar en juego (un
+  /// partido viejo sin actualizar no se muestra como próximo).
+  static bool isPlayed(Match m, CalendarDay today) {
+    if (m.status.isFinished) return true;
+    if (m.status.isInPlay) return false;
+    final day = m.kickoff.argentinaDay;
+    return day != null && day.isBefore(today);
+  }
+
   /// Un partido por `idEvent`: gana el visto más recientemente.
   static List<Match> dedupe(Iterable<Match> matches) {
     final byId = <int, Match>{};

@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
+import 'package:futbol_argentino/features/favorites/domain/repositories/favorites_repository.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/features/teams/domain/repositories/team_repository.dart';
 import 'package:futbol_argentino/features/teams/presentation/pages/team_search_page.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../helpers/fake_teams.dart';
+import '../../../helpers/favorites.dart';
 import '../../../helpers/fakes.dart';
 import '../../../helpers/fixture_matches.dart';
 
@@ -21,8 +23,10 @@ Future<void> pumpSearch(
   WidgetTester tester, {
   required FakeTeamRepository teams,
   FakeMatchRepository? matches,
+  FavoritesRepository? favorites,
   String initialQuery = '',
 }) async {
+  final clock = FixedClock(DateTime.utc(2026, 10, 11, 20));
   final router = GoRouter(
     initialLocation: '/equipos',
     routes: [
@@ -53,11 +57,13 @@ Future<void> pumpSearch(
                 64: fixtureMatches('eventsround_4500_r64_s2026'),
               }),
         ),
-        RepositoryProvider<Clock>.value(
-          value: FixedClock(DateTime.utc(2026, 10, 11, 20)),
-        ),
+        RepositoryProvider<Clock>.value(value: clock),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      child: withFavorites(
+        favorites: favorites ?? await outsideFakeAsync(tester, memoryFavorites),
+        clock: clock,
+        child: MaterialApp.router(routerConfig: router),
+      ),
     ),
   );
   await tester.pump();
@@ -99,6 +105,30 @@ void main() {
     await tester.tap(find.text('Boca Juniors'));
     await tester.pumpAndSettle();
     expect(find.text('Equipo 135156'), findsOneWidget);
+  });
+
+  testWidgets('la estrella de un resultado lo agrega a favoritos', (
+    tester,
+  ) async {
+    final favorites = await outsideFakeAsync(tester, memoryFavorites);
+    await pumpSearch(
+      tester,
+      teams: FakeTeamRepository(stored: recordedTeamSummaries()),
+      favorites: favorites,
+    );
+    await tester.pumpAndSettle();
+    await type(tester, 'river');
+
+    await tester.tap(find.byTooltip('Agregar a favoritos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('River Plate se agregó a favoritos'), findsOneWidget);
+    expect(find.byTooltip('Quitar de favoritos'), findsOneWidget);
+    final stored = await outsideFakeAsync(
+      tester,
+      () => favorites.watchAll().first,
+    );
+    expect(stored.single.ref, recordedTeam('River Plate'));
   });
 
   testWidgets('mientras espera el debounce no vuelve a invitar a buscar', (

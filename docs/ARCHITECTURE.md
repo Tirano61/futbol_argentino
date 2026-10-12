@@ -243,3 +243,19 @@ Dominio implementado (Dart puro, 125 tests):
 - **`matchDayItems(newestFirst:)`**: días del más reciente al más viejo (Disputados).
 - **App**: `AppLifecycleListener` pausa la cola P2 al ocultarse la app (`onHide`) y la reanuda al volver (`onShow`).
 
+## Estado de implementación (Fase 8, 12/10/2026)
+
+- **Feature `favorites`** (`favorites → matches` solo por `TeamRef`):
+  - `domain`: `FavoriteTeam` (`teamId`, nombre, escudo, `addedAt`), `FavoritesRepository` (`watchAll`, `contains`, `save`, `remove`; sin `DataResult`: los datos son solo locales y no vencen), `ToggleFavorite` (consulta lo guardado, no la pantalla: dos toques seguidos agregan y quitan).
+  - `data`: `FavoriteRecord` (store `favorites`, clave `idTeam`, `v: 1`), `FavoritesRepositoryImpl` (`onSnapshots` de sembast: la lista se actualiza sola; orden por nombre normalizado, sin acentos).
+  - `presentation`: `FavoritesBloc` **global** (creado en `app.dart` arriba del router; `FavoritesSubscribed` `restartable` y `FavoriteToggled` `sequential` en handlers separados, para que la suscripción abierta no bloquee los toques), `FavoriteButton` (estrella con el color del tema; aviso con «Deshacer»), `FavoritesPage` (`/favoritos`: vacía con «Buscar equipo»; lista con estrella para quitar).
+- **Rutas**: `/favoritos/:teamId` (ficha anidada en Favoritos: «atrás» vuelve a la lista). El constructor de la ficha es compartido con `/equipos/:teamId`.
+- **Estrella** en la barra de la ficha y en cada resultado del buscador (reemplaza la flecha): `teams → favorites`, solo en presentación.
+- **«Tus equipos» en el Inicio** (`home → favorites`):
+  - `WatchFavoriteTeams` (stream): favoritos × partidos guardados de esos equipos → próximo (en juego o por jugarse) y último disputado de cada uno. Sin red; se recalcula al cambiar los favoritos y cada vez que se guardan partidos.
+  - `HomeFavoritesBloc` (aparte del `HomeBloc`, `restartable`): `Loading`, `Loaded(teams)`.
+  - Sección entre los accesos y «Hoy»: el equipo (abre su ficha en Favoritos) y las tarjetas «Próximo · día» y «Último · día» con «competición · fase · etapa»; sin partidos guardados lo dice; sin favoritos explica cómo agregarlos.
+- **Reutilización**: `MatchGrouping.isPlayed` (regla disputado/próximo, antes privada de la ficha) y `competitions/domain/services/stored_match_labeler.dart` (`StoredMatchLabeler`, antes `_RoundPhases` de `WatchTeamDetail`).
+- **`MatchRepository.watchStoredTeamsMatches`** (+ `MatchLocalDataSource.watchByTeams`): partidos guardados de varios equipos, reactivo, sin red.
+- **Tests**: en `testWidgets`, las llamadas directas a sembast van en `outsideFakeAsync` (`tester.runAsync`): sembast usa temporizadores que el reloj falso no avanza.
+

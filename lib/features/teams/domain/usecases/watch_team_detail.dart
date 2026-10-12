@@ -4,11 +4,9 @@ import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/calendar_day.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
-import '../../../competitions/domain/entities/phase_assignment.dart';
 import '../../../competitions/domain/entities/season.dart';
-import '../../../competitions/domain/services/phase_resolver.dart';
 import '../../../competitions/domain/services/round_navigator.dart';
-import '../../../competitions/domain/services/stage_labeler.dart';
+import '../../../competitions/domain/services/stored_match_labeler.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
@@ -55,7 +53,7 @@ class WatchTeamDetail {
     bool forceRefresh = false,
   }) async* {
     final today = ArgentinaTime.dayOf(now);
-    final phases = _RoundPhases(_matches, _catalog);
+    final labeler = StoredMatchLabeler(_matches, catalog: _catalog);
     Team? info;
     Failure? infoError;
 
@@ -63,7 +61,7 @@ class WatchTeamDetail {
       final stored = await _matches.storedTeamMatches(teamId);
       final season = _seasonOf(stored, today);
       final items = [
-        for (final m in stored) await phases.describe(m, season, teamId),
+        for (final m in stored) await _teamMatch(labeler, m, season),
       ];
       final latest = MatchGrouping.dedupe(stored)
         ..sort((a, b) => b.lastSeenAt.compareTo(a.lastSeenAt));
@@ -86,11 +84,11 @@ class WatchTeamDetail {
         ],
         upcoming: [
           for (final i in items)
-            if (!_isPlayed(i.match, today)) i,
+            if (!MatchGrouping.isPlayed(i.match, today)) i,
         ]..sort((a, b) => MatchGrouping.compare(a.match, b.match)),
         played: [
           for (final i in items)
-            if (_isPlayed(i.match, today)) i,
+            if (MatchGrouping.isPlayed(i.match, today)) i,
         ]..sort((a, b) => MatchGrouping.compare(b.match, a.match)),
         progress: progress,
       );
@@ -128,7 +126,7 @@ class WatchTeamDetail {
       }
       if (cancelToken.isCancelled) return;
       done++;
-      phases.invalidate(step.query);
+      labeler.invalidate(step.query);
       yield await build(TeamSyncProgress(done: done, total: plan.length));
     }
 
@@ -139,6 +137,20 @@ class WatchTeamDetail {
         isRunning: false,
         failure: failure,
       ),
+    );
+  }
+
+  static Future<TeamMatch> _teamMatch(
+    StoredMatchLabeler labeler,
+    Match m,
+    Season current,
+  ) async {
+    final labels = await labeler.describe(m, current: current);
+    return TeamMatch(
+      match: m,
+      competitionName: labels.competitionName,
+      phaseLabel: labels.phase,
+      stageLabel: labels.stage,
     );
   }
 
@@ -168,14 +180,6 @@ class WatchTeamDetail {
       }
     }
     return latest ?? current;
-  }
-
-  /// Terminado, o con fecha pasada y sin estar en juego.
-  static bool _isPlayed(Match m, CalendarDay today) {
-    if (m.status.isFinished) return true;
-    if (m.status.isInPlay) return false;
-    final day = m.kickoff.argentinaDay;
-    return day != null && day.isBefore(today);
   }
 
   /// Rondas a sincronizar: primero las forzadas por un refresco manual;
@@ -247,62 +251,4 @@ class WatchTeamDetail {
   );
 
   static int _max(int a, int b) => a > b ? a : b;
-}
-
-/// Fase de los partidos del equipo, calculada con la ronda guardada
-/// completa (consistencia e inferencia) y recordada por ronda.
-final class _RoundPhases {
-  _RoundPhases(this._matches, this._catalog);
-
-  final MatchRepository _matches;
-  final List<CompetitionDefinition> _catalog;
-  final _byRound = <RoundQuery, Map<int, PhaseAssignment>>{};
-
-  void invalidate(RoundQuery query) => _byRound.remove(query);
-
-  Future<TeamMatch> describe(Match m, Season current, int teamId) async {
-    final definition = _catalog
-        .where((d) => d.id == m.competitionId)
-        .firstOrNull;
-    final season = Season.tryParse(m.season);
-    if (definition == null || season == null) {
-      return TeamMatch(
-        match: m,
-        competitionName: m.competitionName,
-        stageLabel: 'Ronda ${m.apiRound}',
-      );
-    }
-
-    final query = RoundQuery(
-      competitionId: m.competitionId,
-      season: m.season,
-      apiRound: m.apiRound,
-    );
-    var assigned = _byRound[query];
-    if (assigned == null || !assigned.containsKey(m.id)) {
-      final round = await _matches.storedRound(query);
-      assigned = _byRound[query] = PhaseResolver(definition).classifyRound(
-        season: season,
-        apiRound: m.apiRound,
-        matches: [
-          for (final r in round)
-            if (r.id != m.id) r,
-          m,
-        ],
-      );
-    }
-    final labels = StageLabeler.describe(
-      definition,
-      m.apiRound,
-      assigned[m.id]!,
-    );
-    return TeamMatch(
-      match: m,
-      competitionName: season == current
-          ? definition.name
-          : '${definition.name} ${m.season}',
-      phaseLabel: labels.phase,
-      stageLabel: labels.stage,
-    );
-  }
 }

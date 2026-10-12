@@ -124,6 +124,19 @@ class MatchRepositoryImpl implements MatchRepository {
   ];
 
   @override
+  Stream<List<Match>> watchStoredTeamsMatches(Set<int> teamIds) =>
+      teamIds.isEmpty
+      ? Stream.value(const [])
+      : _local
+            .watchByTeams(teamIds)
+            .map(
+              (matches) => [
+                for (final m in matches)
+                  if (m.membership != MatchMembership.removed) m,
+              ],
+            );
+
+  @override
   Future<DataResult<Match>> getMatch(
     int matchId, {
     bool forceRefresh = false,

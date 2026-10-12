@@ -40,7 +40,7 @@ Sin paginación, la unidad incremental es **(competición, temporada, `apiRound`
 **Por campo**: un resultado no nulo no se pisa con nulo si el estado sigue final (sí si pasa a `NS`/`PST`/`CANC`); un kickoff `confirmed` no se degrada a `tentative` del mismo instante; vacío no pisa escudo/estadio; nombres sin mojibake tienen prioridad.
 
 ### 5.4 Persistencia (sembast)
-Stores: `events` (key `idEvent`), `teams`, `competitions`, `query_meta` (`"round:4406:2026:12"`, `"next:4406"`…), `favorites`, `settings`. ~1.200 eventos/temporada ≈ 0,6 MB.
+Stores: `events` (key `idEvent`), `teams`, `competitions`, `query_meta` (`"round:4406:2026:12"`, `"next:4406"`…), `favorites` (key `idTeam`, Fase 8), `settings`. ~1.200 eventos/temporada ≈ 0,6 MB.
 
 ### 5.5 TTL por consulta
 
@@ -103,6 +103,14 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 - `CancelToken` por dueño: al cancelar se descartan los trabajos **en cola** que solo esperaba ese dueño (`SyncCancelled`); un trabajo compartido con otro (p. ej. una ronda que también pidió el Inicio) sigue; uno en curso termina y sus datos se guardan.
 
 **Medido**: Boca en frío = 25 peticiones (1 + 3 + 21 P2 en tandas de 10 a los 0, 60 y 120 s); en caliente = 0. En la tablet: al salir de la ficha con 8 rondas pendientes, 0 peticiones en los 80 s siguientes; con la app en segundo plano, 0 peticiones aun con cupo libre, y al volver siguió sola.
+
+---
+
+## Estado de implementación (Fase 8, 12/10/2026) — Favoritos
+
+- Store `favorites` (clave `idTeam`): `teamId`, nombre, escudo y `addedAt` de cuando se agregó; no vence ni se sincroniza con la API. Archivo en Android, IndexedDB en Web (cada plataforma tiene los suyos).
+- «Tus equipos» del Inicio: **0 peticiones**. Lee los partidos guardados de los favoritos con una consulta reactiva de sembast (`onSnapshots` sobre `events`, filtrada por `teamIds`); se actualiza cuando el Inicio, un fixture o una ficha guardan partidos. Cubre lo que ya cargan el Inicio (ronda actual y siguiente de cada competición) y las fichas abiertas; un favorito sin partidos guardados lo indica y la ficha completa el resto (P2).
+- Próximo: en juego o sin jugar desde hoy (un `NS` de un día pasado cuenta como disputado y se muestra «Resultado pendiente»). Último: el disputado más reciente.
 
 ---
 

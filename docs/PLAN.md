@@ -422,11 +422,17 @@ Cada `Tx.y` es un pedido independiente. Al cerrar cada tarea: `flutter analyze` 
 - **Aceptación**: «river» encuentra River Plate sin red; la ficha de Boca reúne Primera + Copa; salir de la ficha detiene su sync.
 
 ### Fase 8 — Favoritos  ·  Hito B
+- **Estado**: ✅ completada el 12/10/2026 — T8.1 y T8.2 hechas; 366 tests verdes; validada en la tablet (app Android release y Chrome de la tablet). Esperando aprobación para la Fase 9.
+- **Aceptación verificada**: los favoritos persisten tras reiniciar — test con archivo sembast cerrado y reabierto; tablet Android: Boca y River siguen tras `force-stop` + reinstalación; Web: Gimnasia LP sigue tras recargar la página (IndexedDB).
+- **Presupuesto**: «Tus equipos» no hace peticiones (solo lee lo guardado): Inicio en caliente con favoritos = 0 peticiones en la tablet; tests `watch_favorite_teams_test.dart` y `home_page_test.dart`.
+- **Ajustes**: ver «Estado de implementación (Fase 8)» en ARCHITECTURE y el registro de DECISIONS.
+- **Observaciones para la Fase 9**: «Tus equipos» aparece ~1 s después que el resto del Inicio en Web y empuja el contenido; el aviso «se agregó a favoritos» sigue visible al cambiar de sección. La primera apertura del Inicio en Web tardó ~70 s por una pausa ante 429 (la misma IP venía de sincronizar la ficha de River en Android).
 - **T8.1** Repo local + `FavoritesBloc` global + `FavoriteButton` + `FavoritesPage`.
 - **T8.2** Sección «Tus equipos» en Inicio.
 - **Aceptación**: favoritos persisten tras reinicio en Android y Web.
 
 ### Fase 9 — Responsive y estabilización  ·  Hito B
+- **Observaciones de la Fase 8** (ver arriba): aparición tardía de «Tus equipos» en Web; aviso de favoritos que persiste entre secciones.
 - **Observaciones del Hito A en la tablet (11/10/2026)** para revisar acá:
   - Deslizar para actualizar antes de 30 s de la última carga no hace nada y no lo avisa (la regla es correcta; falta feedback, p. ej. «Ya está actualizado»).
   - La versión Web tardó ~20 s en abrir en la tablet con 4 pestañas de la app abiertas: medir con una sola.
