@@ -24,6 +24,31 @@
 ---
 
 
+### Hito C (12/10/2026)
+
+| # | Decisión | Estado |
+|---|---|---|
+| D15 | Tablas de Primera 2026 | **Aprobada**: según el [Reglamento Torneos Primera División 2026](https://assets1.afa.com.ar/2026/BOLETINES/Boletin-Resoluciones-6818---Complementario-01---Reglamento-Torneos-LPF-Primera-2026.pdf) (ver abajo). Sin tabla «general no oficial». |
+| D16 | Historial | **Aprobada**: a pedido (P2, cancelable, con avance), sin P3; los históricos se conservan; borrado solo manual por temporada; limpieza automática solo de `removed` verificados. |
+| D17 | Notificaciones | Fuera del alcance (sin backend no se pueden enviar con la app cerrada). |
+
+**Reglamento 2026 (leído el 12/10/2026)**
+- Formato (art. 8.1 y 14.1): zonas «A» y «B» de 15, una rueda; en cada fecha 7 partidos por zona más un «clásico»/«interzonal» entre los dos libres; además una fecha interzonal. 16 fechas = 14 partidos de zona + 2 interzonales por equipo. Art. 14.1.1: el Clausura repite el programa del Apertura con la localía invertida (mismas zonas).
+- Tabla de cada zona (art. 9 y 15): puntos de las 16 fechas (3/1/0), interzonales incluidos.
+- Desempate de zona (art. 10 y 16): a) diferencia de goles; b) goles a favor; c) partidos entre los empatados durante el certamen (puntos, luego diferencia de goles, luego goles a favor; se repite cuantas veces sea necesario); d) Tabla General de Fair Play 2026; e) sorteo.
+- Tabla General de Posiciones 2026 (art. 24.1–24.2): puntos de la Primera Fase de Zonas del Apertura más los del Clausura; el primero es «Campeón de Liga 2026». Excluye octavos, cuartos, semifinales y final.
+- Desempate de la Tabla General (art. 24.3): a) diferencia de goles; b) goles a favor; c) Fair Play 2026; d) sorteo. **Sin enfrentamiento directo.**
+- Descenso (art. 24.4 y 26.2): ante igualdad, partido/s de desempate (art. 111 del Reglamento General de AFA). La app no define descensos.
+- La app calcula puntos, diferencia de goles, goles a favor y enfrentamiento directo; Fair Play y sorteo no se pueden calcular (la API no informa tarjetas): los equipos que siguen empatados se muestran como «posición compartida».
+- Contraste manual: [Tabla General de la LPF](https://www.ligaprofesional.ar/torneo-apertura-2026/).
+- Zonas con `idTeam` (V12) y formato de Primera Nacional (V14): ver `docs/API.md` («Validaciones post-MVP — Fase 11»). Requieren tu aprobación antes de las Fases 13 y 14.
+
+**Primera Nacional 2026** ([Boletín Especial 6823](https://assets1.afa.com.ar/2026/Lau/Boletin-Especial-6823---Reglamento-del-Campeonato-de-Primera-Nacional-2026.pdf), 30/01/2026)
+- Punto 2: zonas «A» y «B» de 18, dos ruedas, más una fecha interzonal de ida y vuelta. Final por el primer ascenso entre los primeros de cada zona; Reducido por el segundo.
+- Punto 3: Tabla Final de Posiciones por acumulación de puntos (3/1/0). Los interzonales suman (V14).
+- Punto 5: desempates según el art. 112 del Reglamento General (puntos 1 a 3), **texto oficial pendiente (V15)**; para los cuatro descensos, partido/s de desempate (art. 111).
+- Modelo propio: no se reutiliza Apertura/Clausura/Anual. No hay tabla general de la temporada salvo la que se arma para el Reducido (Fase 19).
+
 ## Alternativas evaluadas
 
 | # | Elegida | Alternativas descartadas y motivo |
@@ -39,6 +64,8 @@
 | D12 Escudos Web | Fallback `<img>` (validado en T0.2) | Proxy propio (Cloudflare Worker): servicio extra, requiere aprobación explícita. |
 
 ## Registro de cambios
+- 12/10/2026 — Fase 11: V8–V14 resueltos con datos reales; V15 (art. 112 del R.G.) pendiente. `add_2_calendar` fijado en 3.0.1 (la 3.1.x rompe el build con el AGP actual). `cached_network_image` solo en Android (en Web falla por CORS). Las instantáneas de fixtures van en carpeta aparte para no pisar las que usan los tests. Federal A no entra al catálogo sin un relevamiento propio (etapas mezcladas en la numeración).
+- 12/10/2026 — Hito C v3 aprobado: reemplaza las etapas 10.2/10.3 por las Fases 11–19; D15 (tablas según el reglamento 2026: anual y zonas por torneo), D16 (historial a pedido, conservación, borrado manual), D17 (notificaciones fuera). Se descartó la «tabla general no oficial» y la purga automática de temporadas.
 - 12/10/2026 — Fase 10.1: la Fase 10 se divide en etapas (10.1 pendientes, 10.2 uso, 10.3 datos; lo que depende de datos de nov–dic, cuando existan); notificaciones fuera. La URL del fixture se repone escuchando al router en vez de llevar la etapa a la ubicación del router (eso recrearía la pantalla). La ficha se pausa por visibilidad (`TickerMode`) y no al cambiar de ruta: la sección queda viva y retoma donde estaba. `syncRound` devuelve si consultó la red (antes `void`).
 - 12/10/2026 — Fase 9: los anchos se deciden por la ventana (`Breakpoints`), no por el contenido; panel de detalle solo en el fixture (como dice el plan), con la selección como estado local; buscador de la barra como campo que abre `/equipos?q=` (sin sugerencias en la barra) y ubicado en `app/shell` para evitar el ciclo `teams ↔ favorites`; el Inicio espera a «Tus equipos» en vez de reservarle lugar; el aviso de 429 es global (envuelve la app) con un `RateLimitStatus` de `core` en lugar de pasar por los repositorios; «Ya está actualizado» se resuelve en presentación comparando horas de descarga (sin cambiar los estados de los BLoC).
 - 12/10/2026 — Fase 8: `FavoritesRepository` devuelve listas (no `DataResult`: datos solo locales, sin vigencia ni errores de red); `FavoritesBloc` global con la suscripción y los toques en handlers separados; «Tus equipos» con su propio `HomeFavoritesBloc` y un stream local reactivo (`watchStoredTeamsMatches`) en lugar de sumar consultas al Inicio; la ficha también vive en `/favoritos/:teamId`; `teams → favorites` (solo la estrella, en presentación); la regla «disputado» y el etiquetado de partidos guardados pasan a servicios compartidos (`MatchGrouping.isPlayed`, `StoredMatchLabeler`).

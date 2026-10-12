@@ -452,11 +452,23 @@ Se hace por etapas, cada una con su aprobación (acordado el 12/10/2026). **Noti
   - La ficha de un equipo se pausa cuando su sección queda oculta y sigue con lo que falta al volver (`TeamDetailPaused`/`TeamDetailResumed`). Tablet: 0 peticiones en 98 s con la ficha oculta; al volver, siguió con las rondas que faltaban.
   - La ficha avisa «Ya está actualizado.» si un refresco no consultó la red (`syncRound` devuelve si consultó; `TeamSyncProgress.fetched`).
   - **Observación nueva**: la espera por el tope propio de 25 consultas/min no se avisa (solo la pausa por 429). En Web, abrir en frío Inicio + Nacional + Primera en un minuto dejó Primera cargando ~1 min sin explicación.
-- **10.2 Mejoras de uso**: selector manual de tema, compartir partido, agregar al calendario, calendario mensual, caché de escudos en disco (Android), auto-refresco con partidos en vivo (D11).
-- **10.3 Más datos**: sync P3 (historial, temporada anterior) y purga de temporadas viejas, tabla de posiciones calculada localmente, otras competiciones del equipo (D8), más competiciones (5215, 5523, 5524).
-- **Cuando haya datos reales** (nov–dic 2026): Reducido de Nacional y zonas si se aprueba D7-b, playoffs del Clausura (V3), final de Copa 2026, «Avanza X» tras penales y cuadro de llaves.
+- **10.2 y 10.3**: reemplazadas por el plan del Hito C v3 (abajo).
 
-Backlog original:
+### Hito C v3 — Más datos y mejoras de uso (aprobado el 12/10/2026)
+Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso diario (Fases 16–18). Las tareas de una fase se hacen seguidas; al cerrar cada fase se presentan resultados, verificaciones y problemas, y se espera aprobación. Commits y PRs: el usuario. Historial **a pedido** (P2, cancelable, con avance; sin P3) y **sin borrado automático de temporadas**. Tablas según el **Reglamento Torneos Primera División 2026** (ver D15 en DECISIONS). Fuera: notificaciones.
+
+- **Fase 11 — Validaciones post-MVP.** ✅ Completada el 12/10/2026 (V8–V14 resueltos; V15 pendiente; ver `docs/API.md`). Esperando aprobación de zonas y formato de Nacional para seguir con la Fase 12.
+  Tareas: T11.1 competiciones 5215, 5523, 5524 (+5428, 4724) (V8) · T11.2 `eventsnext`/`eventslast` por equipo, D8 (V9) · T11.3 grabaciones: rondas 1–16 de Primera 2026, Nacional 2026 r2–r32, `lookuptable` 4406/4616 (V10) · T11.4 paquetes en Android y Web: `share_plus`, `add_2_calendar`/`.ics`, `cached_network_image` (V11) · T11.5 zonas de Primera 2026 con `idTeam`, verificadas contra los datos (V12) · T11.6 reglamento 2026 registrado (D15) · T11.7 formato de Primera Nacional 2026 (V14).
+- **Fase 12 — Historial a pedido, conservación y limpieza manual.** `SyncProgress` en `core/sync`; `roundCacheState` y `storedSeason`; `CompleteRounds` (P2, nunca vuelve a pedir lo guardado y vigente; temporadas anteriores terminadas no se vuelven a pedir); los históricos se conservan; borrado **manual** de temporadas en «Ajustes → Datos guardados» (la actual no se puede borrar; favoritos intactos); limpieza automática solo de `removed` **verificados** (> 30 días), y nada mientras la verificación con `lookupevent` no exista.
+- **Fase 13 — Tablas de Primera 2026.** Tabla General Anual 2026 y zonas A/B de Apertura y Clausura. Dominio común (`TeamStats`, `StatsAccumulator`, `TieBreaker`, `StandingsTable` con cobertura) y reglas por formato (`StandingsFormat` en el catálogo). Anual: fases regulares de ambos torneos, interzonales incluidos una sola vez, sin playoffs, desempate art. 24.3 (sin enfrentamiento directo). Zonas: art. 9/10 y 15/16 (con enfrentamiento directo). Fair Play y sorteo no se pueden calcular → «posición compartida». La app no define descensos.
+- **Fase 14 — Tablas de Primera Nacional** con su formato propio (V14); en espera si los datos no cierran.
+- **Fase 15 — Más competiciones y D8.** Marcas `showInHome`/`inTeamIndex` (Inicio ≤ 12 en frío); entradas nuevas validadas; «Otras competiciones (información parcial)» en la ficha.
+- **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).**
+- **Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo (D11).**
+- **Fase 18 — Calendario mensual.**
+- **Fase 19 (nov–dic 2026)** — Reducido y final de Nacional, playoffs del Clausura (V3), final de Copa 2026, «Avanza X», cuadro de llaves; zonas y reglamento 2027.
+
+Backlog original (antes del Hito C v3):
 Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · Otras competiciones del equipo (D8) · Auto-refresco con partidos en vivo (D11) · Selector manual de tema · Caché de escudos en disco (Android) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · Más competiciones (5215, 5523, 5524).
 
 ---
