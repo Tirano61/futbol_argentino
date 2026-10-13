@@ -198,5 +198,10 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 ## Estado de implementación (Fase 13, 12/10/2026) — Tablas
 
 - **Qué cuenta**: partidos de la temporada, rondas 1–16, etapa regular según `PhaseResolver` y del torneo de la tabla; solo terminados **con resultado**; cada `idEvent` una vez. La ronda 0 nunca se pide para las tablas; los octavos de la ronda 16 se excluyen por fase. Los sin fase determinada no se suman y se listan en la cobertura.
-- **Presupuesto** (tests `watch_standings_test.dart` y `standings_budget_test.dart`): Primera 2026 en frío = 16 (P2, 10 por minuto); en caliente = 0; refresco manual = las fechas con partidos sin terminar de ayer y hoy (P0) + las vencidas cerradas (`CompleteRounds(forceRefresh)`), nunca las vigentes. Copa, Nacional y Primera 2025: 0 (sin formato).
+- **Presupuesto** (tests `watch_standings_test.dart` y `standings_budget_test.dart`): Primera 2026 en frío = 16 (P2, 10 por minuto); en caliente = 0; refresco manual = las fechas con partidos sin terminar de ayer y hoy (P0) + las vencidas cerradas (`CompleteRounds(forceRefresh)`), nunca las vigentes. Copa, Primera 2025 y Nacional 2025: 0 (sin formato). Nacional 2026: ver Fase 14.
 - La vista Tabla descarga solo mientras se ve: pasar a Fixture u ocultar la sección cancela las fechas pendientes; al volver sigue con las que faltan.
+
+## Estado de implementación (Fase 14, 12/10/2026) — Tablas de Nacional
+
+- **Qué cuenta**: partidos de 2026 de las rondas 1–36 (todas regulares según el catálogo), terminados con resultado, cada `idEvent` una vez. Cada zona suma los partidos de sus equipos, **interzonales incluidos** (rondas 7 y 25: un rival de la otra zona, ida y vuelta). Un interzonal aparece en la cobertura de las dos zonas y suma una vez a cada equipo.
+- **Presupuesto** (tests `watch_standings_test.dart` y `standings_budget_test.dart`): en frío = 36 (P2, 10 por minuto, ~4 min); en caliente = 0. Si una fecha con partidos en juego (vigencia corta) vence mientras espera su turno, la tabla la vuelve a pedir: no es una fecha vigente. Tablet (12/10): con lo guardado, abrir la tabla = 0 peticiones; el refresco manual pidió solo la fecha 33 (partido en juego).

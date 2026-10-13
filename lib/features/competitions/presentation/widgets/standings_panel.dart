@@ -26,8 +26,8 @@ class StandingsPanel extends StatelessWidget {
     required this.onRefresh,
   });
 
-  /// Tabla elegida (si no existe, la anual).
-  final String tableKey;
+  /// Tabla elegida (`null` o si no existe: la primera).
+  final String? tableKey;
   final ValueChanged<String> onTableSelected;
   final Future<void> Function() onRefresh;
 
@@ -48,10 +48,20 @@ class StandingsPanel extends StatelessWidget {
           ),
         ),
         StandingsUnavailable(:final view) => _Unavailable(view: view),
+        // Liga sin tabla anual con las zonas sin verificar (Nacional).
+        StandingsLoaded(:final view) when view.tables.isEmpty => EmptyView(
+          icon: Icons.warning_amber,
+          title: 'Zonas no verificadas',
+          message:
+              'Los partidos no coinciden con las zonas del reglamento: la '
+              'tabla no se muestra. ${view.zoneIssues.firstOrNull ?? ''}',
+        ),
         StandingsLoaded(:final view, :final isRefreshing) => _LoadedView(
           view: view,
           isRefreshing: isRefreshing,
-          table: view.table(tableKey) ?? view.tables.first,
+          table:
+              (tableKey == null ? null : view.table(tableKey!)) ??
+              view.tables.first,
           onTableSelected: onTableSelected,
           onRefresh: onRefresh,
         ),

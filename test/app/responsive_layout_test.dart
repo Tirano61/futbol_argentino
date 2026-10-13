@@ -56,6 +56,12 @@ void main() {
       await tester.tap(find.text('Apertura · Zona A'));
       await tester.pumpAndSettle();
       expect(find.text('Apertura 2026 · Zona A'), findsOne);
+
+      await openNacionalTable(tester);
+      expect(find.text('Posiciones 2026 · Zona A'), findsOne);
+      await tester.tap(find.text('Zona B'));
+      await tester.pumpAndSettle();
+      expect(find.text('Posiciones 2026 · Zona B'), findsOne);
       // Los desbordes de layout fallan el test por sí solos.
     });
 

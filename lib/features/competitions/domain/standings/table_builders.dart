@@ -1,3 +1,4 @@
+import '../../../matches/domain/entities/match.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/phase.dart';
 import '../entities/season.dart';
@@ -22,43 +23,101 @@ abstract final class ZoneTableBuilder {
     required String zone,
     required RegularSeasonMatches matches,
     required int roundsQueried,
-  }) {
-    final ids = format.zones[tournament]![zone]!;
-    final tournamentMatches = matches.byTournament[tournament] ?? const [];
-    final scope = [
-      for (final m in tournamentMatches)
-        if (ids.contains(m.home.id) || ids.contains(m.away.id)) m,
-    ];
-    final stats = StatsAccumulator([for (final id in ids) matches.team(id)])
-      ..addAll(scope);
-    final rows = TieBreaker(
-      format.zoneTieBreak,
-    ).rank([for (final id in ids) stats[id]!], matches: tournamentMatches);
-    return StandingsTable(
-      key: keyFor(tournament, zone),
-      title: '${tournament.label} ${season.year} · Zona $zone',
-      shortTitle: '${tournament.label} · Zona $zone',
-      kind: StandingsKind.zone,
-      rows: rows,
-      coverage: matches.coverage(
-        scope: scope,
-        roundsQueried: roundsQueried,
-        roundsTotal: format.regularRounds.length,
-        teamIds: ids,
-      ),
-      notes: [
-        'Puntos de las ${format.regularRounds.length} fechas del '
-            '${tournament.label}: 3 por ganar y 1 por empatar; los '
-            'interzonales suman (${format.zoneArticles[tournament]} del '
-            '${format.regulation.name}).',
-        StandingsNotes.tieBreak(format.zoneTieBreak),
-        StandingsNotes.unofficial,
-      ],
-      sharedNote: rows.any((r) => r.isShared)
-          ? StandingsNotes.shared(format.zoneTieBreak)
-          : null,
-    );
-  }
+  }) => _zoneTable(
+    key: keyFor(tournament, zone),
+    title: '${tournament.label} ${season.year} · Zona $zone',
+    shortTitle: '${tournament.label} · Zona $zone',
+    ids: format.zones[tournament]![zone]!,
+    tournamentMatches: matches.byTournament[tournament] ?? const [],
+    tieBreak: format.zoneTieBreak,
+    matches: matches,
+    roundsQueried: roundsQueried,
+    roundsTotal: format.regularRounds.length,
+    rules: [
+      'Puntos de las ${format.regularRounds.length} fechas del '
+          '${tournament.label}: 3 por ganar y 1 por empatar; los '
+          'interzonales suman (${format.zoneArticles[tournament]} del '
+          '${format.regulation.name}).',
+      StandingsNotes.tieBreak(format.zoneTieBreak),
+    ],
+  );
+}
+
+/// Tabla de una zona de una liga de un solo torneo (Primera Nacional 2026:
+/// puntos 3 y 5 del reglamento; art. 112 del Reglamento General de AFA).
+///
+/// Filas: los equipos de la zona. Suma todos sus partidos regulares de la
+/// temporada, interzonales incluidos. El enfrentamiento directo usa los
+/// partidos del torneo entre los empatados.
+abstract final class LeagueZoneTableBuilder {
+  static String keyFor(String zone) => 'zona-${zone.toLowerCase()}';
+
+  static StandingsTable build({
+    required LeagueZones format,
+    required Season season,
+    required String zone,
+    required RegularSeasonMatches matches,
+    required int roundsQueried,
+  }) => _zoneTable(
+    key: keyFor(zone),
+    title: 'Posiciones ${season.year} · Zona $zone',
+    shortTitle: 'Zona $zone',
+    ids: format.zones[zone]!,
+    tournamentMatches: matches.byTournament[PhaseKey.regular] ?? const [],
+    tieBreak: format.tieBreak,
+    matches: matches,
+    roundsQueried: roundsQueried,
+    roundsTotal: format.regularRounds.length,
+    rules: [
+      'Puntos de las ${format.regularRounds.length} fechas: 3 por ganar y 1 '
+          'por empatar; los interzonales también suman en la zona '
+          '(${format.tableArticle} del ${format.regulation.name}).',
+      StandingsNotes.tieBreak(format.tieBreak, source: format.tieBreakArticle),
+      format.relegationNote,
+    ],
+  );
+}
+
+/// Suma los partidos de [tournamentMatches] en los que juega alguno de
+/// [ids] (los de la otra zona incluidos) y ordena la zona con [tieBreak].
+StandingsTable _zoneTable({
+  required String key,
+  required String title,
+  required String shortTitle,
+  required Set<int> ids,
+  required List<Match> tournamentMatches,
+  required List<TieBreakCriterion> tieBreak,
+  required RegularSeasonMatches matches,
+  required int roundsQueried,
+  required int roundsTotal,
+  required List<String> rules,
+}) {
+  final scope = [
+    for (final m in tournamentMatches)
+      if (ids.contains(m.home.id) || ids.contains(m.away.id)) m,
+  ];
+  final stats = StatsAccumulator([for (final id in ids) matches.team(id)])
+    ..addAll(scope);
+  final rows = TieBreaker(
+    tieBreak,
+  ).rank([for (final id in ids) stats[id]!], matches: tournamentMatches);
+  return StandingsTable(
+    key: key,
+    title: title,
+    shortTitle: shortTitle,
+    kind: StandingsKind.zone,
+    rows: rows,
+    coverage: matches.coverage(
+      scope: scope,
+      roundsQueried: roundsQueried,
+      roundsTotal: roundsTotal,
+      teamIds: ids,
+    ),
+    notes: [...rules, StandingsNotes.unofficial],
+    sharedNote: rows.any((r) => r.isShared)
+        ? StandingsNotes.shared(tieBreak)
+        : null,
+  );
 }
 
 /// Tabla anual (Primera 2026: Tabla General de Posiciones, art. 24).
@@ -121,8 +180,11 @@ abstract final class StandingsNotes {
       'Calculada por la app con los partidos de TheSportsDB: no es la tabla '
       'oficial.';
 
-  static String tieBreak(List<TieBreakCriterion> criteria) =>
-      'Desempate: ${_join([for (final c in criteria) c.label])}.';
+  /// [source]: de dónde salen los criterios, si no es el artículo de la
+  /// tabla.
+  static String tieBreak(List<TieBreakCriterion> criteria, {String? source}) =>
+      'Desempate: ${_join([for (final c in criteria) c.label])}'
+      '${source == null ? '' : ' ($source)'}.';
 
   /// Para los que siguen empatados al llegar a criterios no calculables.
   static String shared(List<TieBreakCriterion> criteria) {

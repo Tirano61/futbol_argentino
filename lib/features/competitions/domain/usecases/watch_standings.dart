@@ -40,7 +40,9 @@ final class StandingsView extends Equatable {
   final int competitionId;
   final Season season;
 
-  /// La anual primero; después las de zona (si las zonas se verificaron).
+  /// Primera: la anual primero y después las de zona; Nacional: las de
+  /// zona. Las de zona, solo si las zonas se verificaron (si no, puede
+  /// quedar vacía aunque haya partidos).
   final List<StandingsTable> tables;
   final SyncProgress progress;
 
@@ -93,7 +95,7 @@ class WatchStandings {
   }) async* {
     final definition = _catalog.where((d) => d.id == competitionId).firstOrNull;
     final format = definition?.standingsFor(season);
-    if (definition == null || format is! LeagueZonesWithAnnual) {
+    if (definition == null || format is! ZonedStandingsFormat) {
       yield StandingsView.unavailable(
         competitionId: competitionId,
         season: season,
@@ -154,7 +156,7 @@ class WatchStandings {
 
   static StandingsView _build(
     CompetitionDefinition definition,
-    LeagueZonesWithAnnual format,
+    ZonedStandingsFormat format,
     SeasonCompletion completion,
     SyncProgress progress,
   ) {
@@ -182,29 +184,43 @@ class WatchStandings {
     }
 
     final validation = ZoneValidator.validate(format, matches);
+    final zonesOk = validation.isValid;
     return StandingsView(
       competitionId: completion.competitionId,
       season: season,
-      tables: [
-        AnnualTableBuilder.build(
-          format: format,
-          season: season,
-          matches: matches,
-          roundsQueried: queried,
-        ),
-        if (validation.isValid)
-          for (final MapEntry(key: tournament, value: zones)
-              in format.zones.entries)
-            for (final zone in zones.keys)
-              ZoneTableBuilder.build(
+      tables: switch (format) {
+        LeagueZonesWithAnnual() => [
+          AnnualTableBuilder.build(
+            format: format,
+            season: season,
+            matches: matches,
+            roundsQueried: queried,
+          ),
+          if (zonesOk)
+            for (final MapEntry(key: tournament, value: zones)
+                in format.zones.entries)
+              for (final zone in zones.keys)
+                ZoneTableBuilder.build(
+                  format: format,
+                  season: season,
+                  tournament: tournament,
+                  zone: zone,
+                  matches: matches,
+                  roundsQueried: queried,
+                ),
+        ],
+        LeagueZones() => [
+          if (zonesOk)
+            for (final zone in format.zones.keys)
+              LeagueZoneTableBuilder.build(
                 format: format,
                 season: season,
-                tournament: tournament,
                 zone: zone,
                 matches: matches,
                 roundsQueried: queried,
               ),
-      ],
+        ],
+      },
       progress: progress,
       zoneIssues: validation.issues,
     );

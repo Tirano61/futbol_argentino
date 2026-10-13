@@ -17,7 +17,6 @@ import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/season.dart';
 import '../../domain/repositories/competition_repository.dart';
-import '../../domain/standings/table_builders.dart';
 import '../../domain/usecases/resolve_current_stage.dart';
 import '../../domain/usecases/watch_stage_matches.dart';
 import '../../domain/usecases/watch_standings.dart';
@@ -40,7 +39,7 @@ class CompetitionsPage extends StatelessWidget {
   final FixtureOpened initialEvent;
   final CompetitionsView initialView;
 
-  /// Tabla elegida en la URL (`anual`, `apertura-a`…).
+  /// Tabla elegida en la URL (`anual`, `apertura-a`, `zona-a`…).
   final String? initialTable;
 
   @override
@@ -89,7 +88,13 @@ class _CompetitionsView extends StatefulWidget {
 
 class _CompetitionsViewState extends State<_CompetitionsView> {
   late var _view = widget.initialView;
-  late var _tableKey = widget.initialTable ?? AnnualTableBuilder.key;
+
+  /// Tabla elegida; `null`: la primera de la competición (la anual en
+  /// Primera, la Zona A en Nacional).
+  late String? _tableKey = widget.initialTable;
+
+  /// Competición mostrada (para saber cuándo cambia).
+  int? _competitionId;
 
   /// Competición y temporada pedidas al `StandingsBloc`.
   (int, Season)? _standingsTarget;
@@ -226,6 +231,13 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
           previous.definition != current.definition ||
           previous.season != current.season,
       listener: (context, state) {
+        // Cada competición tiene sus tablas: al cambiarla se muestra la
+        // primera (la de la URL vale solo para la que abrió la pantalla).
+        final competitionId = state.definition?.id;
+        if (_competitionId != null && competitionId != _competitionId) {
+          setState(() => _tableKey = null);
+        }
+        _competitionId = competitionId ?? _competitionId;
         if (_view == CompetitionsView.table) _loadStandings(state);
         _updateUrl(state);
       },

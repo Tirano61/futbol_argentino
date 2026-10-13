@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../catalog/competition_catalog.dart';
+import '../entities/phase.dart';
 import 'regular_season_matches.dart';
 
 final class ZoneValidation extends Equatable {
@@ -21,19 +22,26 @@ final class ZoneValidation extends Equatable {
 /// La tabla anual no depende de las zonas.
 abstract final class ZoneValidator {
   static ZoneValidation validate(
-    LeagueZonesWithAnnual format,
+    ZonedStandingsFormat format,
     RegularSeasonMatches matches,
   ) {
     final issues = <String>{};
     for (final MapEntry(key: tournament, value: zones)
-        in format.zones.entries) {
+        in format.zonesByTournament.entries) {
+      // Una liga de un solo torneo no lo nombra.
+      final inTournament = tournament == PhaseKey.regular
+          ? ''
+          : ' en el ${tournament.label}';
+      final ofTournament = tournament == PhaseKey.regular
+          ? ''
+          : ' del ${tournament.label}';
       final zoneOf = <int, String>{};
       for (final MapEntry(key: zone, value: ids) in zones.entries) {
         for (final id in ids) {
           if (zoneOf[id] case final other? when other != zone) {
             issues.add(
-              '${matches.team(id).name} figura en las zonas $other y $zone '
-              'del ${tournament.label}.',
+              '${matches.team(id).name} figura en las zonas $other y '
+              '$zone$ofTournament.',
             );
           }
           zoneOf[id] = zone;
@@ -46,7 +54,7 @@ abstract final class ZoneValidator {
         final away = zoneOf[m.away.id];
         for (final (team, zone) in [(m.home, home), (m.away, away)]) {
           if (zone == null) {
-            issues.add('${team.name} no tiene zona en el ${tournament.label}.');
+            issues.add('${team.name} no tiene zona$inTournament.');
           }
         }
         if (home != null && away != null && home != away) {
@@ -58,8 +66,7 @@ abstract final class ZoneValidator {
         if (count > format.interzonalsPerTeam) {
           issues.add(
             '${matches.team(id).name} tiene $count partidos contra la otra '
-            'zona en el ${tournament.label} (se esperan '
-            '${format.interzonalsPerTeam}).',
+            'zona$inTournament (se esperan ${format.interzonalsPerTeam}).',
           );
         }
       }

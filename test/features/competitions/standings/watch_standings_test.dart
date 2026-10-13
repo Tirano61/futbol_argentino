@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
+import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
 import 'package:futbol_argentino/features/competitions/domain/usecases/watch_standings.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -104,13 +105,87 @@ void main() {
     expect(last.progress.fetched, 1);
   });
 
-  test('Copa y Nacional: sin tablas y sin peticiones', () async {
-    for (final id in [4500, 4616]) {
-      final views = await watch(id, 2026).toList();
-      expect(views.single.isAvailable, isFalse);
+  test(
+    'Copa, Primera 2025 y Nacional 2025: sin tablas y sin peticiones',
+    () async {
+      for (final (id, year) in [(4500, 2026), (4406, 2025), (4616, 2025)]) {
+        final views = await watch(id, year).toList();
+        expect(views.single.isAvailable, isFalse);
+      }
+      expect(api.requests, isEmpty);
+    },
+  );
+
+  test('Nacional en frío: 36 peticiones (fechas 1–36) y las 2 tablas de '
+      'zona', () async {
+    final views = await watch(4616, 2026).toList();
+    final last = views.last;
+
+    expect(api.requests, hasLength(36));
+    expect(api.requestLabels.toSet(), {
+      for (var r = 1; r <= 36; r++) '4616:r$r:s2026',
+    });
+    expect(last.progress.isRunning, isFalse);
+    expect(last.progress.fetched, 36);
+    expect(last.zoneIssues, isEmpty);
+    expect(last.tables.map((t) => t.key), ['zona-a', 'zona-b']);
+    expect(last.tables.map((t) => t.shortTitle), ['Zona A', 'Zona B']);
+    for (final t in last.tables) {
+      expect(t.rows, hasLength(18));
+      expect(t.coverage.roundsQueried, 36);
+      expect(t.coverage.roundsTotal, 36);
     }
-    expect(await watch(4406, 2025).single.then((v) => v.isAvailable), isFalse);
+  });
+
+  test('Nacional en caliente: 0 peticiones, una sola emisión', () async {
+    await watch(4616, 2026).last;
+    api.requests.clear();
+
+    final views = await watch(4616, 2026).toList();
+
     expect(api.requests, isEmpty);
+    expect(views, hasLength(1));
+    expect(views.single.tables, hasLength(2));
+  });
+
+  test('Nacional con zonas que no coinciden (armadas en el test): sin '
+      'tablas y con el motivo', () async {
+    const real = CompetitionCatalog.primeraNacional;
+    final format = real.standingsFor(const Season(2026)) as LeagueZones;
+    // Ferro (Zona A) pasado a la Zona B: armado para probar la regla.
+    final wrong = CompetitionDefinition(
+      id: real.id,
+      name: real.name,
+      shortName: real.shortName,
+      format: real.format,
+      rules: real.rules,
+      standingsBySeason: {
+        2026: LeagueZones(
+          zones: {
+            'A': {...format.zones['A']!}..remove(137774),
+            'B': {...format.zones['B']!, 137774},
+          },
+          regularRounds: format.regularRounds,
+          interzonalsPerTeam: format.interzonalsPerTeam,
+          tieBreak: format.tieBreak,
+          tableArticle: format.tableArticle,
+          tieBreakArticle: format.tieBreakArticle,
+          relegationNote: format.relegationNote,
+          regulation: format.regulation,
+        ),
+      },
+    );
+
+    final last = await WatchStandings(api.matches, catalog: [wrong])(
+      4616,
+      const Season(2026),
+      now: clock.now(),
+      cancelToken: CancelToken(),
+    ).last;
+
+    expect(last.hasMatches, isTrue);
+    expect(last.tables, isEmpty);
+    expect(last.zoneIssues, contains(startsWith('Ferro Carril Oeste tiene')));
   });
 
   test('sin red y sin nada guardado: termina con el error', () async {

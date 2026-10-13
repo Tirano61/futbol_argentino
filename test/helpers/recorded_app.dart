@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/app/app.dart';
 import 'package:futbol_argentino/app/di/app_dependencies.dart';
@@ -84,5 +84,19 @@ Future<void> openTable(WidgetTester tester) async {
   await tester.tap(find.text('Tabla'));
   await tester.pumpAndSettle();
   await tester.pump(const Duration(minutes: 2));
+  await tester.pumpAndSettle();
+}
+
+/// Con la vista «Tabla» abierta, pasa a Primera Nacional y deja pasar el
+/// tiempo que necesita el cupo P2 para sus 36 fechas.
+Future<void> openNacionalTable(WidgetTester tester) async {
+  await tester.tap(
+    find.descendant(
+      of: find.byWidgetPredicate((w) => w is SegmentedButton<int>),
+      matching: find.text('Nacional'),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.pump(const Duration(minutes: 4));
   await tester.pumpAndSettle();
 }

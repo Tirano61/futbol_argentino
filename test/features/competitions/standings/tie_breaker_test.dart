@@ -171,6 +171,37 @@ void main() {
     );
   });
 
+  test('Nacional (art. 112, puntos 1 a 3): sin Fair Play ni sorteo, los '
+      'que siguen empatados comparten la posición', () {
+    const nacional = TieBreaker([
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+      TieBreakCriterion.headToHead,
+    ]);
+    final teams = [
+      stats('Alfa', w: 1, gf: 2, ga: 1),
+      stats('Beta', w: 1, gf: 2, ga: 1),
+    ];
+
+    expect(order(nacional.rank(teams, matches: [game('Beta', 1, 'Alfa', 0)])), [
+      '1 Beta',
+      '2 Alfa',
+    ]);
+    expect(order(nacional.rank(teams, matches: [game('Alfa', 1, 'Beta', 1)])), [
+      '1= Alfa',
+      '1= Beta',
+    ]);
+    expect(
+      StandingsNotes.shared(nacional.criteria),
+      'Posición compartida: el reglamento no define más criterios.',
+    );
+    expect(
+      StandingsNotes.tieBreak(nacional.criteria, source: 'art. 112'),
+      'Desempate: diferencia de gol, goles a favor y partidos entre los '
+      'empatados (art. 112).',
+    );
+  });
+
   test('StatsAccumulator: cada partido una vez, solo terminados con '
       'resultado', () {
     final played = game('Alfa', 2, 'Beta', 1);

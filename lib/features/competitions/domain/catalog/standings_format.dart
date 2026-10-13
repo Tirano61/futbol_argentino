@@ -19,8 +19,27 @@ final class NoStandings extends StandingsFormat {
   const NoStandings();
 }
 
+/// Formatos con tablas por zona, validadas contra los partidos
+/// (`ZoneValidator`).
+sealed class ZonedStandingsFormat extends StandingsFormat {
+  const ZonedStandingsFormat();
+
+  /// Torneo → zona → `idTeam`.
+  Map<PhaseKey, Map<String, Set<int>>> get zonesByTournament;
+
+  /// Rondas de la API de la fase de zonas (sin eliminatorias).
+  List<int> get regularRounds;
+
+  /// Partidos contra la otra zona por equipo y torneo.
+  int get interzonalsPerTeam;
+  RegulationSource get regulation;
+
+  /// Torneos en orden.
+  Iterable<PhaseKey> get tournaments => zonesByTournament.keys;
+}
+
 /// Liga con dos torneos de zonas y una tabla anual (Primera 2026).
-final class LeagueZonesWithAnnual extends StandingsFormat {
+final class LeagueZonesWithAnnual extends ZonedStandingsFormat {
   const LeagueZonesWithAnnual({
     required this.zones,
     required this.regularRounds,
@@ -34,11 +53,9 @@ final class LeagueZonesWithAnnual extends StandingsFormat {
 
   /// Torneo → zona → `idTeam`.
   final Map<PhaseKey, Map<String, Set<int>>> zones;
-
-  /// Rondas de la API de la fase de zonas (sin eliminatorias).
+  @override
   final List<int> regularRounds;
-
-  /// Partidos contra la otra zona por equipo y torneo.
+  @override
   final int interzonalsPerTeam;
   final List<TieBreakCriterion> zoneTieBreak;
   final List<TieBreakCriterion> annualTieBreak;
@@ -46,8 +63,49 @@ final class LeagueZonesWithAnnual extends StandingsFormat {
   /// Artículos de la tabla y el desempate de zona de cada torneo.
   final Map<PhaseKey, String> zoneArticles;
   final String annualArticle;
+  @override
   final RegulationSource regulation;
 
-  /// Torneos en orden.
-  Iterable<PhaseKey> get tournaments => zones.keys;
+  @override
+  Map<PhaseKey, Map<String, Set<int>>> get zonesByTournament => zones;
+}
+
+/// Liga de un solo torneo en zonas, sin tabla anual; los interzonales suman
+/// en la tabla de cada zona (Primera Nacional 2026).
+final class LeagueZones extends ZonedStandingsFormat {
+  const LeagueZones({
+    required this.zones,
+    required this.regularRounds,
+    required this.interzonalsPerTeam,
+    required this.tieBreak,
+    required this.tableArticle,
+    required this.tieBreakArticle,
+    required this.relegationNote,
+    required this.regulation,
+  });
+
+  /// Zona → `idTeam`.
+  final Map<String, Set<int>> zones;
+  @override
+  final List<int> regularRounds;
+  @override
+  final int interzonalsPerTeam;
+  final List<TieBreakCriterion> tieBreak;
+
+  /// Dónde fija el reglamento cómo se suman los puntos.
+  final String tableArticle;
+
+  /// De dónde salen los criterios de desempate.
+  final String tieBreakArticle;
+
+  /// Qué pasa con los empates en los puestos de descenso (la app no los
+  /// define).
+  final String relegationNote;
+  @override
+  final RegulationSource regulation;
+
+  @override
+  Map<PhaseKey, Map<String, Set<int>>> get zonesByTournament => {
+    PhaseKey.regular: zones,
+  };
 }

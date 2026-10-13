@@ -274,16 +274,19 @@ void main() {
       expect(annual.rows.every((r) => r.stats.played == 32), isTrue);
     });
 
-    test('el formato 2025 no tiene tablas', () {
-      expect(primera.standingsFor(const Season(2025)), isA<NoStandings>());
-      expect(
-        CompetitionCatalog.copaArgentina.standingsFor(const Season(2026)),
-        isA<NoStandings>(),
-      );
-      expect(
-        CompetitionCatalog.primeraNacional.standingsFor(const Season(2026)),
-        isA<NoStandings>(),
-      );
-    });
+    test(
+      'el formato 2025 y la Copa no tienen tablas; Nacional 2026, por zonas',
+      () {
+        expect(primera.standingsFor(const Season(2025)), isA<NoStandings>());
+        expect(
+          CompetitionCatalog.copaArgentina.standingsFor(const Season(2026)),
+          isA<NoStandings>(),
+        );
+        expect(
+          CompetitionCatalog.primeraNacional.standingsFor(const Season(2026)),
+          isA<LeagueZones>(),
+        );
+      },
+    );
   });
 }

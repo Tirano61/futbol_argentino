@@ -322,6 +322,117 @@ abstract final class CompetitionCatalog {
       // 2025: fecha 35 vacía; 2026: fecha 37 vacía.
       regularRoundsBySeason: {2025: 34, 2026: 36},
     ),
+    standingsBySeason: {2026: _nacional2026Standings},
+  );
+
+  /// Zonas deducidas de los 648 partidos grabados (rondas 1–36), iguales a
+  /// las publicadas por la prensa y a `lookuptable` (V14, aprobadas el
+  /// 12/10/2026).
+  static const _nacional2026ZoneA = {
+    143091, // Acassuso
+    137781, // All Boys
+    141011, // Almirante Brown
+    142489, // Central Norte
+    140526, // Chaco For Ever
+    149544, // Ciudad de Bolívar
+    135157, // Colón
+    137779, // Defensores de Belgrano
+    142479, // Deportivo Madryn
+    137772, // Deportivo Morón
+    137767, // Estudiantes de Buenos Aires
+    137774, // Ferro Carril Oeste
+    135162, // Godoy Cruz
+    143087, // Los Andes
+    137766, // Mitre
+    144739, // Racing de Córdoba
+    143096, // San Miguel
+    141014, // San Telmo
+  };
+  static const _nacional2026ZoneB = {
+    137769, // Agropecuario
+    137787, // Almagro
+    137776, // Atlanta
+    135153, // Atlético de Rafaela
+    135899, // Chacarita Juniors
+    143095, // Colegiales
+    141013, // Deportivo Maipú
+    149541, // Ferrocarril Midland
+    137783, // Gimnasia y Esgrima de Jujuy
+    144738, // Gimnasia y Tiro
+    141012, // Güemes
+    135167, // Nueva Chicago
+    135682, // Patronato
+    135169, // Quilmes
+    135174, // San Martín de San Juan
+    136197, // San Martín de Tucumán
+    135176, // Temperley
+    141015, // Tristán Suárez
+  };
+
+  /// Boletín Especial 6823 (puntos 2, 3, 5 y 6) y Reglamento General de AFA
+  /// (art. 111 a 113; ver D18 en `docs/DECISIONS.md`). Dos ruedas en la
+  /// zona más la fecha interzonal de ida y vuelta (rondas 7 y 25).
+  static const _nacional2026Standings = LeagueZones(
+    zones: {'A': _nacional2026ZoneA, 'B': _nacional2026ZoneB},
+    regularRounds: [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+    ],
+    interzonalsPerTeam: 2,
+    // Art. 112 del R.G., puntos 1 a 3 (el 113 los aplica durante el
+    // torneo): sin Fair Play ni sorteo.
+    tieBreak: [
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+      TieBreakCriterion.headToHead,
+    ],
+    tableArticle: 'punto 3',
+    tieBreakArticle:
+        'punto 5: art. 112 del Reglamento General de AFA, puntos 1 a 3, '
+        'también para el primer puesto',
+    relegationNote:
+        'Descensos (los 2 últimos de cada zona): ante igualdad en puntos se '
+        'juegan partidos de desempate (punto 5 y art. 111 del Reglamento '
+        'General de AFA); la app no los define.',
+    regulation: RegulationSource(
+      name: 'Reglamento del Campeonato de Primera Nacional 2026',
+      url:
+          'https://assets1.afa.com.ar/2026/Lau/Boletin-Especial-6823---Reglamento-del-Campeonato-de-Primera-Nacional-2026.pdf',
+    ),
   );
 
   static const copaArgentina = CompetitionDefinition(

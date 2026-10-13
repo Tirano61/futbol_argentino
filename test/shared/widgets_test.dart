@@ -263,4 +263,23 @@ void main() {
     const team = TeamRef(id: 1, name: 'Equipo sin nombre');
     expect(team.badgeUrl, isNull);
   });
+
+  testWidgets('TeamBadge: otra URL en el mismo lugar crea otra imagen (en '
+      'Web el <img> no se actualiza solo)', (tester) async {
+    Future<State> badge(String url) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TeamBadge(name: 'Equipo', url: url, size: 24),
+        ),
+      );
+      return tester.state(find.byType(Image));
+    }
+
+    final first = await badge('https://r2.thesportsdb.com/a.png');
+    final same = await badge('https://r2.thesportsdb.com/a.png');
+    final other = await badge('https://r2.thesportsdb.com/b.png');
+
+    expect(identical(same, first), isTrue);
+    expect(identical(other, first), isFalse);
+  });
 }
