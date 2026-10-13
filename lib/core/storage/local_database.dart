@@ -54,4 +54,7 @@ abstract final class AppStores {
 
   /// Equipos favoritos por `idTeam` (solo locales, sin red).
   static final favorites = intMapStoreFactory.store('favorites');
+
+  /// Ajustes de la app (un solo registro, `app`).
+  static final settings = stringMapStoreFactory.store('settings');
 }

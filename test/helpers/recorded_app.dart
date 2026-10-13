@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/app/app.dart';
 import 'package:futbol_argentino/app/di/app_dependencies.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/badge_image_resolver.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -62,6 +63,8 @@ Future<void> pumpApp(
     database: db,
     config: const AppConfig(apiKey: '123', enableDiagnostics: false),
     clock: _PumpedClock(tester, DateTime.utc(2026, 10, 11, 20)),
+    // Escudos por la red simulada de los tests (sin caché en disco).
+    badgeImages: const NetworkBadgeImages(),
     httpClient: MockClient((request) async {
       requests?.add(request.url);
       return respond?.call(request.url) ?? _recorded(request.url);

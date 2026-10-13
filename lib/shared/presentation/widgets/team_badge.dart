@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'badge_image_resolver.dart';
+
 /// Escudo de un equipo. Si no hay URL o la imagen no carga (sin red, sin
 /// caché), muestra las iniciales.
 ///
-/// En Web usa `WebHtmlElementStrategy.fallback`: `r2.thesportsdb.com` no
-/// envía CORS y la carga normal falla (validado en T0.2).
+/// La imagen sale del [BadgeImageResolver] de la app: en Android, con caché
+/// en disco; en Web, de la red con `WebHtmlElementStrategy.fallback`
+/// (`r2.thesportsdb.com` no envía CORS, validado en T0.2).
 class TeamBadge extends StatelessWidget {
   const TeamBadge({
     super.key,
@@ -38,8 +41,8 @@ class TeamBadge extends StatelessWidget {
     final variant = size <= 50 ? '$source/tiny' : '$source/small';
     return SizedBox.square(
       dimension: size,
-      child: Image.network(
-        variant,
+      child: Image(
+        image: BadgeImages.of(context).imageFor(variant),
         // En Web, con el `<img>` del modo fallback, cambiar la URL de una
         // imagen ya montada no cambia lo que se ve (una tabla que se reordena
         // dejaba cada escudo en su fila): otra URL, otra imagen.
@@ -47,7 +50,6 @@ class TeamBadge extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.contain,
-        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
         excludeFromSemantics: true,
         errorBuilder: (context, error, stackTrace) => placeholder,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>

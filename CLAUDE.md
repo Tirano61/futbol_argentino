@@ -55,7 +55,8 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Grabaciones nuevas que repiten una consulta ya grabada: en una carpeta de instantánea (`test/fixtures/api/snapshot_AAAAMMDD/`), nunca pisando los archivos que usan los tests.
 
 ## Escudos
-- Siempre mediante `TeamBadge`, con `Image.network(..., webHtmlElementStrategy: WebHtmlElementStrategy.fallback)`: `r2.thesportsdb.com` no envía CORS y en Web la carga normal falla (validado en T0.2).
+- Siempre mediante `TeamBadge`, que pide la imagen al `BadgeImageResolver` de la app (`BadgeImages`, `lib/shared/presentation/widgets/badge_image_resolver.dart`): Android = `CachedNetworkImageProvider` (caché en disco `team_badges`); Web = `NetworkImage(..., webHtmlElementStrategy: WebHtmlElementStrategy.fallback)`: `r2.thesportsdb.com` no envía CORS y en Web la carga normal falla (validado en T0.2).
+- Los tests de la app completa pasan `badgeImages: const NetworkBadgeImages()` a `AppDependencies.create`: la caché en disco necesita `path_provider` (en tests da `MissingPluginException`).
 - La `Image` lleva `key: ValueKey(url)`: en Web, el `<img>` del fallback no cambia si una imagen montada recibe otra URL (las filas de una tabla que se reordena quedaban con el escudo de otro equipo).
 - Variantes de tamaño: `/tiny` (listas), `/small` (fichas).
 
@@ -82,6 +83,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 
 ## Datos locales
 - sembast: archivo en Android, IndexedDB en Web (`lib/core/storage/local_database.dart`). Tests: `newDatabaseFactoryMemory()`.
+- Ajustes (tema): store `settings`, `SettingsBloc` global; `main` los lee antes de `runApp` para que el tema no parpadee.
 - Los repositorios son stale-while-revalidate; los TTL están en `CacheClass`. Todo refresco pasa por `SyncScheduler` (P0 visible, P1 contexto, P2 equipo: 10/min, de a uno, en pausa con la app oculta, cancelable con `CancelToken`).
 - Cuidado con `whenComplete(() => map.remove(key))`: si devuelve el Future quitado, `whenComplete` lo espera y se bloquea. Usar cuerpo de bloque.
 
@@ -91,4 +93,4 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Los tests de red usan `MockClient` + `FakeClock` (`test/helpers/`) y JSON reales de `test/fixtures/api/`.
 - En `testWidgets`, toda llamada directa a sembast va dentro de `outsideFakeAsync` (`test/helpers/favorites.dart`, usa `tester.runAsync`); si no, el test se cuelga.
 - `tester.pageBack()` busca «Back»: con la app en español, tocar `find.byTooltip('Atrás')`. Con la vista de 6000 px de alto, «deslizar para actualizar» necesita un arrastre largo (≥ 25 % del alto).
-- Durante una pausa por 429 la app muestra `RateLimitNotice`; `pumpAndSettle` avanza el tiempo mientras gire un indicador de carga (puede pasar de largo la pausa).
+- Durante una pausa por 429, o una espera de 3 s o más por el tope propio (25/min), la app muestra `RateLimitNotice`; `pumpAndSettle` avanza el tiempo mientras gire un indicador de carga (puede pasar de largo la pausa).

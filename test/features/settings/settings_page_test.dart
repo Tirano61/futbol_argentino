@@ -6,6 +6,8 @@ import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/favorites/data/repositories/favorites_repository_impl.dart';
 import 'package:futbol_argentino/features/favorites/domain/entities/favorite_team.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
+import 'package:futbol_argentino/features/settings/data/repositories/settings_repository_impl.dart';
+import 'package:futbol_argentino/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:futbol_argentino/features/settings/domain/usecases/stored_seasons.dart';
 import 'package:futbol_argentino/features/settings/presentation/bloc/stored_data_bloc.dart';
 import 'package:futbol_argentino/features/settings/presentation/pages/settings_page.dart';
@@ -20,7 +22,13 @@ final now = DateTime.utc(2026, 10, 12, 15);
 
 /// Base con rondas reales guardadas: Primera 2026 y 2025 (fecha 1) y Copa
 /// 2025 (16avos), y Boca como favorito.
-Future<({RecordedApi api, FavoritesRepositoryImpl favorites})>
+Future<
+  ({
+    RecordedApi api,
+    FavoritesRepositoryImpl favorites,
+    SettingsRepositoryImpl settings,
+  })
+>
 storedData() async {
   final db = await newDatabaseFactoryMemory().openDatabase('app.db');
   final api = RecordedApi(clock: FakeClock(now), db: db);
@@ -35,7 +43,7 @@ storedData() async {
   await favorites.save(
     FavoriteTeam(teamId: 135156, name: 'Boca Juniors', addedAt: now),
   );
-  return (api: api, favorites: favorites);
+  return (api: api, favorites: favorites, settings: SettingsRepositoryImpl(db));
 }
 
 void main() {
@@ -105,6 +113,11 @@ void main() {
   });
 
   testWidgets('Datos guardados: elegir, confirmar y borrar', (tester) async {
+    // Alto suficiente para ver el tema y todas las temporadas.
+    tester.view
+      ..physicalSize = const Size(800, 1400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final data = await outsideFakeAsync(tester, storedData);
     await tester.pumpWidget(
       MultiRepositoryProvider(
@@ -112,7 +125,12 @@ void main() {
           RepositoryProvider<MatchRepository>.value(value: data.api.matches),
           RepositoryProvider<Clock>.value(value: FixedClock(now)),
         ],
-        child: const MaterialApp(home: SettingsPage()),
+        child: BlocProvider(
+          create: (context) =>
+              SettingsBloc(settings: data.settings)
+                ..add(const SettingsSubscribed()),
+          child: const MaterialApp(home: SettingsPage()),
+        ),
       ),
     );
     await tester.pumpAndSettle();

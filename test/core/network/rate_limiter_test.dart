@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/network/rate_limiter.dart';
 
@@ -78,5 +80,48 @@ void main() {
     expect(limiter.pausedUntil, until);
     clock.advance(const Duration(seconds: 60));
     expect(limiter.pausedUntil, isNull);
+  });
+
+  test('informa solo las esperas por el tope de 3 s o más', () async {
+    final throttles = <DateTime>[];
+    limiter.throttles.listen(throttles.add);
+    final start = clock.now();
+    for (var i = 0; i < 3; i++) {
+      await limiter.acquire();
+    }
+    clock.advance(const Duration(seconds: 58));
+
+    // Espera 2 s: no se avisa.
+    await limiter.acquire();
+    // Las dos siguientes entran en la ventana; la tercera espera 1 min.
+    for (var i = 0; i < 3; i++) {
+      await limiter.acquire();
+    }
+    await Future<void>.delayed(Duration.zero);
+
+    expect(clock.delays, [
+      const Duration(seconds: 2),
+      const Duration(minutes: 1),
+    ]);
+    expect(throttles, [start.add(const Duration(minutes: 2))]);
+  });
+
+  test('mientras dura la espera por el tope, informa hasta cuándo', () async {
+    final gate = Completer<void>();
+    final limiter = RateLimiter(
+      maxRequests: 1,
+      clock: clock,
+      delay: (_) => gate.future,
+    );
+    await limiter.acquire();
+
+    final second = limiter.acquire();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(limiter.throttledUntil, clock.now().add(const Duration(minutes: 1)));
+    clock.advance(const Duration(minutes: 1));
+    expect(limiter.throttledUntil, isNull);
+    gate.complete();
+    await second;
   });
 }
