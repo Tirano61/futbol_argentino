@@ -2,6 +2,10 @@ import '../../../../core/time/calendar_day.dart';
 import '../entities/competition.dart';
 import '../entities/phase.dart';
 import '../entities/season.dart';
+import '../standings/tie_breaker.dart';
+import 'standings_format.dart';
+
+export 'standings_format.dart';
 
 /// Ventana de un torneo dentro de una temporada, en días argentinos.
 final class PhaseWindow {
@@ -146,6 +150,7 @@ final class CompetitionDefinition {
     required this.shortName,
     required this.format,
     required this.rules,
+    this.standingsBySeason = const {},
   });
 
   final int id;
@@ -153,6 +158,13 @@ final class CompetitionDefinition {
   final String shortName;
   final CompetitionFormat format;
   final CompetitionRules rules;
+
+  /// Tablas verificadas por temporada (año → formato).
+  final Map<int, StandingsFormat> standingsBySeason;
+
+  /// Sin formato verificado para [season]: sin tablas.
+  StandingsFormat standingsFor(Season season) =>
+      standingsBySeason[season.year] ?? const NoStandings();
 
   /// Fases que se ofrecen al usuario, en orden.
   List<PhaseKey> get phases => switch (rules) {
@@ -222,6 +234,81 @@ abstract final class CompetitionCatalog {
           ),
         ],
       },
+    ),
+    standingsBySeason: {2026: _primera2026Standings},
+  );
+
+  /// Zonas del sorteo de la AFA con `idTeam` verificados contra los partidos
+  /// grabados (V12, aprobadas el 12/10/2026). Mismas zonas en los dos
+  /// torneos (art. 14.1.1).
+  static const _primera2026ZoneA = {
+    137775, // Platense
+    135159, // Defensa y Justicia
+    137603, // Central Córdoba de Santiago del Estero
+    135165, // Lanús
+    137782, // Deportivo Riestra
+    136674, // Talleres de Córdoba
+    135156, // Boca Juniors
+    135160, // Estudiantes de La Plata
+    137786, // Instituto
+    137778, // Gimnasia y Esgrima de Mendoza
+    135173, // San Lorenzo
+    135164, // Independiente
+    135166, // Newell's Old Boys
+    135178, // Unión
+    135179, // Vélez Sarsfield
+  };
+  static const _primera2026ZoneB = {
+    135151, // Argentinos Juniors
+    135150, // Aldosivi
+    135681, // Atlético Tucumán
+    135154, // Banfield
+    137771, // Barracas Central
+    135155, // Belgrano
+    135171, // River Plate
+    135161, // Gimnasia y Esgrima de La Plata
+    137773, // Estudiantes de Río Cuarto
+    137777, // Independiente Rivadavia
+    135163, // Huracán
+    135170, // Racing Club
+    135172, // Rosario Central
+    135175, // Sarmiento
+    135177, // Tigre
+  };
+
+  /// Reglamento Torneos Primera División 2026 (art. 8.1, 9, 10, 14.1, 15,
+  /// 16 y 24; ver D15 en `docs/DECISIONS.md`).
+  static const _primera2026Standings = LeagueZonesWithAnnual(
+    zones: {
+      PhaseKey.apertura: {'A': _primera2026ZoneA, 'B': _primera2026ZoneB},
+      PhaseKey.clausura: {'A': _primera2026ZoneA, 'B': _primera2026ZoneB},
+    },
+    regularRounds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    interzonalsPerTeam: 2,
+    // Art. 10 y 16.
+    zoneTieBreak: [
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+      TieBreakCriterion.headToHead,
+      TieBreakCriterion.fairPlay,
+      TieBreakCriterion.drawOfLots,
+    ],
+    // Art. 24.3: sin enfrentamiento directo.
+    annualTieBreak: [
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+      TieBreakCriterion.fairPlay,
+      TieBreakCriterion.drawOfLots,
+    ],
+    zoneArticles: {
+      PhaseKey.apertura: 'art. 9 y 10',
+      PhaseKey.clausura: 'art. 15 y 16',
+    },
+    annualArticle: 'art. 24',
+    regulation: RegulationSource(
+      name: 'Reglamento Torneos Primera División 2026',
+      url:
+          'https://assets1.afa.com.ar/2026/BOLETINES/Boletin-Resoluciones-6818---Complementario-01---Reglamento-Torneos-LPF-Primera-2026.pdf',
     ),
   );
 

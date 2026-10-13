@@ -194,3 +194,9 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 **Hallazgos con datos reales (tablet, 12/10/2026)**:
 - Copa 2025 en la API: los octavos (r16) traen 4 de 8 partidos (`partial`) y cuartos y semifinales están vacíos. Esas rondas no quedan «históricas» y se vuelven a pedir al completar esa temporada si venció su TTL (15 min y 24 h): hasta 3 peticiones por vez.
 - Nacional 2025: 620 partidos en 34 rondas.
+
+## Estado de implementación (Fase 13, 12/10/2026) — Tablas
+
+- **Qué cuenta**: partidos de la temporada, rondas 1–16, etapa regular según `PhaseResolver` y del torneo de la tabla; solo terminados **con resultado**; cada `idEvent` una vez. La ronda 0 nunca se pide para las tablas; los octavos de la ronda 16 se excluyen por fase. Los sin fase determinada no se suman y se listan en la cobertura.
+- **Presupuesto** (tests `watch_standings_test.dart` y `standings_budget_test.dart`): Primera 2026 en frío = 16 (P2, 10 por minuto); en caliente = 0; refresco manual = las fechas con partidos sin terminar de ayer y hoy (P0) + las vencidas cerradas (`CompleteRounds(forceRefresh)`), nunca las vigentes. Copa, Nacional y Primera 2025: 0 (sin formato).
+- La vista Tabla descarga solo mientras se ve: pasar a Fixture u ocultar la sección cancela las fechas pendientes; al volver sigue con las que faltan.

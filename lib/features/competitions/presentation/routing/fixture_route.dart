@@ -4,8 +4,12 @@ import '../../domain/entities/season.dart';
 import '../../domain/entities/stage.dart';
 import '../bloc/competition_fixture_bloc.dart';
 
+/// Vista de la pantalla de competiciones.
+enum CompetitionsView { fixture, table }
+
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
-/// (`&etapa=eliminatoria` en etapas de eliminación).
+/// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:
+/// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`.
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
@@ -40,19 +44,36 @@ abstract final class FixtureRoute {
     );
   }
 
+  static CompetitionsView parseView(Map<String, String> query) =>
+      query['vista'] == 'tabla'
+      ? CompetitionsView.table
+      : CompetitionsView.fixture;
+
+  /// Tabla elegida (`anual`, `apertura-a`…), si viene en la URL.
+  static String? parseTable(Map<String, String> query) => query['tabla'];
+
   /// URL a reponer cuando el router vuelve a la ubicación del fixture (p. ej.
   /// al volver de un partido o de otra sección): la ubicación del router es
-  /// la que abrió la pantalla y no sigue los cambios de competición, fase o
-  /// etapa. Devuelve la URL de [stage] si [location] es del fixture y no la
-  /// tiene; si no, `null`.
-  static Uri? urlToRestore(Uri location, Stage? stage) {
-    if (stage == null) return null;
+  /// la que abrió la pantalla y no sigue los cambios de competición, fase,
+  /// etapa o tabla. Devuelve [target] si [location] es de esta pantalla y no
+  /// la tiene; si no, `null`.
+  static Uri? urlToRestore(Uri location, Uri? target) {
+    if (target == null) return null;
     final segments = location.pathSegments;
     if (segments.isEmpty || '/${segments.first}' != basePath) return null;
     if (segments.length > 2) return null;
-    final target = uriFor(stage);
     return location.toString() == target.toString() ? null : target;
   }
+
+  /// URL de una tabla.
+  static Uri tableUri(int competitionId, Season season, String tableKey) => Uri(
+    path: '$basePath/$competitionId',
+    queryParameters: {
+      'temporada': season.apiValue,
+      'vista': 'tabla',
+      'tabla': tableKey,
+    },
+  );
 
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(

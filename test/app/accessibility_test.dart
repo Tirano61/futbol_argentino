@@ -35,6 +35,9 @@ void main() {
         await tester.pumpAndSettle();
       }
 
+      await openTable(tester);
+      await expectGuidelines(tester);
+
       await openSection(tester, 'Equipos');
       await expectGuidelines(tester);
 
@@ -61,10 +64,17 @@ void main() {
     );
 
     await openSection(tester, 'Competiciones');
+    // Con los selectores (y «Fixture | Tabla») la lista queda baja.
+    await tester.ensureVisible(find.byType(MatchCard).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(MatchCard).first);
     await tester.pumpAndSettle();
     expect(find.text('Hora (Argentina)'), findsOne);
     await tester.tap(find.byTooltip('Atrás'));
+    await tester.pumpAndSettle();
+    await openTable(tester);
+    expect(find.text('Tabla Anual 2026'), findsWidgets);
+    await tester.tap(find.text('Fixture'));
     await tester.pumpAndSettle();
 
     await openSection(tester, 'Equipos');

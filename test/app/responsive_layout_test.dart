@@ -44,6 +44,21 @@ void main() {
       // Los desbordes de layout fallan el test por sí solos.
     });
 
+    testWidgets('$width px: Tabla sin desbordes', (tester) async {
+      await pumpApp(tester, size);
+      await openSection(tester, 'Competiciones');
+
+      await openTable(tester);
+      expect(find.text('Tabla Anual 2026'), findsWidgets);
+      expect(find.text('Pts'), findsOne);
+      expect(find.text('GF'), desktop ? findsOne : findsNothing);
+
+      await tester.tap(find.text('Apertura · Zona A'));
+      await tester.pumpAndSettle();
+      expect(find.text('Apertura 2026 · Zona A'), findsOne);
+      // Los desbordes de layout fallan el test por sí solos.
+    });
+
     testWidgets('$width px: Ajustes sin desbordes', (tester) async {
       await pumpApp(tester, size);
 

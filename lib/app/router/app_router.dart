@@ -63,6 +63,12 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
                   initialEvent: FixtureRoute.parse(
                     query: state.uri.queryParameters,
                   ),
+                  initialView: FixtureRoute.parseView(
+                    state.uri.queryParameters,
+                  ),
+                  initialTable: FixtureRoute.parseTable(
+                    state.uri.queryParameters,
+                  ),
                 ),
               ),
               // Ruta hermana (no anidada): un enlace directo no apila la
@@ -74,6 +80,12 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
                   initialEvent: FixtureRoute.parse(
                     leagueId: state.pathParameters['leagueId'],
                     query: state.uri.queryParameters,
+                  ),
+                  initialView: FixtureRoute.parseView(
+                    state.uri.queryParameters,
+                  ),
+                  initialTable: FixtureRoute.parseTable(
+                    state.uri.queryParameters,
                   ),
                 ),
               ),

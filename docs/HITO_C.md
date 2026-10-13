@@ -117,6 +117,8 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - **Peticiones:** en frío, 16 para Primera 2026 completa, 36 para Nacional y 6 para la Copa. En caliente, y en temporadas anteriores ya guardadas, 0.
 
 ## Fase 13 — Tablas de Primera 2026: Tabla Anual y zonas por torneo
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 14.
+
 - **T13.1 Dominio común**, Dart puro, sin reglas de torneo (`competitions/domain/standings/`):
   - `TeamStats` (PJ, PG, PE, PP, GF, GC, DG, Pts) y `StatsAccumulator`: suma **una vez** cada partido terminado a cada uno de sus dos equipos.
   - `TieBreakCriterion` sealed:

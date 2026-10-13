@@ -77,3 +77,12 @@ Future<void> openSection(WidgetTester tester, String label) async {
   await tester.tap(find.text(label).last);
   await tester.pumpAndSettle();
 }
+
+/// Abre la vista «Tabla» y deja pasar el tiempo que necesita el cupo P2
+/// (10 fechas por minuto) para completar las 16 fechas.
+Future<void> openTable(WidgetTester tester) async {
+  await tester.tap(find.text('Tabla'));
+  await tester.pumpAndSettle();
+  await tester.pump(const Duration(minutes: 2));
+  await tester.pumpAndSettle();
+}
