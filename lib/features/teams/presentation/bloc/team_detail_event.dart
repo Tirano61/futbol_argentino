@@ -26,6 +26,12 @@ final class TeamDetailPaused extends TeamDetailEvent {
   const TeamDetailPaused();
 }
 
+/// Auto-refresco con un partido del equipo en vivo (D11): carga normal,
+/// que consulta solo lo vencido.
+final class TeamDetailLiveTick extends TeamDetailLoadEvent {
+  const TeamDetailLiveTick();
+}
+
 /// La ficha volvió a verse: sigue la descarga si había quedado a medias.
 final class TeamDetailResumed extends TeamDetailLoadEvent {
   const TeamDetailResumed();

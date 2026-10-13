@@ -109,4 +109,52 @@ void main() {
       }
     });
   });
+
+  group('isLive (D11)', () {
+    // Primera Nacional, fecha 33, grabada el 11/10/2026 a las 20:10 UTC.
+    final r33 = {
+      for (final m in fixtureMatches('eventsround_4616_r33_s2026')) m.id: m,
+    };
+    final recordedAt = DateTime.utc(2026, 10, 11, 20, 10);
+
+    test('en juego o entretiempo según la API', () {
+      expect(MatchGrouping.isLive(r33[2405137]!, recordedAt), isTrue); // 2H
+      expect(MatchGrouping.isLive(r33[2405147]!, recordedAt), isTrue); // HT
+    });
+
+    test('terminado o por empezar: no', () {
+      expect(MatchGrouping.isLive(r33[2405138]!, recordedAt), isFalse); // FT
+      // NS a las 22:30 UTC.
+      expect(MatchGrouping.isLive(r33[2405142]!, recordedAt), isFalse);
+    });
+
+    test('empezó hace menos de 3 h y la API sigue en NS: sí', () {
+      final notStarted = r33[2405142]!; // 22:30 UTC
+      final start = notStarted.kickoff.utc!;
+
+      expect(MatchGrouping.isLive(notStarted, start), isTrue);
+      expect(
+        MatchGrouping.isLive(
+          notStarted,
+          start.add(const Duration(hours: 2, minutes: 59)),
+        ),
+        isTrue,
+      );
+      expect(
+        MatchGrouping.isLive(notStarted, start.add(const Duration(hours: 3))),
+        isFalse,
+      );
+    });
+
+    test('anyLive', () {
+      expect(MatchGrouping.anyLive(r33.values, recordedAt), isTrue);
+      expect(
+        MatchGrouping.anyLive(
+          fixtureMatches('eventsround_4406_r12_s2025'),
+          recordedAt,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

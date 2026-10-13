@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/config/app_config.dart';
 import '../core/network/rate_limit_status.dart';
+import '../core/platform/external_actions.dart';
 import '../core/time/clock.dart';
 import '../features/competitions/domain/repositories/competition_repository.dart';
 import '../features/diagnostics/domain/repositories/diagnostics_repository.dart';
@@ -86,6 +87,7 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
         RepositoryProvider<SettingsRepository>.value(
           value: deps.settingsRepository,
         ),
+        RepositoryProvider<ExternalActions>.value(value: deps.externalActions),
       ],
       child: MultiBlocProvider(
         providers: [

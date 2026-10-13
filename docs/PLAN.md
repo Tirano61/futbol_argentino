@@ -479,16 +479,19 @@ Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso 
   - **T15.1** Marcas `showInHome`/`inTeamIndex` en el catálogo. Primera B Metropolitana (5215, 42 fechas en 2026) y Primera C (5524) entran sin las dos marcas y sin tabla; Federal A afuera (V8). Inicio = 12 en frío con el catálogo de 5; índice = 3. Selector de competición con chips en una fila con desplazamiento.
   - **T15.2** D8: `getTeamPointers` (`eventsnext` + `eventslast`, 2 peticiones, TTL 30 min, store `team_pointers`) y la sección «Otras competiciones (información parcial)» en la ficha (sin detalle). **Boca en frío = 27**, en caliente 0.
   - Grabaciones nuevas: B Metro r40, r42, r43 (vacía) y r1 2025; Primera C r33 (vacía) y r1 2025 (ver API, «Hallazgos de la Fase 15»).
-- **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).** ✅ Completada el 13/10/2026; 555 tests verdes; validada en la tablet (app Android release, horizontal y vertical, y Chrome de la tablet). Esperando aprobación para la Fase 17.
+- **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).** ✅ Completada el 13/10/2026; 555 tests verdes; validada en la tablet (app Android release, horizontal y vertical, y Chrome de la tablet). Aprobada por el usuario.
   - **T16.1** Store `settings` (registro `app`) + `SettingsRepository` + `SettingsBloc` global; tema «Según el sistema · Claro · Oscuro» en `/ajustes`. Se lee antes del primer cuadro (`main`): el tema elegido no parpadea al abrir. Tablet y Web: el tema se conserva al cerrar la app o recargar.
   - **T16.2** `RateLimitStatus.throttles`/`throttledUntil`: el `RateLimiter` avisa las esperas de 3 s o más por su tope propio y `RateLimitNotice` las muestra («Muchas consultas seguidas…»); la pausa por 429 tiene prioridad. Tablet: 25 peticiones seguidas → la 26.ª esperó con el aviso y siguió sola, sin 429.
   - **T16.3** `BadgeImageResolver` (inyectado desde `AppDependencies`): Android con `CachedNetworkImageProvider` y una caché propia (`team_badges`, 600 archivos, 60 días); Web igual que antes (`NetworkImage` con `WebHtmlElementStrategy.fallback`). Tablet: sin red y tras reiniciar, los escudos se ven (antes, iniciales).
-- **Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo (D11).**
+- **Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo (D11).** ✅ Completada el 13/10/2026; 592 tests verdes; validada en la tablet (app Android release, horizontal y vertical, y Chrome de la tablet). Esperando aprobación para la Fase 18.
+  - **Compartir** (detalle del partido, pantalla y panel): texto con las reglas de horario (hora de Argentina, «Horario por confirmar», resultado y «actualizado a las HH:mm» si se está jugando) por `share_plus`; si el navegador no puede compartir, se copia al portapapeles y se avisa.
+  - **Agregar al calendario**: solo partidos programados que todavía no empezaron. `IcsBuilder` (RFC 5545, Dart puro). Con hora confirmada, evento de 2 h; con hora sin confirmar, de día completo. Android abre Google Calendar con el evento precargado (`add_2_calendar`); Web descarga `partido-<idEvent>.ics`. Tablet: Sarmiento–River 14/10 19:00–21:00 «hora estándar de Argentina»; Rafaela–Quilmes (00:00 UTC) de día completo el sábado 17/10.
+  - **En vivo (D11)**: `MatchGrouping.isLive` (la misma regla que la vigencia `live` de `RoundCachePolicy`) y `LiveAutoRefresh`: cada 2 min 5 s, solo con la pantalla visible y la app en primer plano, si hay partidos en vivo hace una carga normal (sin forzar; respeta el TTL `live`). En Inicio, fixture, detalle y ficha. **Peticiones** (tests con la grabación del 11/10 a las 17:00): Inicio = las 2 fechas en juego por aviso; fixture de Nacional = 1; detalle = 1 (`lookupevent`); ficha de Boca = 1; sección oculta = 0. Tablet (sin partidos en juego): 0 consultas en 5 min con el Inicio abierto.
 - **Fase 18 — Calendario mensual.**
 - **Fase 19 (nov–dic 2026)** — Reducido y final de Nacional, playoffs del Clausura (V3), final de Copa 2026, «Avanza X», cuadro de llaves; zonas y reglamento 2027.
 
 Backlog original (antes del Hito C v3):
-Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · Auto-refresco con partidos en vivo (D11) · ~~Selector manual de tema~~ (Fase 16) · ~~Caché de escudos en disco (Android)~~ (Fase 16) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
+Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · ~~Auto-refresco con partidos en vivo (D11)~~ (Fase 17) · ~~Selector manual de tema~~ (Fase 16) · ~~Caché de escudos en disco (Android)~~ (Fase 16) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · ~~Compartir partido~~ · ~~Agregar al calendario~~ (Fase 17) · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
 
 ---
 
@@ -523,7 +526,7 @@ Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reduc
 | D8 | Otras competiciones del equipo | post-MVP como «información parcial» (implementada en la Fase 15) |
 | D9 | Sincronización | **Ajustada**: `SyncScheduler` incremental, priorizado, cancelable, reanudable, con cupos |
 | D10 | Temporadas | actual y anterior (`YYYY`) |
-| D11 | En juego | estado + «actualizado hh:mm», refresco manual; auto-refresco post-MVP |
+| D11 | En juego | estado + «actualizado hh:mm», refresco manual; auto-refresco cada 2 min con la pantalla visible (Fase 17) |
 | D12 | Escudos en Web | ✅ **Cerrada tras T0.2**: `Image.network(..., webHtmlElementStrategy: WebHtmlElementStrategy.fallback)` + placeholder con iniciales si falla la red. Sin proxy. |
 | D13 | `matches` como núcleo; fixtures dentro de `competitions` | recomendada |
 | D14 | Datos y caché antes que pantallas; Copa en el fixture desde el inicio | recomendada |

@@ -4,6 +4,7 @@ import 'package:sembast/sembast.dart';
 import '../../core/cache/query_metadata_store.dart';
 import '../../core/config/app_config.dart';
 import '../../core/network/rate_limit_status.dart';
+import '../../core/platform/external_actions.dart';
 import '../../core/network/rate_limiter.dart';
 import '../../core/network/thesportsdb_client.dart';
 import '../../core/sync/sync_scheduler.dart';
@@ -43,6 +44,7 @@ class AppDependencies {
     required this.settingsRepository,
     required this.diagnosticsRepository,
     required this.badgeImages,
+    required this.externalActions,
     required http.Client httpClient,
   }) : _httpClient = httpClient;
 
@@ -52,6 +54,7 @@ class AppDependencies {
     http.Client? httpClient,
     Clock clock = const SystemClock(),
     BadgeImageResolver? badgeImages,
+    ExternalActions? externalActions,
   }) {
     final appConfig = config ?? AppConfig.fromEnvironment();
     final client = httpClient ?? http.Client();
@@ -101,6 +104,7 @@ class AppDependencies {
       settingsRepository: SettingsRepositoryImpl(database),
       diagnosticsRepository: DiagnosticsRepositoryImpl(apiClient),
       badgeImages: badgeImages ?? BadgeImageResolver.forPlatform(),
+      externalActions: externalActions ?? PlatformExternalActions(clock: clock),
       httpClient: client,
     );
   }
@@ -124,6 +128,9 @@ class AppDependencies {
 
   /// Escudos: caché en disco en Android, red en Web.
   final BadgeImageResolver badgeImages;
+
+  /// Compartir y agregar al calendario.
+  final ExternalActions externalActions;
   final http.Client _httpClient;
 
   Future<void> dispose() async {

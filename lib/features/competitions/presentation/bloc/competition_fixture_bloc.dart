@@ -96,6 +96,8 @@ class CompetitionFixtureBloc
           case _:
         }
         await _load(emit, forceRefresh: true);
+      case FixtureLiveTick():
+        if (state.content is FixtureLoaded) await _load(emit);
     }
   }
 

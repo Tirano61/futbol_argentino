@@ -293,6 +293,31 @@ void main() {
     await bloc.close();
   });
 
+  test('aviso en vivo (D11): recarga sin forzar, solo lo vencido', () async {
+    final bloc = TeamDetailBloc(
+      watchTeamDetail: watch(),
+      clock: _ClockOf(clock),
+    )..add(const TeamDetailStarted(bocaId));
+    await bloc.stream.firstWhere(
+      (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
+    );
+    expect(api.requests, hasLength(27));
+    api.requests.clear();
+
+    // La fecha 12 de Primera tiene partidos en juego (vigencia de 2 min).
+    clock.advance(const Duration(minutes: 2, seconds: 5));
+    bloc.add(const TeamDetailLiveTick());
+    final done =
+        await bloc.stream.firstWhere(
+              (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
+            )
+            as TeamDetailLoaded;
+
+    expect(api.requests.map((u) => u.query), ['id=4406&r=12&s=2026']);
+    expect(done.detail.progress.fetched, 1);
+    await bloc.close();
+  });
+
   test('retomar sin descarga pendiente no hace nada', () async {
     final bloc = TeamDetailBloc(
       watchTeamDetail: watch(),

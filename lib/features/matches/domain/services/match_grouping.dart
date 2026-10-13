@@ -39,6 +39,24 @@ abstract final class MatchGrouping {
     return day != null && day.isBefore(today);
   }
 
+  /// En vivo (D11): en juego según la API, o con inicio hace menos de
+  /// [liveWindow] y sin terminar (la API suele tardar en pasarlo a `1H`).
+  /// Misma regla que la vigencia `live` de las rondas (`RoundCachePolicy`).
+  static bool isLive(Match m, DateTime now) {
+    if (m.status.isInPlay) return true;
+    final start = m.kickoff.utc;
+    return start != null &&
+        !now.isBefore(start) &&
+        now.difference(start) < liveWindow &&
+        !m.status.isFinished;
+  }
+
+  static const liveWindow = Duration(hours: 3);
+
+  /// Hay al menos un partido en vivo ([isLive]).
+  static bool anyLive(Iterable<Match> matches, DateTime now) =>
+      matches.any((m) => isLive(m, now));
+
   /// Un partido por `idEvent`: gana el visto más recientemente.
   static List<Match> dedupe(Iterable<Match> matches) {
     final byId = <int, Match>{};

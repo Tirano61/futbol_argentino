@@ -13,3 +13,9 @@ final class HomeStarted extends HomeEvent {
 final class HomeRefreshRequested extends HomeEvent {
   const HomeRefreshRequested();
 }
+
+/// Auto-refresco con partidos en vivo (D11): como [HomeStarted], consulta
+/// solo lo vencido.
+final class HomeLiveTick extends HomeEvent {
+  const HomeLiveTick();
+}
