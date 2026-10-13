@@ -1,7 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
-import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/home/domain/usecases/get_home_feed.dart';
 import 'package:futbol_argentino/features/home/presentation/bloc/home_bloc.dart';
 
@@ -27,7 +26,7 @@ void main() {
     matches = FakeMatchRepository(recordedRounds());
     competitions = FakeCompetitionRepository(
       pointersById: {
-        for (final d in CompetitionCatalog.all) d.id: recordedPointers(d.id),
+        for (final d in homeCompetitions) d.id: recordedPointers(d.id),
       },
     );
   });

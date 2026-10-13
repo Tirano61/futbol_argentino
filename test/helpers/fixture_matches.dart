@@ -42,6 +42,11 @@ List<Match> fixtureMatches(String name, {DateTime? seenAt}) => [
   for (final e in fixtureEvents(name)) matchFromEvent(e, seenAt: seenAt),
 ];
 
+/// El partido de una respuesta grabada de `eventslast` (clave `results`).
+Match recordedLastMatch(String name) => matchFromEvent(
+  (fixtureJson(name)['results'] as List).single as Map<String, dynamic>,
+);
+
 /// Copia de [m] con campos cambiados (solo para tests).
 Match rebuild(
   Match m, {

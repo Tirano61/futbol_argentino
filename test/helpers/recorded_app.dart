@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/app/app.dart';
 import 'package:futbol_argentino/app/di/app_dependencies.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -90,13 +91,20 @@ Future<void> openTable(WidgetTester tester) async {
 /// Con la vista «Tabla» abierta, pasa a Primera Nacional y deja pasar el
 /// tiempo que necesita el cupo P2 para sus 36 fechas.
 Future<void> openNacionalTable(WidgetTester tester) async {
-  await tester.tap(
-    find.descendant(
-      of: find.byWidgetPredicate((w) => w is SegmentedButton<int>),
-      matching: find.text('Nacional'),
-    ),
-  );
-  await tester.pumpAndSettle();
+  await selectCompetition(tester, 'Nacional');
   await tester.pump(const Duration(minutes: 4));
+  await tester.pumpAndSettle();
+}
+
+/// Elige una competición en el selector del fixture (una fila con
+/// desplazamiento: con texto grande el chip puede quedar fuera de la vista).
+Future<void> selectCompetition(WidgetTester tester, String shortName) async {
+  final chip = find.descendant(
+    of: find.byKey(FixtureSelectors.competitionSelectorKey),
+    matching: find.text(shortName),
+  );
+  await tester.ensureVisible(chip);
+  await tester.pumpAndSettle();
+  await tester.tap(chip);
   await tester.pumpAndSettle();
 }

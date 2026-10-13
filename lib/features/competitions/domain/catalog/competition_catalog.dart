@@ -151,6 +151,8 @@ final class CompetitionDefinition {
     required this.format,
     required this.rules,
     this.standingsBySeason = const {},
+    this.showInHome = true,
+    this.inTeamIndex = true,
   });
 
   final int id;
@@ -158,6 +160,16 @@ final class CompetitionDefinition {
   final String shortName;
   final CompetitionFormat format;
   final CompetitionRules rules;
+
+  /// Entra en los partidos del Inicio (2 punteros + ≤ 2 rondas en frío:
+  /// sumar una cuesta hasta 4 peticiones del presupuesto de 12).
+  final bool showInHome;
+
+  /// Su primera etapa se baja para el índice de equipos (1 petición más en
+  /// frío al buscar o abrir una ficha). Sin la marca, sus equipos aparecen
+  /// en el buscador cuando hay partidos guardados (p. ej. tras abrir su
+  /// fixture).
+  final bool inTeamIndex;
 
   /// Tablas verificadas por temporada (año → formato).
   final Map<int, StandingsFormat> standingsBySeason;
@@ -453,7 +465,51 @@ abstract final class CompetitionCatalog {
     ),
   );
 
-  static const all = [primeraDivision, primeraNacional, copaArgentina];
+  /// Primera B Metropolitana (V8): 22 equipos, 11 partidos por fecha. Sin
+  /// formato de tabla verificado: no hay tabla.
+  static const primeraBMetropolitana = CompetitionDefinition(
+    id: 5215,
+    name: 'Primera B Metropolitana',
+    shortName: 'B Metro',
+    format: CompetitionFormat.league,
+    rules: SingleTableLeagueRules(
+      matchesPerRound: 11,
+      // 2026: 22 equipos a dos ruedas; la fecha 43 vuelve vacía (grabada el
+      // 13/10/2026). 2025 queda sin cantidad: su fecha 1 mezcla dos
+      // torneos (20 partidos, febrero y junio).
+      regularRoundsBySeason: {2026: 42},
+    ),
+    showInHome: false,
+    inTeamIndex: false,
+  );
+
+  /// Primera C (V8): 28 equipos, 14 partidos por fecha. Sin cantidad de
+  /// fechas ni formato de tabla verificados: las fechas se conocen por los
+  /// punteros y lo guardado, y no hay tabla.
+  static const primeraC = CompetitionDefinition(
+    id: 5524,
+    name: 'Primera C',
+    shortName: 'Primera C',
+    format: CompetitionFormat.league,
+    rules: SingleTableLeagueRules(
+      matchesPerRound: 14,
+      // 2026: la fecha 33 vuelve vacía (13/10/2026), pero 32 fechas no
+      // cierran con 28 equipos todos contra todos: sin dato.
+      regularRoundsBySeason: {},
+    ),
+    showInHome: false,
+    inTeamIndex: false,
+  );
+
+  /// Torneo Federal A (5523) no entra: mezcla etapas en la numeración de
+  /// rondas (V8) y necesita un relevamiento propio.
+  static const all = [
+    primeraDivision,
+    primeraNacional,
+    copaArgentina,
+    primeraBMetropolitana,
+    primeraC,
+  ];
 
   static CompetitionDefinition? byId(int id) {
     for (final definition in all) {

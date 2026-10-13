@@ -2,15 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 
+import '../helpers/accessibility.dart';
 import '../helpers/recorded_app.dart';
-
-/// Pautas básicas de accesibilidad de Flutter: objetivos táctiles de al
-/// menos 48 px, controles con nombre y contraste de texto.
-Future<void> expectGuidelines(WidgetTester tester) async {
-  await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-  await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-  await expectLater(tester, meetsGuideline(textContrastGuideline));
-}
 
 void main() {
   for (final size in [const Size(360, 780), const Size(1280, 800)]) {

@@ -1,5 +1,7 @@
 import '../../../../core/result/data_result.dart';
+import '../../../../core/sync/sync_scheduler.dart';
 import '../entities/team.dart';
+import '../entities/team_pointers.dart';
 import '../entities/team_summary.dart';
 
 abstract interface class TeamRepository {
@@ -15,4 +17,14 @@ abstract interface class TeamRepository {
   ///
   /// Lanza `Failure` si no hay datos guardados y la consulta falla.
   Future<DataResult<Team>> getTeam(int teamId, {bool forceRefresh = false});
+
+  /// Próximo y último partido del equipo, de cualquier competición
+  /// (`eventsnext` + `eventslast`: 2 peticiones), guardados 30 minutos.
+  ///
+  /// Lanza `Failure` si no hay datos guardados y la consulta falla.
+  Future<DataResult<TeamPointers>> getTeamPointers(
+    int teamId, {
+    bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.context,
+  });
 }

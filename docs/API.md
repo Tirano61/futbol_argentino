@@ -25,7 +25,7 @@
 | `lookupteam.php?id=` | 1 | `strStadium`, `strBadge`, `idLeague..idLeague7` | ficha de equipo |
 | `searchteams.php?t=` | **1** | "River Plate" OK; "River" → River-PI (Brasil); "Boca" → Boca Unidos | respaldo de búsqueda |
 | `search_all_leagues.php?c=Argentina` | 10 | así se encontró Copa Argentina = 4500 | investigación |
-| `eventsnext.php` / `eventslast.php?id={idTeam}` | **1** (de local o visitante, cualquier competición; corregido en V9) | Boca → Sudamericana (4724) | D8 (Fase 15) |
+| `eventsnext.php` / `eventslast.php?id={idTeam}` | **1** (de local o visitante, cualquier competición; corregido en V9) | Boca → Sudamericana (4724) | D8: «Otras competiciones» de la ficha (Fase 15, TTL 30 min) |
 
 ### 2.3 Confirmados pero no aptos con clave gratuita
 `eventsseason` (tope 15) · `eventsday` (tope 3) · `search_all_seasons` (tope 5, devuelve las más antiguas) · `search_all_teams` (tope 10) · `lookup_all_teams` (dataset fijo incorrecto: equipos ingleses) · `lookuptable` (5 filas) · `lookupeventstats` / `lookuptimeline` / `lookuplineup` (5 filas).
@@ -129,6 +129,11 @@ Grabadas en `test/fixtures/api/` (y una instantánea en `snapshot_20261012/`), r
 ### Hallazgos de la Fase 14 (12/10/2026)
 - Nacional 2026: las rondas 1–36 grabadas tienen 648 partidos, todos regulares y ubicados; cada equipo juega 34 de su zona y 2 interzonales contra el mismo rival, en las rondas 7 y 25.
 - `lookuptable` de Nacional va un paso adelante de los `eventsround` del 11/10 (la fecha 33 se completó el 12/10): para contrastar se usan las rondas 33–36 de `snapshot_20261012/`, grabadas a la misma hora. Con ellas, las 5 filas coinciden (`docs/evidence/f14_contraste_tablas.md`).
+
+### Hallazgos de la Fase 15 (13/10/2026 01:26 UTC, 6 respuestas reales más)
+- **Primera B Metropolitana 2026** (5215): la fecha 42 tiene 11 partidos (31/10) y la 43 vuelve vacía: 42 fechas = 22 equipos a dos ruedas (cargado en el catálogo). **2025**: la fecha 1 trae 20 partidos (10 de febrero y 10 de junio): ese año mezclaba dos torneos en la numeración, como Primera; queda sin cantidad de fechas.
+- **Primera C 2026** (5524): la fecha 33 vuelve vacía y `eventsnextleague` no devuelve nada aunque la fecha 32 tenía partidos sin terminar. 32 fechas no cierran con 28 equipos todos contra todos: sin cantidad de fechas ni formato hasta investigar el reglamento. **2025**: 26 equipos (13 partidos en la fecha 1).
+- **`strLeague` de los punteros por equipo** viene en inglés para las ligas del catálogo («Argentinian Primera Division») y en español para la Sudamericana («Copa Sudamericana»). La sección «Otras competiciones» usa ese nombre; las del catálogo usan el del catálogo.
 
 **Primera División 2026 — zonas (V12)**. Fuente: [sorteo AFA](https://www.afa.com.ar/a/posts/se-realizo-el-sorteo-de-la-liga-profesional-2026-ya-se-conocen-los-grupos-del-torneo-apertura-y-torneo-clausura) (consultada el 12/10/2026), `idTeam` de los partidos grabados. Mismas zonas en Apertura y Clausura (art. 14.1.1, verificado con los datos).
 

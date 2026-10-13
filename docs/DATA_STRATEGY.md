@@ -205,3 +205,11 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 
 - **Qué cuenta**: partidos de 2026 de las rondas 1–36 (todas regulares según el catálogo), terminados con resultado, cada `idEvent` una vez. Cada zona suma los partidos de sus equipos, **interzonales incluidos** (rondas 7 y 25: un rival de la otra zona, ida y vuelta). Un interzonal aparece en la cobertura de las dos zonas y suma una vez a cada equipo.
 - **Presupuesto** (tests `watch_standings_test.dart` y `standings_budget_test.dart`): en frío = 36 (P2, 10 por minuto, ~4 min); en caliente = 0. Si una fecha con partidos en juego (vigencia corta) vence mientras espera su turno, la tabla la vuelve a pedir: no es una fecha vigente. Tablet (12/10): con lo guardado, abrir la tabla = 0 peticiones; el refresco manual pidió solo la fecha 33 (partido en juego).
+
+## Estado de implementación (Fase 15, 12/10/2026) — Más competiciones y D8
+
+- **Inicio**: sigue con Primera, Nacional y Copa (`showInHome`): en frío 12, en caliente 0, aunque el catálogo tenga 5 competiciones (test `home_request_budget_test.dart`). Sumar una competición al Inicio cuesta hasta 4 peticiones en frío (2 punteros + 2 rondas): revisar el presupuesto antes.
+- **Índice de equipos**: sigue con 3 peticiones en frío (`inTeamIndex`). B Metro y Primera C no se bajan para el índice; sus equipos aparecen al guardar partidos de esas competiciones.
+- **Fixture de B Metro / Primera C**: como cualquier liga de una fase: `lookupleague` + 2 punteros + la fecha + la siguiente (precarga P1). Primera C 2026 no tiene cantidad de fechas en el catálogo: la última conocida sale de los punteros y lo guardado. Las temporadas 2025 de las dos quedan sin fechas (sin dato verificado; B Metro 2025 mezcla dos torneos en la numeración).
+- **Ficha (D8)**: `eventsnext` + `eventslast` (2 peticiones, P1, vigencia 30 min, store `team_pointers`). **Boca en frío = 27** (25 + 2), en caliente 0; a los 31 minutos, solo los 2 punteros (test `team_detail_sync_test.dart`). Un equipo de B Metro (p. ej. Flandria) completa las 42 fechas de su temporada con P2 (~4–5 min en frío).
+- **Tablet (12/10)**: Inicio en release = solo 4406/4616/4500; B Metro = `lookupleague` + punteros + fechas 40 y 41; Primera C = fecha 32; ficha de Boca con lo guardado = los 2 punteros + 1 fecha vencida.

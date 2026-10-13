@@ -182,6 +182,65 @@ void main() {
     });
   });
 
+  group('próximo y último del equipo (D8, V9)', () {
+    test('2 peticiones, guardados 30 minutos', () async {
+      final first = await api.teams.getTeamPointers(bocaId);
+
+      expect(first.origin, DataOrigin.remote);
+      expect(api.requestLabels, ['eventsnext:135156', 'eventslast:135156']);
+      // De cualquier competición: el próximo es de la Sudamericana.
+      expect(first.data.next!.competitionId, 4724);
+      expect(first.data.next!.competitionName, 'Copa Sudamericana');
+      // `eventslast` responde con la clave `results`.
+      expect(first.data.last!.id, 2398104);
+      expect(first.data.last!.competitionId, 4406);
+
+      clock.advance(const Duration(minutes: 29));
+      final cached = await api.teams.getTeamPointers(bocaId);
+      expect(cached.origin, DataOrigin.cache);
+      expect(cached.data.next!.id, first.data.next!.id);
+      expect(api.requests, hasLength(2));
+
+      clock.advance(const Duration(minutes: 2));
+      await api.teams.getTeamPointers(bocaId);
+      expect(api.requests, hasLength(4));
+    });
+
+    test(
+      'de local o de visitante: el próximo de River es en Sarmiento',
+      () async {
+        final result = await api.teams.getTeamPointers(riverId);
+
+        expect(result.data.next!.home.name, 'Sarmiento');
+        expect(result.data.next!.away.id, riverId);
+      },
+    );
+
+    test('no se guardan con los partidos', () async {
+      await api.teams.getTeamPointers(bocaId);
+
+      expect(await api.matches.storedTeamMatches(bocaId), isEmpty);
+      expect(await api.teams.storedTeams(), isEmpty);
+    });
+
+    test('vencidos y sin red: lo guardado con el error', () async {
+      await api.teams.getTeamPointers(bocaId);
+      clock.advance(const Duration(hours: 1));
+      api.offline = true;
+
+      final result = await api.teams.getTeamPointers(bocaId);
+
+      expect(result.data.next!.id, 2606044);
+      expect(result.refreshError, isA<NetworkFailure>());
+    });
+
+    test('sin nada guardado y sin red: lanza el error', () async {
+      api.offline = true;
+
+      expect(api.teams.getTeamPointers(bocaId), throwsA(isA<NetworkFailure>()));
+    });
+  });
+
   group('búsqueda en línea', () {
     test('solo equipos de fútbol de Argentina', () async {
       // «River» devuelve River-PI (Brasil).

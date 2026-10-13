@@ -23,6 +23,8 @@ String recordedFixtureFor(Uri url) {
     'eventsround.php' => 'eventsround_${q['id']}_r${q['r']}_s${q['s']}',
     'eventsnextleague.php' => 'eventsnextleague_${q['id']}',
     'eventspastleague.php' => 'eventspastleague_${q['id']}',
+    'eventsnext.php' => 'eventsnext_${q['id']}',
+    'eventslast.php' => 'eventslast_${q['id']}',
     'lookupteam.php' => 'lookupteam_${q['id']}',
     'searchteams.php' => 'searchteams_${q['t']!.replaceAll(' ', '_')}',
     _ => throw StateError('sin fixture para $url'),

@@ -16,8 +16,8 @@ import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../entities/home_feed.dart';
 
-/// Partidos del Inicio: de ayer a 7 días, de todas las competiciones del
-/// catálogo.
+/// Partidos del Inicio: de ayer a 7 días, de las competiciones del catálogo
+/// marcadas con `showInHome`.
 ///
 /// Por competición consulta el próximo y el último partido y, como mucho,
 /// dos rondas ([roundsFor]). Los partidos de los punteros se muestran
@@ -41,6 +41,9 @@ class GetHomeFeed {
   final MatchRepository _matches;
   final List<CompetitionDefinition> _catalog;
 
+  Iterable<CompetitionDefinition> get _home =>
+      _catalog.where((d) => d.showInHome);
+
   static const daysBack = 1;
   static const daysAhead = 7;
   static const maxRoundsPerCompetition = 2;
@@ -50,7 +53,7 @@ class GetHomeFeed {
   Stream<HomeFeed> call({required DateTime now, bool forceRefresh = false}) {
     final today = ArgentinaTime.dayOf(now);
     final feeds = {
-      for (final d in _catalog) d.id: CompetitionFeed(competition: d),
+      for (final d in _home) d.id: CompetitionFeed(competition: d),
     };
     final subscriptions = <StreamSubscription<void>>[];
     var cancelled = false;
@@ -78,7 +81,7 @@ class GetHomeFeed {
           isCancelled: () => cancelled,
         );
         Future.wait([
-          for (final d in _catalog) _loadCompetition(d, load),
+          for (final d in _home) _loadCompetition(d, load),
         ]).whenComplete(() {
           if (!cancelled) controller.close();
         });

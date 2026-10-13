@@ -2,7 +2,9 @@ import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/team_ref.dart';
 import 'package:futbol_argentino/features/teams/data/models/team_dto.dart';
+import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/teams/domain/entities/team.dart';
+import 'package:futbol_argentino/features/teams/domain/entities/team_pointers.dart';
 import 'package:futbol_argentino/features/teams/domain/entities/team_summary.dart';
 import 'package:futbol_argentino/features/teams/domain/repositories/team_repository.dart';
 
@@ -49,6 +51,8 @@ List<Team> recordedTeams(String fixture) => [
 ///   entrada: lista vacía); [onlineFailure] la hace fallar; [onlineDelay]
 ///   la demora.
 /// - [teams]: `lookupteam` por id; [teamFailure] lo hace fallar.
+/// - [pointers]: `eventsnext`/`eventslast` por id (sin entrada: vacíos);
+///   [pointersFailure] los hace fallar.
 class FakeTeamRepository implements TeamRepository {
   FakeTeamRepository({
     this.stored = const [],
@@ -57,6 +61,8 @@ class FakeTeamRepository implements TeamRepository {
     this.onlineDelay = Duration.zero,
     this.teams = const {},
     this.teamFailure,
+    this.pointers = const {},
+    this.pointersFailure,
   });
 
   List<TeamSummary> stored;
@@ -65,6 +71,9 @@ class FakeTeamRepository implements TeamRepository {
   final Duration onlineDelay;
   final Map<int, Team> teams;
   final Failure? teamFailure;
+  final Map<int, TeamPointers> pointers;
+  final Failure? pointersFailure;
+  final pointerCalls = <({int id, bool force})>[];
   final onlineQueries = <String>[];
   final teamCalls = <({int id, bool force})>[];
 
@@ -97,4 +106,19 @@ class FakeTeamRepository implements TeamRepository {
 
   /// `lookupteam` responde con lo guardado (sin consultar la red).
   bool teamFromCache = false;
+
+  @override
+  Future<DataResult<TeamPointers>> getTeamPointers(
+    int teamId, {
+    bool forceRefresh = false,
+    SyncPriority priority = SyncPriority.context,
+  }) async {
+    pointerCalls.add((id: teamId, force: forceRefresh));
+    if (pointersFailure != null) throw pointersFailure!;
+    return DataResult(
+      data: pointers[teamId] ?? const TeamPointers(),
+      origin: teamFromCache ? DataOrigin.cache : DataOrigin.remote,
+      fetchedAt: fakeFetchedAt,
+    );
+  }
 }

@@ -5,7 +5,9 @@ import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/favorites/domain/repositories/favorites_repository.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
+import 'package:futbol_argentino/features/teams/domain/entities/team_pointers.dart';
 import 'package:futbol_argentino/features/teams/domain/repositories/team_repository.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 import 'package:futbol_argentino/features/teams/presentation/pages/team_detail_page.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,9 +27,18 @@ FakeMatchRepository primera2026({Failure? failure}) => FakeMatchRepository({
     r: fixtureMatches('eventsround_4406_r${r}_s2026'),
 }, failure: failure);
 
+/// Datos y punteros reales de Boca (`lookupteam`, `eventsnext`,
+/// `eventslast`).
 FakeTeamRepository boca({Failure? failure}) => FakeTeamRepository(
   teams: {bocaId: recordedTeams('lookupteam_135156').single},
   teamFailure: failure,
+  pointers: {
+    bocaId: TeamPointers(
+      next: fixtureMatches('eventsnext_135156').single,
+      last: recordedLastMatch('eventslast_135156'),
+    ),
+  },
+  pointersFailure: failure,
 );
 
 Future<void> pumpDetail(
@@ -209,5 +220,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Ya está actualizado'), findsNothing);
+  });
+
+  testWidgets('otras competiciones: el próximo de la Sudamericana, sin '
+      'detalle', (tester) async {
+    await pumpDetail(tester, matches: primera2026(), teams: boca());
+
+    expect(
+      find.text('Otras competiciones (información parcial)'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('solo el próximo y el último'), findsOneWidget);
+    final card = find.widgetWithText(
+      MatchCard,
+      'Copa Sudamericana · Próximo partido',
+    );
+    expect(card, findsOneWidget);
+    expect(tester.widget<MatchCard>(card).onTap, isNull);
+    // Con su día, como el resto de la ficha (00:30 UTC del 14/10).
+    expect(find.text('Martes 13/10/2026'), findsOneWidget);
+    // El último (Boca–Unión, de Primera) no se repite en esta sección.
+    expect(find.textContaining('Último partido'), findsNothing);
+  });
+
+  testWidgets('sin punteros del equipo: sin la sección', (tester) async {
+    await pumpDetail(
+      tester,
+      matches: primera2026(),
+      teams: FakeTeamRepository(
+        teams: {bocaId: recordedTeams('lookupteam_135156').single},
+        pointersFailure: offline,
+      ),
+    );
+
+    expect(find.text('Próximos'), findsOneWidget);
+    expect(find.textContaining('Otras competiciones'), findsNothing);
   });
 }
