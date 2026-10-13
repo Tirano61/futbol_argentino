@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/app/app.dart';
 import 'package:futbol_argentino/app/di/app_dependencies.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/badge_image_resolver.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -24,6 +25,8 @@ void main() {
     final deps = AppDependencies.create(
       database: db,
       config: AppConfig(apiKey: '123', enableDiagnostics: enableDiagnostics),
+      // Escudos por la red simulada de los tests (sin caché en disco).
+      badgeImages: const NetworkBadgeImages(),
       httpClient: MockClient((_) async {
         apiCalls++;
         return http.Response('{"events": null}', 200);

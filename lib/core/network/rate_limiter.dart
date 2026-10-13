@@ -10,7 +10,8 @@ Future<void> _realDelay(Duration duration) => Future<void>.delayed(duration);
 
 /// Limita las peticiones a [maxRequests] por [window] (ventana deslizante) y
 /// las atiende en orden de llegada. Tras un HTTP 429 se pausa todo con
-/// [pauseFor].
+/// [pauseFor]. Las esperas por el tope de [throttleNoticeThreshold] o más
+/// se informan en [throttles].
 class RateLimiter implements RateLimitStatus {
   RateLimiter({
     required this.maxRequests,
@@ -19,6 +20,10 @@ class RateLimiter implements RateLimitStatus {
     Delay delay = _realDelay,
   }) : _clock = clock,
        _delay = delay;
+
+  /// Las esperas por el tope más cortas no se avisan (el aviso apenas se
+  /// vería).
+  static const throttleNoticeThreshold = Duration(seconds: 3);
 
   final int maxRequests;
   final Duration window;
@@ -29,6 +34,8 @@ class RateLimiter implements RateLimitStatus {
   DateTime? _pausedUntil;
   Future<void> _tail = Future<void>.value();
   final _pauses = StreamController<DateTime>.broadcast();
+  DateTime? _throttledUntil;
+  final _throttles = StreamController<DateTime>.broadcast();
 
   @override
   DateTime? get pausedUntil {
@@ -38,6 +45,15 @@ class RateLimiter implements RateLimitStatus {
 
   @override
   Stream<DateTime> get pauses => _pauses.stream;
+
+  @override
+  DateTime? get throttledUntil {
+    final until = _throttledUntil;
+    return until != null && _clock.now().isBefore(until) ? until : null;
+  }
+
+  @override
+  Stream<DateTime> get throttles => _throttles.stream;
 
   /// Espera hasta que haya cupo y lo reserva.
   Future<void> acquire() {
@@ -73,7 +89,13 @@ class RateLimiter implements RateLimitStatus {
         _sentAt.addLast(now);
         return;
       }
-      await _delay(_sentAt.first.add(window).difference(now));
+      final wait = _sentAt.first.add(window).difference(now);
+      if (wait >= throttleNoticeThreshold) {
+        final until = now.add(wait);
+        _throttledUntil = until;
+        _throttles.add(until);
+      }
+      await _delay(wait);
     }
   }
 }

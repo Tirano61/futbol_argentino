@@ -19,9 +19,12 @@ import '../../features/matches/data/datasources/match_local_data_source.dart';
 import '../../features/matches/data/datasources/match_remote_data_source.dart';
 import '../../features/matches/data/repositories/match_repository_impl.dart';
 import '../../features/matches/domain/repositories/match_repository.dart';
+import '../../features/settings/data/repositories/settings_repository_impl.dart';
+import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/teams/data/datasources/team_remote_data_source.dart';
 import '../../features/teams/data/repositories/team_repository_impl.dart';
 import '../../features/teams/domain/repositories/team_repository.dart';
+import '../../shared/presentation/widgets/badge_image_resolver.dart';
 
 /// Composition root: construye una sola vez los servicios y repositorios de
 /// la app. Los widgets los obtienen mediante `RepositoryProvider`.
@@ -37,7 +40,9 @@ class AppDependencies {
     required this.competitionRepository,
     required this.teamRepository,
     required this.favoritesRepository,
+    required this.settingsRepository,
     required this.diagnosticsRepository,
+    required this.badgeImages,
     required http.Client httpClient,
   }) : _httpClient = httpClient;
 
@@ -46,6 +51,7 @@ class AppDependencies {
     AppConfig? config,
     http.Client? httpClient,
     Clock clock = const SystemClock(),
+    BadgeImageResolver? badgeImages,
   }) {
     final appConfig = config ?? AppConfig.fromEnvironment();
     final client = httpClient ?? http.Client();
@@ -92,7 +98,9 @@ class AppDependencies {
         clock: clock,
       ),
       favoritesRepository: FavoritesRepositoryImpl(database),
+      settingsRepository: SettingsRepositoryImpl(database),
       diagnosticsRepository: DiagnosticsRepositoryImpl(apiClient),
+      badgeImages: badgeImages ?? BadgeImageResolver.forPlatform(),
       httpClient: client,
     );
   }
@@ -111,7 +119,11 @@ class AppDependencies {
   final CompetitionRepository competitionRepository;
   final TeamRepository teamRepository;
   final FavoritesRepository favoritesRepository;
+  final SettingsRepository settingsRepository;
   final DiagnosticsRepository diagnosticsRepository;
+
+  /// Escudos: caché en disco en Android, red en Web.
+  final BadgeImageResolver badgeImages;
   final http.Client _httpClient;
 
   Future<void> dispose() async {

@@ -6,12 +6,14 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../domain/entities/app_settings.dart';
 import '../../domain/entities/stored_season.dart';
 import '../../domain/usecases/stored_seasons.dart';
+import '../bloc/settings_bloc.dart';
 import '../bloc/stored_data_bloc.dart';
 
-/// Ajustes. Por ahora, «Datos guardados»: temporadas guardadas en el
-/// dispositivo y su limpieza manual.
+/// Ajustes: el tema y los «Datos guardados» (temporadas guardadas en el
+/// dispositivo y su limpieza manual).
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -42,11 +44,47 @@ class SettingsPage extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 720),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              children: const [_StoredDataSection()],
+              children: const [_ThemeSection(), _StoredDataSection()],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tema de la app; lo lee y lo guarda el `SettingsBloc` global.
+class _ThemeSection extends StatelessWidget {
+  const _ThemeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.select<SettingsBloc, ThemePreference>(
+      (bloc) => bloc.state.settings.theme,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(title: 'Tema'),
+        RadioGroup<ThemePreference>(
+          groupValue: theme,
+          onChanged: (value) {
+            if (value == null) return;
+            context.read<SettingsBloc>().add(ThemePreferenceChanged(value));
+          },
+          child: const Column(
+            children: [
+              RadioListTile(
+                value: ThemePreference.system,
+                title: Text('Según el sistema'),
+                subtitle: Text('Claro u oscuro, como el dispositivo'),
+              ),
+              RadioListTile(value: ThemePreference.light, title: Text('Claro')),
+              RadioListTile(value: ThemePreference.dark, title: Text('Oscuro')),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -198,13 +198,15 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - Si la V14 no cierra, la fase queda en espera sin bloquear las siguientes.
 
 ## Fase 15 — Más competiciones y otras competiciones del equipo (D8)
-**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`): B Metro y Primera C sin Inicio, índice ni tabla; Boca en frío = 27. Esperando aprobación para la Fase 16.
+**Estado:** ✅ completada el 12/10/2026 y aprobada (ver `docs/PLAN.md`): B Metro y Primera C sin Inicio, índice ni tabla; Boca en frío = 27.
 
 - Marcas `showInHome` e `inTeamIndex` en `CompetitionDefinition`: el Inicio sigue con 12 consultas o menos.
 - Entradas nuevas validadas (V8) con `NoStandings` hasta investigar su formato.
 - D8: `getTeamPointers` (2 peticiones, TTL 30 min) y la sección «Otras competiciones (información parcial)» en la ficha. Ficha de Boca en frío: 27 peticiones.
 
 ## Fase 16 — Ajustes, tema, aviso de espera y escudos en disco
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`): tema guardado sin parpadeo, aviso de espera por el tope propio, escudos en disco en Android. Esperando aprobación para la Fase 17.
+
 - Store `settings` + `SettingsRepository` + `SettingsBloc` global; tema sistema / claro / oscuro; pantalla `/ajustes`.
 - `RateLimitStatus` también avisa las esperas de 3 s o más por el tope propio, en `RateLimitNotice`.
 - `BadgeImageResolver`: Android usa `CachedNetworkImageProvider`; Web queda igual.

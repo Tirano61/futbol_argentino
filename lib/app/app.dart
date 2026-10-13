@@ -11,16 +11,28 @@ import '../features/diagnostics/domain/repositories/diagnostics_repository.dart'
 import '../features/favorites/domain/repositories/favorites_repository.dart';
 import '../features/favorites/presentation/bloc/favorites_bloc.dart';
 import '../features/matches/domain/repositories/match_repository.dart';
+import '../features/settings/domain/entities/app_settings.dart';
+import '../features/settings/domain/repositories/settings_repository.dart';
+import '../features/settings/presentation/bloc/settings_bloc.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
+import '../shared/presentation/widgets/badge_image_resolver.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
 import 'shell/rate_limit_notice.dart';
 import 'theme/app_theme.dart';
 
 class FutbolArgentinoApp extends StatefulWidget {
-  const FutbolArgentinoApp({super.key, required this.dependencies});
+  const FutbolArgentinoApp({
+    super.key,
+    required this.dependencies,
+    this.initialSettings,
+  });
 
   final AppDependencies dependencies;
+
+  /// Ajustes leídos antes de abrir la app (sin parpadeo del tema); si es
+  /// `null`, se leen al arrancar.
+  final AppSettings? initialSettings;
 
   @override
   State<FutbolArgentinoApp> createState() => _FutbolArgentinoAppState();
@@ -71,26 +83,45 @@ class _FutbolArgentinoAppState extends State<FutbolArgentinoApp> {
         RepositoryProvider<FavoritesRepository>.value(
           value: deps.favoritesRepository,
         ),
+        RepositoryProvider<SettingsRepository>.value(
+          value: deps.settingsRepository,
+        ),
       ],
-      // Global: la estrella de cualquier pantalla y la lista de Favoritos
-      // comparten el mismo estado.
-      child: BlocProvider(
-        create: (context) => FavoritesBloc(
-          favorites: deps.favoritesRepository,
-          clock: deps.clock,
-        )..add(const FavoritesSubscribed()),
-        child: MaterialApp.router(
-          title: 'Fútbol Argentino',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeMode.system,
-          locale: const Locale('es', 'AR'),
-          supportedLocales: const [Locale('es', 'AR'), Locale('es')],
-          localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          routerConfig: _router,
-          builder: (context, child) =>
-              RateLimitNotice(child: child ?? const SizedBox.shrink()),
+      child: MultiBlocProvider(
+        providers: [
+          // Global: la estrella de cualquier pantalla y la lista de
+          // Favoritos comparten el mismo estado.
+          BlocProvider(
+            create: (context) => FavoritesBloc(
+              favorites: deps.favoritesRepository,
+              clock: deps.clock,
+            )..add(const FavoritesSubscribed()),
+          ),
+          BlocProvider(
+            create: (context) => SettingsBloc(
+              settings: deps.settingsRepository,
+              initial: widget.initialSettings,
+            )..add(const SettingsSubscribed()),
+          ),
+        ],
+        child: BlocSelector<SettingsBloc, SettingsState, ThemePreference>(
+          selector: (state) => state.settings.theme,
+          builder: (context, theme) => BadgeImages(
+            resolver: deps.badgeImages,
+            child: MaterialApp.router(
+              title: 'Fútbol Argentino',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: AppTheme.modeFor(theme),
+              locale: const Locale('es', 'AR'),
+              supportedLocales: const [Locale('es', 'AR'), Locale('es')],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
+              routerConfig: _router,
+              builder: (context, child) =>
+                  RateLimitNotice(child: child ?? const SizedBox.shrink()),
+            ),
+          ),
         ),
       ),
     );

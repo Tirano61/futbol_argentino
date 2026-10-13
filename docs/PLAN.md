@@ -475,17 +475,20 @@ Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso 
   - **Contraste**: `lookuptable` (5 filas, con la instantánea del 12/10) y Promedios Info (fecha 33 completa): 34 de 36 iguales; los otros 2 jugaban entre sí en ese momento. Evidencia: `docs/evidence/f14_*`.
   - **Peticiones**: en frío = 36; en caliente = 0; tablet con lo guardado = 0; refresco manual = solo la fecha con un partido en juego.
   - **Corrección en Web**: escudos cruzados al reordenarse la tabla (`TeamBadge` con clave por URL).
-- **Fase 15 — Más competiciones y D8.** ✅ Completada el 12/10/2026; 537 tests verdes; validada en la tablet (app Android release, vertical y horizontal, y Chrome de la tablet). Esperando aprobación para la Fase 16.
+- **Fase 15 — Más competiciones y D8.** ✅ Completada el 12/10/2026; 537 tests verdes; validada en la tablet (app Android release, vertical y horizontal, y Chrome de la tablet). Aprobada por el usuario.
   - **T15.1** Marcas `showInHome`/`inTeamIndex` en el catálogo. Primera B Metropolitana (5215, 42 fechas en 2026) y Primera C (5524) entran sin las dos marcas y sin tabla; Federal A afuera (V8). Inicio = 12 en frío con el catálogo de 5; índice = 3. Selector de competición con chips en una fila con desplazamiento.
   - **T15.2** D8: `getTeamPointers` (`eventsnext` + `eventslast`, 2 peticiones, TTL 30 min, store `team_pointers`) y la sección «Otras competiciones (información parcial)» en la ficha (sin detalle). **Boca en frío = 27**, en caliente 0.
   - Grabaciones nuevas: B Metro r40, r42, r43 (vacía) y r1 2025; Primera C r33 (vacía) y r1 2025 (ver API, «Hallazgos de la Fase 15»).
-- **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).**
+- **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).** ✅ Completada el 13/10/2026; 555 tests verdes; validada en la tablet (app Android release, horizontal y vertical, y Chrome de la tablet). Esperando aprobación para la Fase 17.
+  - **T16.1** Store `settings` (registro `app`) + `SettingsRepository` + `SettingsBloc` global; tema «Según el sistema · Claro · Oscuro» en `/ajustes`. Se lee antes del primer cuadro (`main`): el tema elegido no parpadea al abrir. Tablet y Web: el tema se conserva al cerrar la app o recargar.
+  - **T16.2** `RateLimitStatus.throttles`/`throttledUntil`: el `RateLimiter` avisa las esperas de 3 s o más por su tope propio y `RateLimitNotice` las muestra («Muchas consultas seguidas…»); la pausa por 429 tiene prioridad. Tablet: 25 peticiones seguidas → la 26.ª esperó con el aviso y siguió sola, sin 429.
+  - **T16.3** `BadgeImageResolver` (inyectado desde `AppDependencies`): Android con `CachedNetworkImageProvider` y una caché propia (`team_badges`, 600 archivos, 60 días); Web igual que antes (`NetworkImage` con `WebHtmlElementStrategy.fallback`). Tablet: sin red y tras reiniciar, los escudos se ven (antes, iniciales).
 - **Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo (D11).**
 - **Fase 18 — Calendario mensual.**
 - **Fase 19 (nov–dic 2026)** — Reducido y final de Nacional, playoffs del Clausura (V3), final de Copa 2026, «Avanza X», cuadro de llaves; zonas y reglamento 2027.
 
 Backlog original (antes del Hito C v3):
-Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · Auto-refresco con partidos en vivo (D11) · Selector manual de tema · Caché de escudos en disco (Android) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
+Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · Auto-refresco con partidos en vivo (D11) · ~~Selector manual de tema~~ (Fase 16) · ~~Caché de escudos en disco (Android)~~ (Fase 16) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
 
 ---
 

@@ -40,7 +40,7 @@ Sin paginación, la unidad incremental es **(competición, temporada, `apiRound`
 **Por campo**: un resultado no nulo no se pisa con nulo si el estado sigue final (sí si pasa a `NS`/`PST`/`CANC`); un kickoff `confirmed` no se degrada a `tentative` del mismo instante; vacío no pisa escudo/estadio; nombres sin mojibake tienen prioridad.
 
 ### 5.4 Persistencia (sembast)
-Stores: `events` (key `idEvent`), `teams`, `competitions`, `query_meta` (`"round:4406:2026:12"`, `"next:4406"`…), `favorites` (key `idTeam`, Fase 8), `settings`. ~1.200 eventos/temporada ≈ 0,6 MB.
+Stores: `events` (key `idEvent`), `teams`, `competitions`, `query_meta` (`"round:4406:2026:12"`, `"next:4406"`…), `favorites` (key `idTeam`, Fase 8), `settings` (registro `app`, Fase 16). ~1.200 eventos/temporada ≈ 0,6 MB.
 
 ### 5.5 TTL por consulta
 
@@ -124,7 +124,7 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 
 - **P2 con la ficha oculta**: si se cambia de sección sin cerrar la ficha, se cancela su descarga (como al cerrarla: como mucho termina la petición en curso) y, al volver, sigue solo con las rondas que faltan (las ya descargadas están vigentes). Tablet: 0 peticiones en 98 s con la ficha de Chacarita oculta a 25/36; al volver pidió las 4 que faltaban (y la ronda en juego, vencida).
 - `syncRound` informa si consultó la red: la ficha lo usa para decir «Ya está actualizado».
-- **Pendiente**: la espera por el tope propio de 25/min (`RateLimiter`) no se avisa en pantalla; solo la pausa por 429.
+- ~~**Pendiente**: la espera por el tope propio de 25/min no se avisa en pantalla~~ → resuelto en la Fase 16 (esperas de 3 s o más).
 
 ---
 
@@ -145,7 +145,7 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 | Modo avión + forzar | CACHÉ + `Failed host lookup` (2 reintentos) | CACHÉ + `Failed to fetch` (sin reintentos) |
 | Reinicio sin red | CACHÉ desde el archivo | CACHÉ desde IndexedDB (recarga de página) |
 
-Hallazgo: en Android, sin red y tras reiniciar, los escudos no se ven (`Image.network` no guarda en disco). `TeamBadge` mostrará iniciales; la caché de escudos en disco sigue en el backlog post-MVP.
+Hallazgo: en Android, sin red y tras reiniciar, los escudos no se ven (`Image.network` no guarda en disco). `TeamBadge` mostrará iniciales; la caché de escudos en disco sigue en el backlog post-MVP. → Resuelto en la Fase 16 (`DiskBadgeImages`).
 
 ## Estado de implementación (Fase 6, 11/10/2026) — Inicio
 
@@ -213,3 +213,9 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 - **Fixture de B Metro / Primera C**: como cualquier liga de una fase: `lookupleague` + 2 punteros + la fecha + la siguiente (precarga P1). Primera C 2026 no tiene cantidad de fechas en el catálogo: la última conocida sale de los punteros y lo guardado. Las temporadas 2025 de las dos quedan sin fechas (sin dato verificado; B Metro 2025 mezcla dos torneos en la numeración).
 - **Ficha (D8)**: `eventsnext` + `eventslast` (2 peticiones, P1, vigencia 30 min, store `team_pointers`). **Boca en frío = 27** (25 + 2), en caliente 0; a los 31 minutos, solo los 2 punteros (test `team_detail_sync_test.dart`). Un equipo de B Metro (p. ej. Flandria) completa las 42 fechas de su temporada con P2 (~4–5 min en frío).
 - **Tablet (12/10)**: Inicio en release = solo 4406/4616/4500; B Metro = `lookupleague` + punteros + fechas 40 y 41; Primera C = fecha 32; ficha de Boca con lo guardado = los 2 punteros + 1 fecha vencida.
+
+## Estado de implementación (Fase 16, 13/10/2026) — Ajustes, aviso de espera y escudos en disco
+
+- **Ajustes**: store `settings`, un registro `app` (`{v, theme}`); sin red ni vigencia. No entra en «Datos guardados» y el borrado por temporada no lo toca.
+- **Aviso de espera**: el `RateLimiter` (25/min) informa en `RateLimitStatus.throttles` cada espera de 3 s o más; la app lo avisa arriba mientras dura (la pausa por 429 tiene prioridad). No cambia el tope, la cola ni los presupuestos. Tablet: «Actualizar» en el Inicio + fechas de B Metro sin guardar, una por segundo = 25 peticiones; la 26.ª esperó con el aviso y siguió sola, sin 429.
+- **Escudos en disco (Android)**: `CachedNetworkImageProvider` con la caché `team_badges` (`flutter_cache_manager`: hasta 600 archivos, se borra lo que no se usa en 60 días; ~150 equipos × `/tiny` y `/small`). Las descargas de escudos no pasan por `TheSportsDbClient` (son imágenes de `r2.thesportsdb.com`, no consultas de la API) y no cuentan en el tope. Web sigue con el `<img>` del navegador y su caché. Tablet: con la caché llena, sin red y tras cerrar la app, el Inicio y el fixture muestran los escudos.
