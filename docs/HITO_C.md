@@ -117,7 +117,7 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - **Peticiones:** en frío, 16 para Primera 2026 completa, 36 para Nacional y 6 para la Copa. En caliente, y en temporadas anteriores ya guardadas, 0.
 
 ## Fase 13 — Tablas de Primera 2026: Tabla Anual y zonas por torneo
-**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 14.
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`). Aprobada.
 
 - **T13.1 Dominio común**, Dart puro, sin reglas de torneo (`competitions/domain/standings/`):
   - `TeamStats` (PJ, PG, PE, PP, GF, GC, DG, Pts) y `StatsAccumulator`: suma **una vez** cada partido terminado a cada uno de sus dos equipos.
@@ -190,6 +190,8 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
   - `bloc_test`; presupuesto de consultas en frío y en caliente; layout y accesibilidad.
 
 ## Fase 14 — Tablas de Primera Nacional (formato propio, según V14)
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`); V15 resuelta con el texto oficial del art. 112. Esperando aprobación para la Fase 15.
+
 - Formato propio en el catálogo (p. ej. `LeagueZones`, dos zonas de 18, con los interzonales que haya resuelto la V14) y sus desempates. **No** se reutiliza Apertura / Clausura / Anual.
 - Se reutilizan `TeamStats`, `TieBreaker` y `StandingsTable`. Selector «Zona A · Zona B» con la cobertura de las 36 rondas.
 - Final y Reducido: Fase 19.

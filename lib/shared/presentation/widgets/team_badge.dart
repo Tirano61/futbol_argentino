@@ -40,6 +40,10 @@ class TeamBadge extends StatelessWidget {
       dimension: size,
       child: Image.network(
         variant,
+        // En Web, con el `<img>` del modo fallback, cambiar la URL de una
+        // imagen ya montada no cambia lo que se ve (una tabla que se reordena
+        // dejaba cada escudo en su fila): otra URL, otra imagen.
+        key: ValueKey(variant),
         width: size,
         height: size,
         fit: BoxFit.contain,

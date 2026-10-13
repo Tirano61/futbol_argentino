@@ -9,7 +9,8 @@ enum CompetitionsView { fixture, table }
 
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
 /// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:
-/// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`.
+/// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`
+/// (Nacional: `tabla=zona-a`).
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
@@ -65,15 +66,16 @@ abstract final class FixtureRoute {
     return location.toString() == target.toString() ? null : target;
   }
 
-  /// URL de una tabla.
-  static Uri tableUri(int competitionId, Season season, String tableKey) => Uri(
-    path: '$basePath/$competitionId',
-    queryParameters: {
-      'temporada': season.apiValue,
-      'vista': 'tabla',
-      'tabla': tableKey,
-    },
-  );
+  /// URL de una tabla (sin [tableKey], la primera de la competición).
+  static Uri tableUri(int competitionId, Season season, String? tableKey) =>
+      Uri(
+        path: '$basePath/$competitionId',
+        queryParameters: {
+          'temporada': season.apiValue,
+          'vista': 'tabla',
+          'tabla': ?tableKey,
+        },
+      );
 
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(

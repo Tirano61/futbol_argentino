@@ -37,6 +37,9 @@ void main() {
 
       await openTable(tester);
       await expectGuidelines(tester);
+      await openNacionalTable(tester);
+      expect(find.text('Posiciones 2026 · Zona A'), findsOne);
+      await expectGuidelines(tester);
 
       await openSection(tester, 'Equipos');
       await expectGuidelines(tester);
@@ -74,6 +77,8 @@ void main() {
     await tester.pumpAndSettle();
     await openTable(tester);
     expect(find.text('Tabla Anual 2026'), findsWidgets);
+    await openNacionalTable(tester);
+    expect(find.text('Posiciones 2026 · Zona A'), findsOne);
     await tester.tap(find.text('Fixture'));
     await tester.pumpAndSettle();
 

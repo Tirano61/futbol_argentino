@@ -40,7 +40,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Favoritos: solo locales (store `favorites`, `FavoritesBloc` global). «Tus equipos» del Inicio lee lo guardado: 0 peticiones (tests `watch_favorite_teams_test.dart`, `home_page_test.dart`).
 - Historial (`CompleteRounds`, P2): nunca pide lo vigente; las rondas cerradas y las de temporadas anteriores terminadas no se vuelven a pedir salvo refresco manual. Primera 2026 completa = 17 (fechas 1–16 + ronda 0), Nacional 36, Copa 6; en caliente 0 (test `complete_rounds_test.dart`).
 - Datos guardados (`/ajustes`): borrado manual por temporada; la actual no se puede borrar; favoritos intactos. Sin purga automática de temporadas; la de `removed` verificados está pospuesta (falta la verificación con `lookupevent`).
-- Tablas (`competitions/domain/standings/`, formato en el catálogo con `StandingsFormat`): Primera 2026 = Tabla Anual (art. 24, **sin enfrentamiento directo**) + zonas A/B por torneo (art. 9/10 y 15/16, con enfrentamiento directo); Fair Play y sorteo no se calculan → «posición compartida». La app no define descensos. Solo rondas 1–16 (16 peticiones en frío, 0 en caliente). Copa, Nacional y temporadas sin formato verificado: sin tabla.
+- Tablas (`competitions/domain/standings/`, formato en el catálogo con `StandingsFormat`): Primera 2026 = Tabla Anual (art. 24, **sin enfrentamiento directo**) + zonas A/B por torneo (art. 9/10 y 15/16, con enfrentamiento directo); Fair Play y sorteo no se calculan → «posición compartida». La app no define descensos. Solo rondas 1–16 (16 peticiones en frío, 0 en caliente). Nacional 2026 (`LeagueZones`) = una tabla por zona A/B de 18, interzonales incluidos, desempate art. 112 del R.G. puntos 1 a 3 (DG, GF, enfrentamiento directo; **sin Fair Play ni sorteo**); rondas 1–36 (36 en frío, 0 en caliente). Copa y temporadas sin formato verificado: sin tabla.
 - Identificadores: `idEvent` (partidos, deduplicación), `idTeam` (equipos), `idLeague`.
 
 ## Responsive y accesibilidad
@@ -55,6 +55,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 
 ## Escudos
 - Siempre mediante `TeamBadge`, con `Image.network(..., webHtmlElementStrategy: WebHtmlElementStrategy.fallback)`: `r2.thesportsdb.com` no envía CORS y en Web la carga normal falla (validado en T0.2).
+- La `Image` lleva `key: ValueKey(url)`: en Web, el `<img>` del fallback no cambia si una imagen montada recibe otra URL (las filas de una tabla que se reordena quedaban con el escudo de otro equipo).
 - Variantes de tamaño: `/tiny` (listas), `/small` (fichas).
 
 ## Horarios
