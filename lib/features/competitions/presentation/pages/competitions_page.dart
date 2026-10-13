@@ -15,55 +15,103 @@ import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../match_detail/presentation/pages/match_detail_page.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
+import '../../domain/entities/season.dart';
 import '../../domain/repositories/competition_repository.dart';
+import '../../domain/standings/table_builders.dart';
 import '../../domain/usecases/resolve_current_stage.dart';
 import '../../domain/usecases/watch_stage_matches.dart';
+import '../../domain/usecases/watch_standings.dart';
 import '../bloc/competition_fixture_bloc.dart';
+import '../bloc/standings_bloc.dart';
 import '../routing/fixture_route.dart';
 import '../widgets/fixture_controls.dart';
+import '../widgets/standings_panel.dart';
 
-/// Fixture reutilizable de cualquier competición del catálogo.
+/// Fixture y tablas de cualquier competición del catálogo.
 class CompetitionsPage extends StatelessWidget {
-  const CompetitionsPage({super.key, required this.initialEvent});
+  const CompetitionsPage({
+    super.key,
+    required this.initialEvent,
+    this.initialView = CompetitionsView.fixture,
+    this.initialTable,
+  });
 
   /// Selección inicial (de la URL o por defecto).
   final FixtureOpened initialEvent;
+  final CompetitionsView initialView;
+
+  /// Tabla elegida en la URL (`anual`, `apertura-a`…).
+  final String? initialTable;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) {
-        final competitions = context.read<CompetitionRepository>();
-        return CompetitionFixtureBloc(
-          watchStageMatches: WatchStageMatches(context.read<MatchRepository>()),
-          resolveCurrentStage: ResolveCurrentStage(competitions),
-          competitions: competitions,
-          clock: context.read<Clock>(),
-        )..add(initialEvent);
-      },
-      child: const _CompetitionsView(),
+    final clock = context.read<Clock>();
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) {
+            final competitions = context.read<CompetitionRepository>();
+            return CompetitionFixtureBloc(
+              watchStageMatches: WatchStageMatches(
+                context.read<MatchRepository>(),
+              ),
+              resolveCurrentStage: ResolveCurrentStage(competitions),
+              competitions: competitions,
+              clock: clock,
+            )..add(initialEvent);
+          },
+        ),
+        // Se crea al abrir la vista «Tabla»: el fixture solo no la necesita.
+        BlocProvider(
+          create: (context) => StandingsBloc(
+            watchStandings: WatchStandings(context.read<MatchRepository>()),
+            clock: clock,
+          ),
+        ),
+      ],
+      child: _CompetitionsView(
+        initialView: initialView,
+        initialTable: initialTable,
+      ),
     );
   }
 }
 
 class _CompetitionsView extends StatefulWidget {
-  const _CompetitionsView();
+  const _CompetitionsView({required this.initialView, this.initialTable});
+
+  final CompetitionsView initialView;
+  final String? initialTable;
 
   @override
   State<_CompetitionsView> createState() => _CompetitionsViewState();
 }
 
 class _CompetitionsViewState extends State<_CompetitionsView> {
+  late var _view = widget.initialView;
+  late var _tableKey = widget.initialTable ?? AnnualTableBuilder.key;
+
+  /// Competición y temporada pedidas al `StandingsBloc`.
+  (int, Season)? _standingsTarget;
+
   /// Partido abierto en el panel de detalle (escritorio).
   int? _selectedMatchId;
 
   /// En Web: al volver a esta pantalla (de un partido o de otra sección),
-  /// el router pone su ubicación, que no tiene la etapa.
+  /// el router pone su ubicación, que no tiene la etapa ni la tabla.
   GoRouter? _router;
+
+  /// Se apaga cuando la sección queda oculta (otra sección del menú).
+  ValueListenable<TickerModeData>? _visible;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final visible = TickerMode.getValuesNotifier(context);
+    if (visible != _visible) {
+      _visible?.removeListener(_onVisibilityChanged);
+      _visible = visible..addListener(_onVisibilityChanged);
+    }
     if (!kIsWeb) return;
     final router = GoRouter.maybeOf(context);
     if (router == _router) return;
@@ -73,8 +121,75 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
 
   @override
   void dispose() {
+    _visible?.removeListener(_onVisibilityChanged);
     _router?.routerDelegate.removeListener(_restoreUrl);
     super.dispose();
+  }
+
+  /// Las tablas descargan fechas solo mientras se ven.
+  void _onVisibilityChanged() {
+    if (_view != CompetitionsView.table) return;
+    context.read<StandingsBloc>().add(
+      _visible!.value.enabled
+          ? const StandingsResumed()
+          : const StandingsPaused(),
+    );
+  }
+
+  /// Pide las tablas de la competición y temporada elegidas (o sigue la
+  /// descarga si son las mismas).
+  void _loadStandings(CompetitionFixtureState fixture) {
+    final definition = fixture.definition;
+    final season = fixture.season;
+    if (definition == null || season == null) return;
+    final target = (definition.id, season);
+    final bloc = context.read<StandingsBloc>();
+    if (target == _standingsTarget) {
+      bloc.add(const StandingsResumed());
+    } else {
+      _standingsTarget = target;
+      bloc.add(StandingsStarted(competitionId: definition.id, season: season));
+    }
+  }
+
+  void _showView(CompetitionsView view) {
+    if (view == _view) return;
+    setState(() => _view = view);
+    final fixture = context.read<CompetitionFixtureBloc>().state;
+    if (view == CompetitionsView.table) {
+      _loadStandings(fixture);
+    } else {
+      context.read<StandingsBloc>().add(const StandingsPaused());
+    }
+    _updateUrl(fixture);
+  }
+
+  void _selectTable(String key) {
+    setState(() => _tableKey = key);
+    _updateUrl(context.read<CompetitionFixtureBloc>().state);
+  }
+
+  /// URL de lo que se ve: la etapa del fixture o la tabla.
+  Uri? _currentUri(CompetitionFixtureState fixture) {
+    if (_view == CompetitionsView.fixture) {
+      final stage = fixture.stage;
+      return stage == null ? null : FixtureRoute.uriFor(stage);
+    }
+    final definition = fixture.definition;
+    final season = fixture.season;
+    return definition == null || season == null
+        ? null
+        : FixtureRoute.tableUri(definition.id, season, _tableKey);
+  }
+
+  /// En Web, la URL refleja lo que se ve para poder compartirla. Se
+  /// reemplaza sin navegar (no recrea la pantalla).
+  void _updateUrl(CompetitionFixtureState fixture) {
+    if (!kIsWeb) return;
+    final uri = _currentUri(fixture);
+    if (uri != null) {
+      SystemNavigator.routeInformationUpdated(uri: uri, replace: true);
+    }
   }
 
   void _restoreUrl() {
@@ -83,7 +198,7 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     final uri = FixtureRoute.urlToRestore(
       // Incluye lo abierto con `push` (p. ej. un partido).
       router.state.uri,
-      context.read<CompetitionFixtureBloc>().state.stage,
+      _currentUri(context.read<CompetitionFixtureBloc>().state),
     );
     if (uri == null) return;
     // Después de que el router informe su ubicación (también al final del
@@ -101,41 +216,58 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   @override
   Widget build(BuildContext context) {
     final expanded = Breakpoints.isExpanded(context);
+    final table = _view == CompetitionsView.table;
+    final standingsBusy = context.select<StandingsBloc, bool>(
+      (bloc) => bloc.state.isBusy,
+    );
     return BlocConsumer<CompetitionFixtureBloc, CompetitionFixtureState>(
-      listenWhen: (previous, current) => previous.stage != current.stage,
+      listenWhen: (previous, current) =>
+          previous.stage != current.stage ||
+          previous.definition != current.definition ||
+          previous.season != current.season,
       listener: (context, state) {
-        final stage = state.stage;
-        // En Web, la URL refleja la etapa para poder compartirla. Se
-        // reemplaza sin navegar (no recrea la pantalla).
-        if (kIsWeb && stage != null) {
-          SystemNavigator.routeInformationUpdated(
-            uri: FixtureRoute.uriFor(stage),
-            replace: true,
-          );
-        }
+        if (_view == CompetitionsView.table) _loadStandings(state);
+        _updateUrl(state);
       },
       builder: (context, state) {
-        final fixture = Column(
+        final content = Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: FixtureSelectors(state: state),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: StageNavigator(state: state),
-            ),
-            Expanded(
-              child: _FixtureContentView(
-                state: state,
-                selectedMatchId: expanded ? _selectedMatchId : null,
-                // En escritorio el partido se abre en el panel; si no, en
-                // su pantalla.
-                onOpen: expanded
-                    ? (id) => setState(() => _selectedMatchId = id)
-                    : (id) => context.push(AppRoutes.matchDetail(id)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ViewSelector(view: _view, onChanged: _showView),
+                  const SizedBox(height: 8),
+                  FixtureSelectors(state: state, showPhaseSelector: !table),
+                ],
               ),
             ),
+            if (table)
+              Expanded(
+                child: StandingsPanel(
+                  tableKey: _tableKey,
+                  onTableSelected: _selectTable,
+                  onRefresh: () => _refreshStandings(context),
+                ),
+              )
+            else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: StageNavigator(state: state),
+              ),
+              Expanded(
+                child: _FixtureContentView(
+                  state: state,
+                  selectedMatchId: expanded ? _selectedMatchId : null,
+                  // En escritorio el partido se abre en el panel; si no, en
+                  // su pantalla.
+                  onOpen: expanded
+                      ? (id) => setState(() => _selectedMatchId = id)
+                      : (id) => context.push(AppRoutes.matchDetail(id)),
+                ),
+              ),
+            ],
           ],
         );
         final selected = _selectedMatchId;
@@ -147,9 +279,11 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
               const TopBarTeamSearch(),
               IconButton(
                 tooltip: 'Actualizar',
-                onPressed: state.stage == null || state.isRefreshing
-                    ? null
-                    : () => _refreshFixture(context),
+                onPressed: table
+                    ? (standingsBusy ? null : () => _refreshStandings(context))
+                    : (state.stage == null || state.isRefreshing
+                          ? null
+                          : () => _refreshFixture(context)),
                 icon: const Icon(Icons.refresh),
               ),
             ],
@@ -160,11 +294,11 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
               constraints: BoxConstraints(
                 maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
               ),
-              child: expanded
+              child: expanded && !table
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(child: fixture),
+                        Expanded(child: content),
                         const VerticalDivider(width: 1),
                         SizedBox(
                           width: _panelWidth,
@@ -185,12 +319,52 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
                         ),
                       ],
                     )
-                  : fixture,
+                  : content,
             ),
           ),
         );
       },
     );
+  }
+}
+
+/// «Fixture | Tabla».
+class _ViewSelector extends StatelessWidget {
+  const _ViewSelector({required this.view, required this.onChanged});
+
+  final CompetitionsView view;
+  final ValueChanged<CompetitionsView> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<CompetitionsView>(
+    segments: const [
+      ButtonSegment(
+        value: CompetitionsView.fixture,
+        label: Text('Fixture'),
+        icon: Icon(Icons.calendar_month_outlined),
+      ),
+      ButtonSegment(
+        value: CompetitionsView.table,
+        label: Text('Tabla'),
+        icon: Icon(Icons.leaderboard_outlined),
+      ),
+    ],
+    selected: {view},
+    showSelectedIcon: false,
+    onSelectionChanged: (views) => onChanged(views.first),
+  );
+}
+
+/// Actualiza las tablas y, si no hizo falta consultar la red, lo avisa.
+Future<void> _refreshStandings(BuildContext context) async {
+  final bloc = context.read<StandingsBloc>()
+    ..add(const StandingsRefreshRequested());
+  final after = await bloc.stream.firstWhere((s) => !s.isBusy);
+  if (after case StandingsLoaded(:final view)
+      when context.mounted &&
+          view.progress.failure == null &&
+          view.progress.fetched == 0) {
+    showAlreadyUpToDate(context);
   }
 }
 

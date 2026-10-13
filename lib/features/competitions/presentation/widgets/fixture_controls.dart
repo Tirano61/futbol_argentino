@@ -9,9 +9,16 @@ import '../bloc/competition_fixture_bloc.dart';
 
 /// Selectores de competición, temporada y fase.
 class FixtureSelectors extends StatelessWidget {
-  const FixtureSelectors({super.key, required this.state});
+  const FixtureSelectors({
+    super.key,
+    required this.state,
+    this.showPhaseSelector = true,
+  });
 
   final CompetitionFixtureState state;
+
+  /// En la vista «Tabla» no se elige fase.
+  final bool showPhaseSelector;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +26,7 @@ class FixtureSelectors extends StatelessWidget {
     final definition = state.definition;
     final season = state.season;
     final phase = state.phase;
-    final showPhases = state.phases.length > 1;
+    final showPhases = showPhaseSelector && state.phases.length > 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -81,7 +88,9 @@ class FixtureSelectors extends StatelessWidget {
                 ),
           ],
         ),
-        if (state.undeterminedInRound > 0 && phase != PhaseKey.undetermined)
+        if (showPhaseSelector &&
+            state.undeterminedInRound > 0 &&
+            phase != PhaseKey.undetermined)
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(

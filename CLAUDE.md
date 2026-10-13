@@ -40,6 +40,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Favoritos: solo locales (store `favorites`, `FavoritesBloc` global). «Tus equipos» del Inicio lee lo guardado: 0 peticiones (tests `watch_favorite_teams_test.dart`, `home_page_test.dart`).
 - Historial (`CompleteRounds`, P2): nunca pide lo vigente; las rondas cerradas y las de temporadas anteriores terminadas no se vuelven a pedir salvo refresco manual. Primera 2026 completa = 17 (fechas 1–16 + ronda 0), Nacional 36, Copa 6; en caliente 0 (test `complete_rounds_test.dart`).
 - Datos guardados (`/ajustes`): borrado manual por temporada; la actual no se puede borrar; favoritos intactos. Sin purga automática de temporadas; la de `removed` verificados está pospuesta (falta la verificación con `lookupevent`).
+- Tablas (`competitions/domain/standings/`, formato en el catálogo con `StandingsFormat`): Primera 2026 = Tabla Anual (art. 24, **sin enfrentamiento directo**) + zonas A/B por torneo (art. 9/10 y 15/16, con enfrentamiento directo); Fair Play y sorteo no se calculan → «posición compartida». La app no define descensos. Solo rondas 1–16 (16 peticiones en frío, 0 en caliente). Copa, Nacional y temporadas sin formato verificado: sin tabla.
 - Identificadores: `idEvent` (partidos, deduplicación), `idTeam` (equipos), `idLeague`.
 
 ## Responsive y accesibilidad
@@ -66,7 +67,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Cada semestre: actualizar en `CompetitionCatalog` (`lib/features/competitions/domain/catalog/competition_catalog.dart`) las ventanas de Primera **a partir de datos reales grabados** en `test/fixtures/api/`. Pendiente: cierre y eliminatorias del Clausura 2026 (hoy «en curso»), temporada 2027.
 - Al cerrar una ventana, el test `competition_catalog_test.dart` verifica que cada partido grabado caiga en un solo torneo.
 - Revisar los pendientes V2–V7 y V15 de `docs/API.md` cuando haya datos nuevos.
-- Cada temporada: zonas con `idTeam` y reglamento (desempates) de Primera y de Nacional, verificados contra los partidos grabados (ver V12/V14 en `docs/API.md`).
+- Cada temporada: zonas con `idTeam` y reglamento (desempates) de Primera y de Nacional, verificados contra los partidos grabados (ver V12/V14 en `docs/API.md`), cargados en `standingsBySeason` del catálogo; el test `table_builders_test.dart` los valida con `ZoneValidator`.
 
 ## Comandos
 - `flutter analyze` · `flutter test`

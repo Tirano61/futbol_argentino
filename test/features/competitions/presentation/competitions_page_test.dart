@@ -326,34 +326,55 @@ void main() {
         order: 27,
       );
       const url = '/competiciones/4406?temporada=2026&fase=clausura&ronda=12';
+      final target = FixtureRoute.uriFor(stage);
 
       // Sin la etapa (vuelta de un partido o de otra sección): se repone.
       expect(
-        FixtureRoute.urlToRestore(Uri.parse('/competiciones'), stage),
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones'), target),
         Uri.parse(url),
       );
       expect(
-        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), stage),
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), target),
         Uri.parse(url),
       );
       // Se abrió en otra competición y se cambió desde los selectores.
       expect(
         FixtureRoute.urlToRestore(
           Uri.parse('/competiciones/4616?temporada=2026&ronda=33'),
-          stage,
+          target,
         ),
         Uri.parse(url),
       );
       // Ya la tiene o es otra pantalla: no se toca.
-      expect(FixtureRoute.urlToRestore(Uri.parse(url), stage), isNull);
+      expect(FixtureRoute.urlToRestore(Uri.parse(url), target), isNull);
       expect(
-        FixtureRoute.urlToRestore(Uri.parse('/partidos/2398130'), stage),
+        FixtureRoute.urlToRestore(Uri.parse('/partidos/2398130'), target),
         isNull,
       );
-      expect(FixtureRoute.urlToRestore(Uri.parse('/'), stage), isNull);
+      expect(FixtureRoute.urlToRestore(Uri.parse('/'), target), isNull);
       expect(
         FixtureRoute.urlToRestore(Uri.parse('/competiciones'), null),
         isNull,
+      );
+    });
+
+    test('URL de las tablas', () {
+      final uri = FixtureRoute.tableUri(4406, const Season(2026), 'apertura-a');
+
+      expect(
+        uri.toString(),
+        '/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a',
+      );
+      expect(
+        FixtureRoute.parseView(uri.queryParameters),
+        CompetitionsView.table,
+      );
+      expect(FixtureRoute.parseTable(uri.queryParameters), 'apertura-a');
+      expect(FixtureRoute.parseView(const {}), CompetitionsView.fixture);
+      // Al volver de un equipo abierto desde la tabla se repone la tabla.
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
+        uri,
       );
     });
 
