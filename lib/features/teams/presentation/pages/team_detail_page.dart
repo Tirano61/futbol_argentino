@@ -7,6 +7,7 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
@@ -16,6 +17,7 @@ import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../matches/domain/services/match_grouping.dart';
 import '../../domain/entities/team_detail.dart';
 import '../../domain/repositories/team_repository.dart';
 import '../../domain/usecases/watch_team_detail.dart';
@@ -92,6 +94,16 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
     }
   }
 
+  /// Un partido del equipo está en vivo y la ficha no está cargando (D11).
+  /// Los de otras competiciones no se cuentan: no tienen rondas guardadas.
+  bool _hasLiveMatches() => switch (context.read<TeamDetailBloc>().state) {
+    final TeamDetailLoaded state when !state.isBusy => MatchGrouping.anyLive([
+      for (final m in [...state.detail.upcoming, ...state.detail.played])
+        m.match,
+    ], context.read<Clock>().now()),
+    _ => false,
+  };
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TeamDetailBloc, TeamDetailState>(
@@ -114,26 +126,30 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
               ),
             ],
           ),
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: switch (state) {
-                TeamDetailInitial() || TeamDetailLoading() => Center(
-                  child: Semantics(
-                    label: 'Cargando equipo',
-                    child: const CircularProgressIndicator(),
+          body: LiveAutoRefresh(
+            hasLiveMatches: _hasLiveMatches,
+            onTick: () => bloc.add(const TeamDetailLiveTick()),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: switch (state) {
+                  TeamDetailInitial() || TeamDetailLoading() => Center(
+                    child: Semantics(
+                      label: 'Cargando equipo',
+                      child: const CircularProgressIndicator(),
+                    ),
                   ),
-                ),
-                TeamDetailFailure(:final failure) => ErrorView(
-                  failure: failure,
-                  onRetry: refresh,
-                ),
-                TeamDetailLoaded(:final detail) => RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: _DetailBody(detail: detail, onRetry: refresh),
-                ),
-              },
+                  TeamDetailFailure(:final failure) => ErrorView(
+                    failure: failure,
+                    onRetry: refresh,
+                  ),
+                  TeamDetailLoaded(:final detail) => RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: _DetailBody(detail: detail, onRetry: refresh),
+                  ),
+                },
+              ),
             ),
           ),
         );

@@ -4,22 +4,25 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/router/app_router.dart';
+import '../../../../core/calendar/calendar_event.dart';
+import '../../../../core/platform/external_actions.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_status_chip.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
-import '../../../competitions/domain/entities/phase.dart';
-import '../../../competitions/domain/entities/phase_assignment.dart';
 import '../../../matches/domain/entities/kickoff.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/match_status.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../matches/domain/services/match_grouping.dart';
 import '../../domain/entities/match_detail.dart';
 import '../../domain/usecases/get_match_detail.dart';
 import '../bloc/match_detail_bloc.dart';
+import '../formatters/match_detail_texts.dart';
 
 /// Detalle de un partido a pantalla completa (`/partidos/:id`).
 class MatchDetailPage extends StatelessWidget {
@@ -179,8 +182,28 @@ class _MatchDetailContent extends StatelessWidget {
 
   final MatchDetailState state;
 
+  /// Con el partido en vivo se actualiza solo (D11).
+  static bool _isLive(BuildContext context) {
+    final state = context.read<MatchDetailBloc>().state;
+    return state is MatchDetailLoaded &&
+        !state.isRefreshing &&
+        MatchGrouping.isLive(
+          state.result.data.match,
+          context.read<Clock>().now(),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
+    return LiveAutoRefresh(
+      hasLiveMatches: () => _isLive(context),
+      onTick: () =>
+          context.read<MatchDetailBloc>().add(const MatchDetailLiveTick()),
+      child: _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final state = this.state;
     return switch (state) {
       MatchDetailInitial() || MatchDetailLoading() => Center(
@@ -241,7 +264,7 @@ class _DetailBody extends StatelessWidget {
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium,
             ),
-            if (_phaseAndStage(detail) case final stage?)
+            if (MatchDetailTexts.phaseAndStage(detail) case final stage?)
               Text(
                 stage,
                 textAlign: TextAlign.center,
@@ -301,6 +324,14 @@ class _DetailBody extends StatelessWidget {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _ShareActions(
+                detail: detail,
+                now: now,
+                fetchedAt: state.result.fetchedAt,
+              ),
+            ),
             if (m.videoUrl case final video?)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -344,17 +375,6 @@ class _DetailBody extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// «Clausura · Fecha 12», «Cuartos de final», «Ronda 16 · sin fase».
-  static String? _phaseAndStage(MatchDetail detail) {
-    final PhaseAssignment? phase = detail.phase;
-    final stage = detail.stageLabel;
-    if (phase == null || stage == null) return stage;
-    if (!phase.isDetermined) return '$stage · ${PhaseKey.undetermined.label}';
-    return phase.phase == PhaseKey.unica || phase.phase == PhaseKey.regular
-        ? stage
-        : '${phase.phase.label} · $stage';
   }
 }
 
@@ -441,6 +461,86 @@ class _InfoTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text(value),
       subtitle: Text(note == null ? label : '$label · $note'),
+    );
+  }
+}
+
+/// «Compartir» y, si el partido todavía no empezó, «Agregar al calendario».
+class _ShareActions extends StatelessWidget {
+  const _ShareActions({
+    required this.detail,
+    required this.now,
+    required this.fetchedAt,
+  });
+
+  final MatchDetail detail;
+  final DateTime now;
+  final DateTime fetchedAt;
+
+  static void _notify(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _share(BuildContext context) async {
+    final outcome = await context.read<ExternalActions>().share(
+      MatchDetailTexts.share(detail, now: now, fetchedAt: fetchedAt),
+      subject: MatchDetailTexts.title(detail),
+    );
+    if (!context.mounted) return;
+    switch (outcome) {
+      case ShareOutcome.copied:
+        _notify(context, 'Copiado al portapapeles.');
+      case ShareOutcome.failed:
+        _notify(context, 'No se pudo compartir.');
+      case ShareOutcome.shared || ShareOutcome.dismissed:
+    }
+  }
+
+  Future<void> _addToCalendar(BuildContext context, CalendarEvent event) async {
+    final fileName = MatchDetailTexts.calendarFileName(detail);
+    final outcome = await context.read<ExternalActions>().addToCalendar(
+      event,
+      fileName: fileName,
+    );
+    if (!context.mounted) return;
+    switch (outcome) {
+      case CalendarOutcome.downloaded:
+        _notify(
+          context,
+          'Se descargó $fileName: abrilo para agregarlo a tu calendario.',
+        );
+      case CalendarOutcome.failed:
+        _notify(context, 'No se pudo abrir el calendario.');
+      case CalendarOutcome.opened:
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final event = MatchDetailTexts.calendarEvent(detail, now);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _share(context),
+          icon: const Icon(Icons.share_outlined),
+          label: const Text('Compartir'),
+        ),
+        if (event != null)
+          OutlinedButton.icon(
+            onPressed: () => _addToCalendar(context, event),
+            icon: const Icon(Icons.event_outlined),
+            label: Text(
+              event.time is AllDayEvent
+                  ? 'Agregar al calendario (todo el día)'
+                  : 'Agregar al calendario',
+            ),
+          ),
+      ],
     );
   }
 }

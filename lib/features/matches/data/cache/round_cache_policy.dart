@@ -2,6 +2,7 @@ import '../../../../core/cache/cache_class.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../domain/entities/match.dart';
 import '../../domain/entities/match_status.dart';
+import '../../domain/services/match_grouping.dart';
 import '../../domain/services/round_merge_policy.dart';
 
 /// Vigencia de una ronda guardada según sus partidos (§5.5).
@@ -29,12 +30,7 @@ abstract final class RoundCachePolicy {
       final start = m.kickoff.utc;
       final day = m.kickoff.argentinaDay;
 
-      if (m.status.isInPlay) return CacheClass.live;
-      final started =
-          start != null &&
-          !now.isBefore(start) &&
-          now.difference(start) < const Duration(hours: 3);
-      if (started && !m.status.isFinished) return CacheClass.live;
+      if (MatchGrouping.isLive(m, now)) return CacheClass.live;
 
       if (day == today) hasToday = true;
       if (!_isSettled(m.status.kind)) {

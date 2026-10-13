@@ -7,7 +7,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'badge_probe_section.dart';
-import 'file_download.dart';
+import '../../../../core/platform/file_download.dart';
 
 /// Prueba de paquetes (T11.4): compartir, agregar al calendario y escudos
 /// guardados en disco. Solo datos de prueba, rotulados como tales.

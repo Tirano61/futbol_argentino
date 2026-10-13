@@ -8,6 +8,7 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
@@ -19,6 +20,7 @@ import '../../../competitions/domain/repositories/competition_repository.dart';
 import '../../../competitions/presentation/routing/fixture_route.dart';
 import '../../../favorites/domain/repositories/favorites_repository.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../matches/domain/services/match_grouping.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/favorite_team_overview.dart';
 import '../../domain/entities/home_feed.dart';
@@ -91,6 +93,17 @@ class _HomeView extends StatelessWidget {
     _ => const [],
   };
 
+  /// Hay partidos en vivo en el Inicio y no se está cargando (D11). «Tus
+  /// equipos» se actualiza solo con lo que se guarda.
+  static bool _hasLiveMatches(BuildContext context) =>
+      switch (context.read<HomeBloc>().state) {
+        HomeLoaded(:final feed) when !feed.isLoading => MatchGrouping.anyLive([
+          for (final c in feed.competitions)
+            for (final m in c.matches) m.match,
+        ], context.read<Clock>().now()),
+        _ => false,
+      };
+
   @override
   Widget build(BuildContext context) {
     // «Tus equipos» va arriba de todo: se espera a tenerlo para que no
@@ -125,25 +138,29 @@ class _HomeView extends StatelessWidget {
                 ),
             ],
           ),
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
+          body: LiveAutoRefresh(
+            hasLiveMatches: () => _hasLiveMatches(context),
+            onTick: () => bloc.add(const HomeLiveTick()),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
+                ),
+                child: switch (state) {
+                  HomeInitial() || HomeLoading() => const _Loading(),
+                  HomeLoaded() when !favoritesReady => const _Loading(),
+                  HomeFailure(:final failure) => ErrorView(
+                    failure: failure,
+                    onRetry: () => bloc.add(const HomeRefreshRequested()),
+                  ),
+                  HomeLoaded(:final feed) => _FeedView(
+                    feed: feed,
+                    twoColumns: expanded,
+                    onRefresh: () => _refresh(context),
+                  ),
+                },
               ),
-              child: switch (state) {
-                HomeInitial() || HomeLoading() => const _Loading(),
-                HomeLoaded() when !favoritesReady => const _Loading(),
-                HomeFailure(:final failure) => ErrorView(
-                  failure: failure,
-                  onRetry: () => bloc.add(const HomeRefreshRequested()),
-                ),
-                HomeLoaded(:final feed) => _FeedView(
-                  feed: feed,
-                  twoColumns: expanded,
-                  onRefresh: () => _refresh(context),
-                ),
-              },
             ),
           ),
         );

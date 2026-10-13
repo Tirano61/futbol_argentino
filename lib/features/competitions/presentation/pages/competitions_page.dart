@@ -9,11 +9,13 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../match_detail/presentation/pages/match_detail_page.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../matches/domain/services/match_grouping.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/season.dart';
 import '../../domain/repositories/competition_repository.dart';
@@ -269,14 +271,20 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
                 child: StageNavigator(state: state),
               ),
               Expanded(
-                child: _FixtureContentView(
-                  state: state,
-                  selectedMatchId: expanded ? _selectedMatchId : null,
-                  // En escritorio el partido se abre en el panel; si no, en
-                  // su pantalla.
-                  onOpen: expanded
-                      ? (id) => setState(() => _selectedMatchId = id)
-                      : (id) => context.push(AppRoutes.matchDetail(id)),
+                child: LiveAutoRefresh(
+                  hasLiveMatches: () => _fixtureHasLiveMatches(context),
+                  onTick: () => context.read<CompetitionFixtureBloc>().add(
+                    const FixtureLiveTick(),
+                  ),
+                  child: _FixtureContentView(
+                    state: state,
+                    selectedMatchId: expanded ? _selectedMatchId : null,
+                    // En escritorio el partido se abre en el panel; si no, en
+                    // su pantalla.
+                    onOpen: expanded
+                        ? (id) => setState(() => _selectedMatchId = id)
+                        : (id) => context.push(AppRoutes.matchDetail(id)),
+                  ),
                 ),
               ),
             ],
@@ -365,6 +373,18 @@ class _ViewSelector extends StatelessWidget {
     showSelectedIcon: false,
     onSelectionChanged: (views) => onChanged(views.first),
   );
+}
+
+/// La etapa mostrada tiene partidos en vivo y no se está cargando (D11).
+bool _fixtureHasLiveMatches(BuildContext context) {
+  final state = context.read<CompetitionFixtureBloc>().state;
+  return switch (state.content) {
+    FixtureLoaded(:final matches, isRefreshing: false) => MatchGrouping.anyLive(
+      matches.matches,
+      context.read<Clock>().now(),
+    ),
+    _ => false,
+  };
 }
 
 /// Actualiza las tablas y, si no hizo falta consultar la red, lo avisa.

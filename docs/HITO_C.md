@@ -205,13 +205,15 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - D8: `getTeamPointers` (2 peticiones, TTL 30 min) y la sección «Otras competiciones (información parcial)» en la ficha. Ficha de Boca en frío: 27 peticiones.
 
 ## Fase 16 — Ajustes, tema, aviso de espera y escudos en disco
-**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`): tema guardado sin parpadeo, aviso de espera por el tope propio, escudos en disco en Android. Esperando aprobación para la Fase 17.
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`): tema guardado sin parpadeo, aviso de espera por el tope propio, escudos en disco en Android. Aprobada.
 
 - Store `settings` + `SettingsRepository` + `SettingsBloc` global; tema sistema / claro / oscuro; pantalla `/ajustes`.
 - `RateLimitStatus` también avisa las esperas de 3 s o más por el tope propio, en `RateLimitNotice`.
 - `BadgeImageResolver`: Android usa `CachedNetworkImageProvider`; Web queda igual.
 
 ## Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 18.
+
 - **Compartir:** texto con las reglas de horario, vía `share_plus`. En Web, si no se puede, se copia al portapapeles.
 - **Calendario:** `IcsBuilder` en Dart puro. Los partidos con hora sin confirmar (`tentative`) se agregan como evento de día completo. Android usa `add_2_calendar`; Web descarga el `.ics`.
 - **En vivo (D11):**

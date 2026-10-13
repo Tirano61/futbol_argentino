@@ -52,7 +52,9 @@ class TeamDetailBloc extends Bloc<TeamDetailEvent, TeamDetailState> {
         return;
       case TeamDetailStarted(:final teamId):
         _teamId = teamId;
-      case TeamDetailResumed() || TeamDetailRefreshRequested():
+      case TeamDetailResumed() ||
+          TeamDetailRefreshRequested() ||
+          TeamDetailLiveTick():
     }
     final teamId = _teamId;
     if (teamId == null) return;

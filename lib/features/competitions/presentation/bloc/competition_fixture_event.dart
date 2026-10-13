@@ -58,3 +58,9 @@ final class FixturePreviousStageRequested extends CompetitionFixtureEvent {
 final class FixtureRefreshRequested extends CompetitionFixtureEvent {
   const FixtureRefreshRequested();
 }
+
+/// Auto-refresco con partidos en vivo (D11): vuelve a cargar la etapa sin
+/// forzar (la ronda se pide solo si venció su vigencia `live`).
+final class FixtureLiveTick extends CompetitionFixtureEvent {
+  const FixtureLiveTick();
+}
