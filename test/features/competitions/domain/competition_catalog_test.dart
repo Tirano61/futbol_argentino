@@ -12,7 +12,13 @@ void main() {
   final rules = primera.rules as SplitSeasonLeagueRules;
 
   test('IDs verificados y búsqueda por id', () {
-    expect(CompetitionCatalog.all.map((c) => c.id), [4406, 4616, 4500]);
+    expect(CompetitionCatalog.all.map((c) => c.id), [
+      4406,
+      4616,
+      4500,
+      5215,
+      5524,
+    ]);
     expect(
       CompetitionCatalog.byId(4500),
       same(CompetitionCatalog.copaArgentina),
@@ -78,6 +84,78 @@ void main() {
     }
     expect(apertura.containsInKnockout(const CalendarDay(2026, 5, 4)), isFalse);
     expect(apertura.containsInRegular(const CalendarDay(2026, 5, 4)), isTrue);
+  });
+
+  group('Fase 15: competiciones nuevas (V8)', () {
+    const bMetro = CompetitionCatalog.primeraBMetropolitana;
+    const primeraC = CompetitionCatalog.primeraC;
+
+    test('fuera del Inicio y del índice de equipos: presupuestos intactos', () {
+      expect(
+        [
+          for (final d in CompetitionCatalog.all)
+            if (d.showInHome) d.id,
+        ],
+        [4406, 4616, 4500],
+      );
+      expect(
+        [
+          for (final d in CompetitionCatalog.all)
+            if (d.inTeamIndex) d.id,
+        ],
+        [4406, 4616, 4500],
+      );
+    });
+
+    test('sin tabla hasta investigar su formato', () {
+      for (final d in [bMetro, primeraC]) {
+        for (final year in [2025, 2026]) {
+          expect(d.standingsFor(Season(year)), isA<NoStandings>());
+        }
+      }
+    });
+
+    test('una sola fase regular', () {
+      expect(bMetro.phases, [PhaseKey.regular]);
+      expect(primeraC.phases, [PhaseKey.regular]);
+    });
+
+    // Cada equipo juega una vez por fecha: la cantidad de partidos por
+    // fecha del catálogo es la mitad de los equipos.
+    for (final (definition, rounds, teams) in [
+      (bMetro, [1, 39, 40, 42], 22),
+      (primeraC, [1, 32], 28),
+    ]) {
+      test('${definition.name}: partidos por fecha según los datos', () {
+        for (final r in rounds) {
+          final events = fixtureEvents(
+            'eventsround_${definition.id}_r${r}_s2026',
+          );
+          expect(
+            events,
+            hasLength(definition.expectedMinimumMatches(r)!),
+            reason: 'fecha $r',
+          );
+          final ids = {
+            for (final e in events) ...[e['idHomeTeam'], e['idAwayTeam']],
+          };
+          expect(ids, hasLength(teams), reason: 'fecha $r');
+        }
+      });
+    }
+
+    test('B Metro 2026: 42 fechas (la 43 vuelve vacía)', () {
+      final rules = bMetro.rules as SingleTableLeagueRules;
+      expect(rules.regularRoundsBySeason[2026], 42);
+      expect(fixtureEvents('eventsround_5215_r42_s2026'), hasLength(11));
+      expect(fixtureEvents('eventsround_5215_r43_s2026'), isEmpty);
+    });
+
+    test('2025 sin cantidad de fechas: la fecha 1 mezcla dos torneos', () {
+      final rules = bMetro.rules as SingleTableLeagueRules;
+      expect(rules.regularRoundsBySeason[2025], isNull);
+      expect(fixtureEvents('eventsround_5215_r1_s2025'), hasLength(20));
+    });
   });
 
   test('Season', () {

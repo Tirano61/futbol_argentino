@@ -152,7 +152,11 @@ class _DetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = context.read<Clock>().now();
     final labels = {
-      for (final m in [...detail.upcoming, ...detail.played])
+      for (final m in [
+        ...detail.upcoming,
+        ...detail.played,
+        ...detail.otherCompetitions,
+      ])
         m.match.id: [
           m.competitionName,
           ?m.phaseLabel,
@@ -201,6 +205,22 @@ class _DetailBody extends StatelessWidget {
               onTap: open,
               newestFirst: true,
             ),
+        ],
+        if (detail.otherCompetitions.isNotEmpty) ...[
+          const SectionHeader(
+            title: 'Otras competiciones (información parcial)',
+            subtitle:
+                'TheSportsDB informa solo el próximo y el último partido del '
+                'equipo. La app no sigue estas competiciones: no tienen '
+                'fixture ni detalle.',
+          ),
+          // Sin `onTap`: el partido no está entre los guardados, no tiene
+          // detalle.
+          ...matchDayItems(
+            matches: [for (final m in detail.otherCompetitions) m.match],
+            now: now,
+            subtitle: (m) => labels[m.id],
+          ),
         ],
         Padding(
           padding: const EdgeInsets.only(top: 16),

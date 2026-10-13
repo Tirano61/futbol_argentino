@@ -14,15 +14,18 @@ import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
 import '../entities/team.dart';
 import '../entities/team_detail.dart';
+import '../entities/team_pointers.dart';
 import '../repositories/team_repository.dart';
 import 'ensure_team_index.dart';
 
 /// Ficha de un equipo: emite lo guardado enseguida y se va completando.
 ///
 /// 1. Partidos guardados del equipo, de todas las competiciones.
-/// 2. Datos del equipo (`lookupteam`, P0) y primera etapa de cada
-///    competición ([EnsureTeamIndex], P1): así se sabe qué competiciones
-///    juega en la temporada.
+/// 2. Datos del equipo (`lookupteam`, P0), su próximo y último partido
+///    (`eventsnext`/`eventslast`, P1: de ahí salen las otras competiciones,
+///    D8) y primera etapa de cada competición del índice
+///    ([EnsureTeamIndex], P1): así se sabe qué competiciones juega en la
+///    temporada.
 /// 3. Todas las rondas de la temporada de esas competiciones, de a una
 ///    (P2, con cupo propio): primero las más recientes y alternando
 ///    competiciones. Las vigentes no generan peticiones.
@@ -58,6 +61,7 @@ class WatchTeamDetail {
     final labeler = StoredMatchLabeler(_matches, catalog: _catalog);
     Team? info;
     Failure? infoError;
+    TeamPointers? pointers;
 
     Future<TeamDetail> build(SyncProgress progress) async {
       final stored = await _matches.storedTeamMatches(teamId);
@@ -92,6 +96,7 @@ class WatchTeamDetail {
           for (final i in items)
             if (MatchGrouping.isPlayed(i.match, today)) i,
         ]..sort((a, b) => MatchGrouping.compare(b.match, a.match)),
+        otherCompetitions: _otherCompetitions(pointers),
         progress: progress,
       );
     }
@@ -99,11 +104,14 @@ class WatchTeamDetail {
     yield await build(const SyncProgress());
 
     final infoRequest = _loadInfo(teamId, forceRefresh);
+    final pointersRequest = _loadPointers(teamId, forceRefresh);
     Failure? failure = await EnsureTeamIndex(_matches, catalog: _catalog)(
       now: now,
     );
     final bool infoFetched;
     (info, infoError, infoFetched) = await infoRequest;
+    final bool pointersFetched;
+    (pointers, pointersFetched) = await pointersRequest;
     if (cancelToken.isCancelled) return;
 
     final stored = await _matches.storedTeamMatches(teamId);
@@ -111,7 +119,7 @@ class WatchTeamDetail {
         ? const <({RoundQuery query, bool force})>[]
         : _plan(stored, _seasonOf(stored, today), today, forceRefresh);
     var done = 0;
-    var fetched = infoFetched ? 1 : 0;
+    var fetched = (infoFetched ? 1 : 0) + (pointersFetched ? 1 : 0);
     yield await build(SyncProgress(total: plan.length, fetched: fetched));
 
     for (final step in plan) {
@@ -181,6 +189,50 @@ class WatchTeamDetail {
     } on Failure catch (failure) {
       return (null, failure, true);
     }
+  }
+
+  /// Próximo y último partido (cualquier competición) y si se intentó la
+  /// red. Es información parcial: si falla y no hay nada guardado, la ficha
+  /// sigue sin esa sección.
+  Future<(TeamPointers?, bool)> _loadPointers(
+    int teamId,
+    bool forceRefresh,
+  ) async {
+    try {
+      final result = await _teams.getTeamPointers(
+        teamId,
+        forceRefresh: forceRefresh,
+        priority: forceRefresh ? SyncPriority.visible : SyncPriority.context,
+      );
+      return (
+        result.data,
+        result.origin == DataOrigin.remote || result.hasRefreshError,
+      );
+    } on Failure {
+      return (null, true);
+    }
+  }
+
+  /// Los punteros de competiciones fuera del catálogo (las del catálogo ya
+  /// están en próximos y disputados, con su fixture).
+  List<TeamMatch> _otherCompetitions(TeamPointers? pointers) {
+    final seen = <int>{};
+    return [
+      for (final (match, label) in [
+        (pointers?.next, 'Próximo partido'),
+        (pointers?.last, 'Último partido'),
+      ])
+        if (match != null &&
+            _definition(match.competitionId) == null &&
+            seen.add(match.id))
+          TeamMatch(
+            match: match,
+            competitionName: match.competitionName.isEmpty
+                ? 'Otra competición'
+                : match.competitionName,
+            stageLabel: label,
+          ),
+    ];
   }
 
   /// La temporada del año argentino si el equipo tiene partidos guardados

@@ -190,7 +190,7 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
   - `bloc_test`; presupuesto de consultas en frío y en caliente; layout y accesibilidad.
 
 ## Fase 14 — Tablas de Primera Nacional (formato propio, según V14)
-**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`); V15 resuelta con el texto oficial del art. 112. Esperando aprobación para la Fase 15.
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`); V15 resuelta con el texto oficial del art. 112. Aprobada.
 
 - Formato propio en el catálogo (p. ej. `LeagueZones`, dos zonas de 18, con los interzonales que haya resuelto la V14) y sus desempates. **No** se reutiliza Apertura / Clausura / Anual.
 - Se reutilizan `TeamStats`, `TieBreaker` y `StandingsTable`. Selector «Zona A · Zona B» con la cobertura de las 36 rondas.
@@ -198,6 +198,8 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - Si la V14 no cierra, la fase queda en espera sin bloquear las siguientes.
 
 ## Fase 15 — Más competiciones y otras competiciones del equipo (D8)
+**Estado:** ✅ completada el 12/10/2026 (ver `docs/PLAN.md`): B Metro y Primera C sin Inicio, índice ni tabla; Boca en frío = 27. Esperando aprobación para la Fase 16.
+
 - Marcas `showInHome` e `inTeamIndex` en `CompetitionDefinition`: el Inicio sigue con 12 consultas o menos.
 - Entradas nuevas validadas (V8) con `NoStandings` hasta investigar su formato.
 - D8: `getTeamPointers` (2 peticiones, TTL 30 min) y la sección «Otras competiciones (información parcial)» en la ficha. Ficha de Boca en frío: 27 peticiones.

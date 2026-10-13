@@ -172,3 +172,14 @@ Grabadas con `curl` a ~17 consultas por minuto (V8–V10, V12, V14).
 | `eventsround_5523_r32_s2026.json` | `eventsround.php?id=5523&r=32&s=2026` | 200 | `events` = 24 | 2026-10: 24 | 12/10/2026 22:04 UTC | `29cd2d6ed732` |
 | `eventsround_5524_r1_s2026.json` | `eventsround.php?id=5524&r=1&s=2026` | 200 | `events` = 14 | 2026-02: 13, 2026-03: 1 | 12/10/2026 22:04 UTC | `88e80c44346e` |
 | `eventsround_5524_r32_s2026.json` | `eventsround.php?id=5524&r=32&s=2026` | 200 | `events` = 14 | 2026-10: 14 | 12/10/2026 22:04 UTC | `9cf26b3c7969` |
+
+Grabadas en la Fase 15 (13/10/2026 01:26 UTC): fecha siguiente y fin de temporada de la Primera B Metropolitana, primera fecha 2025 de B Metro y de Primera C, y la fecha 33 de Primera C (vacía).
+
+| Archivo | Consulta | HTTP | Registros | Meses (dateEvent) | Grabado | SHA-256 (12) |
+|---|---|---|---|---|---|---|
+| `eventsround_5215_r40_s2026.json` | `eventsround.php?id=5215&r=40&s=2026` | 200 | `events` = 11 | 2026-10: 11 | 13/10/2026 01:26 UTC | `4c1b39ff420a` |
+| `eventsround_5215_r42_s2026.json` | `eventsround.php?id=5215&r=42&s=2026` | 200 | `events` = 11 | 2026-10: 11 | 13/10/2026 01:26 UTC | `2c786fbe2d9d` |
+| `eventsround_5215_r43_s2026.json` | `eventsround.php?id=5215&r=43&s=2026` | 200 | `events` = null |  | 13/10/2026 01:26 UTC | `ac165cc3ca83` |
+| `eventsround_5215_r1_s2025.json` | `eventsround.php?id=5215&r=1&s=2025` | 200 | `events` = 20 | 2025-02: 10, 2025-06: 10 | 13/10/2026 01:26 UTC | `5e33f103cc19` |
+| `eventsround_5524_r33_s2026.json` | `eventsround.php?id=5524&r=33&s=2026` | 200 | `events` = null |  | 13/10/2026 01:26 UTC | `ac165cc3ca83` |
+| `eventsround_5524_r1_s2025.json` | `eventsround.php?id=5524&r=1&s=2025` | 200 | `events` = 13 | 2025-03: 12, 2025-04: 1 | 13/10/2026 01:26 UTC | `2e343109ddf9` |

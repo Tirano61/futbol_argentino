@@ -1,7 +1,14 @@
+import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/domain/repositories/competition_repository.dart';
 import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 
 import 'fixture_matches.dart';
+
+/// Competiciones del Inicio (`showInHome`).
+final homeCompetitions = [
+  for (final d in CompetitionCatalog.all)
+    if (d.showInHome) d,
+];
 
 /// Punteros reales (`eventsnextleague` / `eventspastleague`) de una
 /// competición.

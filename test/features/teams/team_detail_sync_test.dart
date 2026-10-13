@@ -17,7 +17,8 @@ const bocaId = 135156;
 
 /// Aceptación de la Fase 7 (T7.3/T7.4) con repositorios reales y
 /// respuestas grabadas: presupuesto y cupo P2, «Primera + Copa» y
-/// cancelación al salir de la ficha.
+/// cancelación al salir de la ficha. Fase 15 (D8): próximo y último
+/// partido del equipo, y la Copa Sudamericana como otra competición.
 void main() {
   late FakeClock clock;
   late DateTime start;
@@ -92,22 +93,28 @@ void main() {
     test('progreso completo: 23 rondas (17 de Primera + 6 de Copa)', () {
       expect(
         detail.progress,
-        // Consultas: `lookupteam` + 21 rondas (2 ya estaban por el índice).
-        const SyncProgress(done: 23, total: 23, isRunning: false, fetched: 22),
+        // Consultas: `lookupteam`, los punteros del equipo y 21 rondas (2
+        // ya estaban por el índice).
+        const SyncProgress(done: 23, total: 23, isRunning: false, fetched: 23),
       );
     });
 
-    test('presupuesto: 25 peticiones; P2 como mucho 10 por minuto', () {
-      expect(api.requests, hasLength(25));
+    test('presupuesto: 27 peticiones; P2 como mucho 10 por minuto', () {
+      expect(api.requests, hasLength(27));
       expect(api.requestLabels.first, 'lookupteam:135156');
-      // Bootstrap (P1): primera etapa de cada competición.
+      // Punteros del equipo (P1, D8): 2 peticiones.
+      expect(api.requestLabels.sublist(1, 3), [
+        'eventsnext:135156',
+        'eventslast:135156',
+      ]);
+      // Bootstrap (P1): primera etapa de cada competición del índice.
       expect(
-        api.requestLabels.sublist(1, 4),
+        api.requestLabels.sublist(3, 6),
         unorderedEquals(['4406:r1:s2026', '4616:r1:s2026', '4500:r64:s2026']),
       );
       // 21 rondas P2 (las de la fecha 1 y los 32avos ya estaban): 10, 10, 1.
       final p2 = [
-        for (final t in api.requestTimes.skip(4)) t.difference(start),
+        for (final t in api.requestTimes.skip(6)) t.difference(start),
       ];
       expect(p2, hasLength(21));
       expect(p2.where((d) => d < const Duration(minutes: 1)), hasLength(10));
@@ -121,7 +128,7 @@ void main() {
     });
 
     test('alterna competiciones: la Copa no espera a toda la Primera', () {
-      final rounds = api.requestLabels.skip(4).take(6).toList();
+      final rounds = api.requestLabels.skip(6).take(6).toList();
       expect(rounds, [
         '4406:r0:s2026',
         '4500:r200:s2026',
@@ -130,6 +137,27 @@ void main() {
         '4406:r15:s2026',
         '4500:r125:s2026',
       ]);
+    });
+
+    test('otras competiciones: el próximo partido, de la Sudamericana', () {
+      // `eventsnext`: Boca–Vasco da Gama (Copa Sudamericana, 4724).
+      // `eventslast`: Boca–Unión, de Primera: ya está en disputados.
+      final other = detail.otherCompetitions.single;
+      expect(other.match.id, 2606044);
+      expect(other.match.competitionId, 4724);
+      expect(other.competitionName, 'Copa Sudamericana');
+      expect(other.stageLabel, 'Próximo partido');
+      expect(other.phaseLabel, isNull);
+      expect(other.match.away.name, 'Vasco da Gama');
+      // No se guarda con los partidos: no entra en fixtures ni en la ficha.
+      expect(
+        [...detail.upcoming, ...detail.played].map((m) => m.match.id),
+        isNot(contains(2606044)),
+      );
+      expect(
+        detail.played.map((m) => m.match.id),
+        contains(2398104), // Boca–Unión, el `eventslast`.
+      );
     });
 
     test('en caliente: ninguna petición', () async {
@@ -141,6 +169,20 @@ void main() {
       expect(again.progress.fetched, 0);
       expect(again.upcoming, detail.upcoming);
       expect(again.played, detail.played);
+      expect(again.otherCompetitions, detail.otherCompetitions);
+    });
+
+    test('a los 30 minutos solo vencen los punteros del equipo', () async {
+      api.requests.clear();
+      clock.advance(const Duration(minutes: 31));
+
+      await load();
+
+      expect(
+        api.requestLabels,
+        containsAll(['eventsnext:135156', 'eventslast:135156']),
+      );
+      expect(api.requestLabels, isNot(contains('lookupteam:135156')));
     });
   });
 
@@ -176,7 +218,7 @@ void main() {
 
     // Como mucho termina la ronda que ya estaba en curso.
     expect(api.requests.length, lessThanOrEqualTo(atCancel + 1));
-    expect(api.requests.length, lessThan(25));
+    expect(api.requests.length, lessThan(27));
     expect(api.scheduler.pending, 0);
   });
 
@@ -194,7 +236,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(api.requests.length, lessThanOrEqualTo(atClose + 1));
-    expect(api.requests.length, lessThan(25));
+    expect(api.requests.length, lessThan(27));
   });
 
   test(
@@ -213,7 +255,7 @@ void main() {
       final atPause = api.requests.length;
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(api.requests.length, atPause, reason: 'en pausa no pide nada');
-      expect(api.requests.length, lessThan(25));
+      expect(api.requests.length, lessThan(27));
 
       bloc.add(const TeamDetailResumed());
       final done =
@@ -223,8 +265,8 @@ void main() {
               as TeamDetailLoaded;
 
       expect(done.detail.progress.done, 23);
-      // Las mismas 25 peticiones que sin pausa: nada se repite.
-      expect(api.requests, hasLength(25));
+      // Las mismas 27 peticiones que sin pausa: nada se repite.
+      expect(api.requests, hasLength(27));
       await bloc.close();
     },
   );

@@ -24,7 +24,8 @@ final class TeamMatch extends Equatable {
   /// sin fase determinada.
   final String? phaseLabel;
 
-  /// «Fecha 12», «Semifinales»… («Ronda N» sin fase determinada).
+  /// «Fecha 12», «Semifinales»… («Ronda N» sin fase determinada). En
+  /// otras competiciones: «Próximo partido» o «Último partido».
   final String stageLabel;
 
   @override
@@ -42,6 +43,7 @@ final class TeamDetail extends Equatable {
     this.competitionIds = const [],
     this.upcoming = const [],
     this.played = const [],
+    this.otherCompetitions = const [],
     this.progress = const SyncProgress(),
   });
 
@@ -64,6 +66,11 @@ final class TeamDetail extends Equatable {
 
   /// Terminados (o con fecha pasada), del más reciente al más viejo.
   final List<TeamMatch> played;
+
+  /// Próximo y último partido en competiciones fuera del catálogo (p. ej.
+  /// Copa Sudamericana), según `eventsnext`/`eventslast`: información
+  /// parcial (D8), sin fixture ni detalle.
+  final List<TeamMatch> otherCompetitions;
   final SyncProgress progress;
 
   @override
@@ -75,6 +82,7 @@ final class TeamDetail extends Equatable {
     competitionIds,
     upcoming,
     played,
+    otherCompetitions,
     progress,
   ];
 }

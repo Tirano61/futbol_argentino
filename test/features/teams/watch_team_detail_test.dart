@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
+import 'package:futbol_argentino/features/teams/domain/entities/team_pointers.dart';
 import 'package:futbol_argentino/features/teams/domain/usecases/watch_team_detail.dart';
 
 import '../../helpers/fake_teams.dart';
@@ -21,11 +22,17 @@ void main() {
     });
   });
 
+  late FakeTeamRepository teams;
+
+  setUp(() {
+    teams = FakeTeamRepository(
+      teams: {bocaId: recordedTeams('lookupteam_135156').single},
+    );
+  });
+
   Future<void> run({required bool forceRefresh}) =>
       WatchTeamDetail(
-            teams: FakeTeamRepository(
-              teams: {bocaId: recordedTeams('lookupteam_135156').single},
-            ),
+            teams: teams,
             matches: matches,
             catalog: const [CompetitionCatalog.primeraDivision],
           )(
@@ -65,4 +72,69 @@ void main() {
       expect(roundsWhere((p, f) => p == SyncPriority.team), hasLength(16));
     },
   );
+
+  test('los punteros del equipo siguen al refresco: P1 o forzados', () async {
+    await run(forceRefresh: false);
+    await run(forceRefresh: true);
+
+    expect(teams.pointerCalls, [
+      (id: bocaId, force: false),
+      (id: bocaId, force: true),
+    ]);
+  });
+
+  test('otras competiciones: próximo y último fuera del catálogo, sin '
+      'repetir', () async {
+    // Punteros reales de Boca: el próximo es de la Sudamericana y el último,
+    // de Primera. Con un catálogo sin Primera, los dos son «otras».
+    final next = fixtureMatches('eventsnext_135156').single;
+    final last = recordedLastMatch('eventslast_135156');
+    Future<List<String>> others(
+      TeamPointers pointers,
+      List<CompetitionDefinition> catalog,
+    ) async {
+      final detail =
+          await WatchTeamDetail(
+                teams: FakeTeamRepository(
+                  teams: {bocaId: recordedTeams('lookupteam_135156').single},
+                  pointers: {bocaId: pointers},
+                ),
+                matches: matches,
+                catalog: catalog,
+              )(
+                bocaId,
+                now: DateTime.utc(2026, 10, 11, 20, 35),
+                cancelToken: CancelToken(),
+              )
+              .last;
+      return [
+        for (final m in detail.otherCompetitions)
+          '${m.match.id} ${m.competitionName} · ${m.stageLabel}',
+      ];
+    }
+
+    expect(
+      await others(TeamPointers(next: next, last: last), const [
+        CompetitionCatalog.primeraDivision,
+      ]),
+      ['2606044 Copa Sudamericana · Próximo partido'],
+    );
+    expect(
+      await others(TeamPointers(next: next, last: last), const [
+        CompetitionCatalog.copaArgentina,
+      ]),
+      [
+        '2606044 Copa Sudamericana · Próximo partido',
+        // Fuera del catálogo el nombre es el de la API (`strLeague`).
+        '2398104 Argentinian Primera Division · Último partido',
+      ],
+    );
+    // El mismo partido como próximo y último (en juego) va una sola vez.
+    expect(
+      await others(TeamPointers(next: next, last: next), const [
+        CompetitionCatalog.primeraDivision,
+      ]),
+      ['2606044 Copa Sudamericana · Próximo partido'],
+    );
+  });
 }

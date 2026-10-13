@@ -7,9 +7,10 @@ import '../../../competitions/domain/services/round_navigator.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 
 /// Completa el índice local de equipos: la primera etapa de cada
-/// competición del catálogo (Primera fecha 1, Nacional fecha 1, Copa 32avos)
-/// trae a todos sus equipos de la temporada. 3 peticiones en frío; ninguna
-/// mientras esas rondas estén vigentes (terminadas: 30 días).
+/// competición del catálogo marcada con `inTeamIndex` (Primera fecha 1,
+/// Nacional fecha 1, Copa 32avos) trae a todos sus equipos de la
+/// temporada. 3 peticiones en frío; ninguna mientras esas rondas estén
+/// vigentes (terminadas: 30 días).
 ///
 /// La temporada es el año argentino. Si su primera etapa todavía no tiene
 /// partidos (p. ej. en enero), se usa la de la temporada anterior.
@@ -29,7 +30,8 @@ class EnsureTeamIndex {
   }) async {
     final season = Season(ArgentinaTime.dayOf(now).year);
     final failures = await Future.wait([
-      for (final d in _catalog) _ensure(d, season, priority),
+      for (final d in _catalog)
+        if (d.inTeamIndex) _ensure(d, season, priority),
     ]);
     return failures.nonNulls.firstOrNull;
   }

@@ -469,20 +469,23 @@ Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso 
   - **Contraste**: Apertura = `lookuptable` (5 filas, posición incluida); Clausura tras la fecha 10 = prensa (El Economista, 22/09/2026): 30 de 30 equipos en posición y puntos. La Tabla Anual oficial no se pudo ver (la página de la LPF carga con JavaScript): queda contrastarla a mano. Evidencia: `docs/evidence/f13_*`.
   - **Peticiones**: Primera 2026 en frío = 16 (fechas 1–16, nunca la ronda 0); en caliente = 0; refresco manual = solo las fechas con partidos sin terminar de ayer y hoy (P0). Tablet: abrir la tabla con todo guardado = 1 (la fecha 11, vencida).
   - Tabla General Anual 2026 y zonas A/B de Apertura y Clausura. Dominio común (`TeamStats`, `StatsAccumulator`, `TieBreaker`, `StandingsTable` con cobertura) y reglas por formato (`StandingsFormat` en el catálogo). Anual: fases regulares de ambos torneos, interzonales incluidos una sola vez, sin playoffs, desempate art. 24.3 (sin enfrentamiento directo). Zonas: art. 9/10 y 15/16 (con enfrentamiento directo). Fair Play y sorteo no se pueden calcular → «posición compartida». La app no define descensos.
-- **Fase 14 — Tablas de Primera Nacional.** ✅ Completada el 12/10/2026; 511 tests verdes; validada en la tablet (app Android release, vertical y horizontal, y Chrome de la tablet). Esperando aprobación para la Fase 15.
+- **Fase 14 — Tablas de Primera Nacional.** ✅ Completada el 12/10/2026; 511 tests verdes; validada en la tablet (app Android release, vertical y horizontal, y Chrome de la tablet). Aprobada por el usuario.
   - **V15 resuelta**: art. 112 del Reglamento General de AFA (texto oficial), puntos 1 a 3 = diferencia de gol, goles a favor, partidos entre los empatados; sin Fair Play ni sorteo. Punto 5 del Boletín 6823: vale también para el primer puesto; descensos con partido de desempate (art. 111). Ver D18.
   - Formato propio `LeagueZones` (zonas A/B de 18; interzonales de las rondas 7 y 25 sumados en la zona); selector «Zona A · Zona B» con la cobertura de las 36 fechas. Final y Reducido: Fase 19.
   - **Contraste**: `lookuptable` (5 filas, con la instantánea del 12/10) y Promedios Info (fecha 33 completa): 34 de 36 iguales; los otros 2 jugaban entre sí en ese momento. Evidencia: `docs/evidence/f14_*`.
   - **Peticiones**: en frío = 36; en caliente = 0; tablet con lo guardado = 0; refresco manual = solo la fecha con un partido en juego.
   - **Corrección en Web**: escudos cruzados al reordenarse la tabla (`TeamBadge` con clave por URL).
-- **Fase 15 — Más competiciones y D8.** Marcas `showInHome`/`inTeamIndex` (Inicio ≤ 12 en frío); entradas nuevas validadas; «Otras competiciones (información parcial)» en la ficha.
+- **Fase 15 — Más competiciones y D8.** ✅ Completada el 12/10/2026; 537 tests verdes; validada en la tablet (app Android release, vertical y horizontal, y Chrome de la tablet). Esperando aprobación para la Fase 16.
+  - **T15.1** Marcas `showInHome`/`inTeamIndex` en el catálogo. Primera B Metropolitana (5215, 42 fechas en 2026) y Primera C (5524) entran sin las dos marcas y sin tabla; Federal A afuera (V8). Inicio = 12 en frío con el catálogo de 5; índice = 3. Selector de competición con chips en una fila con desplazamiento.
+  - **T15.2** D8: `getTeamPointers` (`eventsnext` + `eventslast`, 2 peticiones, TTL 30 min, store `team_pointers`) y la sección «Otras competiciones (información parcial)» en la ficha (sin detalle). **Boca en frío = 27**, en caliente 0.
+  - Grabaciones nuevas: B Metro r40, r42, r43 (vacía) y r1 2025; Primera C r33 (vacía) y r1 2025 (ver API, «Hallazgos de la Fase 15»).
 - **Fase 16 — Ajustes, tema, aviso de espera (tope 25/min) y escudos en disco (Android).**
 - **Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo (D11).**
 - **Fase 18 — Calendario mensual.**
 - **Fase 19 (nov–dic 2026)** — Reducido y final de Nacional, playoffs del Clausura (V3), final de Copa 2026, «Avanza X», cuadro de llaves; zonas y reglamento 2027.
 
 Backlog original (antes del Hito C v3):
-Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · Otras competiciones del equipo (D8) · Auto-refresco con partidos en vivo (D11) · Selector manual de tema · Caché de escudos en disco (Android) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · Más competiciones (5215, 5523, 5524).
+Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · Auto-refresco con partidos en vivo (D11) · Selector manual de tema · Caché de escudos en disco (Android) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · Compartir partido · Agregar al calendario · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
 
 ---
 
@@ -514,7 +517,7 @@ Copa: final (V2), «Avanza X» tras penales, cuadro de llaves · Nacional: Reduc
 | D5 | Horarios ambiguos | **Ajustada**: regla conservadora confirmed/tentative/unknown; `00:00` sin corroboración → «Horario por confirmar» |
 | D6 | Fases de Primera | **Ajustada**: catálogo por temporada desde datos reales; inferencia solo con evidencia limpia; si no, `undetermined` |
 | D7 | Zonas de Nacional | (a) sin zonas en MVP — recomendada · (b) mapeo manual post-MVP |
-| D8 | Otras competiciones del equipo | post-MVP como «información parcial» |
+| D8 | Otras competiciones del equipo | post-MVP como «información parcial» (implementada en la Fase 15) |
 | D9 | Sincronización | **Ajustada**: `SyncScheduler` incremental, priorizado, cancelable, reanudable, con cupos |
 | D10 | Temporadas | actual y anterior (`YYYY`) |
 | D11 | En juego | estado + «actualizado hh:mm», refresco manual; auto-refresco post-MVP |

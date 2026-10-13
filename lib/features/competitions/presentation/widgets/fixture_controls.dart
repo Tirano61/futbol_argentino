@@ -17,6 +17,9 @@ class FixtureSelectors extends StatelessWidget {
 
   final CompetitionFixtureState state;
 
+  /// Fila de chips de competición (para los tests).
+  static const competitionSelectorKey = ValueKey('competition-selector');
+
   /// En la vista «Tabla» no se elige fase.
   final bool showPhaseSelector;
 
@@ -31,21 +34,27 @@ class FixtureSelectors extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentedButton<int>(
-          segments: [
-            for (final c in CompetitionCatalog.all)
-              ButtonSegment(
-                value: c.id,
-                label: Text(c.shortName),
-                tooltip: c.name,
-              ),
-          ],
-          selected: {if (definition != null) definition.id},
-          emptySelectionAllowed: true,
-          showSelectedIcon: false,
-          onSelectionChanged: (ids) {
-            if (ids.isNotEmpty) bloc.add(FixtureCompetitionChanged(ids.first));
-          },
+        // Chips en una fila con desplazamiento: con 5 competiciones no
+        // entran a 360 px, y bajar de renglón le quita alto al fixture
+        // (texto al 200 %).
+        SingleChildScrollView(
+          key: competitionSelectorKey,
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            spacing: 8,
+            children: [
+              for (final c in CompetitionCatalog.all)
+                ChoiceChip(
+                  label: Text(c.shortName),
+                  tooltip: c.name,
+                  showCheckmark: false,
+                  selected: c.id == definition?.id,
+                  onSelected: (selected) {
+                    if (selected) bloc.add(FixtureCompetitionChanged(c.id));
+                  },
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(

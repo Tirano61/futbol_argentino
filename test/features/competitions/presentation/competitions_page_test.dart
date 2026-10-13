@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/phase.dart';
@@ -138,7 +139,11 @@ void main() {
 
     expect(find.text('Cuartos de final'), findsOneWidget);
     expect(find.byType(MatchCard), findsNWidgets(4));
-    expect(find.byType(ChoiceChip), findsNothing);
+    // Solo los chips de competición: sin selector de fase.
+    expect(
+      find.byType(ChoiceChip),
+      findsNWidgets(CompetitionCatalog.all.length),
+    );
   });
 
   testWidgets('etapa sin partidos: mensaje informativo', (tester) async {

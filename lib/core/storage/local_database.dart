@@ -44,6 +44,11 @@ abstract final class AppStores {
   /// Próximo/último partido por `idLeague`.
   static final schedulePointers = intMapStoreFactory.store('schedule_pointers');
 
+  /// Próximo/último partido de un equipo por `idTeam`, de cualquier
+  /// competición (`eventsnext` / `eventslast`, D8). Aparte de `events`: no
+  /// alimentan fixtures ni el índice de equipos.
+  static final teamPointers = intMapStoreFactory.store('team_pointers');
+
   /// Metadatos de consultas por clave (`round:4406:2026:12`…).
   static final queryMeta = stringMapStoreFactory.store('query_meta');
 

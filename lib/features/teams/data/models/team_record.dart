@@ -1,4 +1,6 @@
+import '../../../matches/data/models/match_record.dart';
 import '../../domain/entities/team.dart';
+import '../../domain/entities/team_pointers.dart';
 
 /// Forma en que se guarda un [Team] en la base local (store `teams`).
 abstract final class TeamRecord {
@@ -28,4 +30,21 @@ abstract final class TeamRecord {
       for (final id in map['leagueIds']! as List<Object?>) id! as int,
     ],
   );
+}
+
+/// Forma en que se guardan los [TeamPointers] (store `team_pointers`).
+abstract final class TeamPointersRecord {
+  static Map<String, Object?> toMap(TeamPointers p) => {
+    'next': p.next == null ? null : MatchRecord.toMap(p.next!),
+    'last': p.last == null ? null : MatchRecord.toMap(p.last!),
+  };
+
+  static TeamPointers fromMap(Map<String, Object?> map) {
+    final next = map['next'] as Map<String, Object?>?;
+    final last = map['last'] as Map<String, Object?>?;
+    return TeamPointers(
+      next: next == null ? null : MatchRecord.fromMap(next),
+      last: last == null ? null : MatchRecord.fromMap(last),
+    );
+  }
 }

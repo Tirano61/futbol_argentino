@@ -31,12 +31,13 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 
 ## Datos clave de TheSportsDB
 - Base: `https://www.thesportsdb.com/api/v1/json/123/` (clave en `--dart-define=TSDB_API_KEY`, por defecto `123`).
-- Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`.
+- Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`, Primera B Metropolitana `5215`, Primera C `5524`. Federal A (`5523`) no entra sin un relevamiento propio (V8).
+- Marcas del catálogo: `showInHome` (Inicio) e `inTeamIndex` (bootstrap del índice). B Metro y Primera C van sin las dos y sin tabla (`NoStandings`).
 - Límite: 30 peticiones/minuto (HTTP 429). Sin paginación. Fuente principal: `eventsround.php?id=&r=&s=`.
 - Primera: cada `r` (1..16) trae **Apertura y Clausura juntos**; `r=0` = eliminatorias; `r=16` incluye octavos. La fase se resuelve con el catálogo por temporada (`PhaseResolver`); si no hay evidencia → `undetermined`.
 - Copa: rondas `64, 32, 16, 125 (cuartos), 150 (semis), 200 (final)` (V2 validada con la final 2025).
-- Inicio (`GetHomeFeed`): por competición, punteros + ≤ 2 rondas (último partido + etapa siguiente) → ≤ 12 peticiones en frío, 0 en caliente. No agregar consultas al Inicio sin revisar ese presupuesto (test `home_request_budget_test.dart`).
-- Equipos: índice local derivado de los partidos guardados + bootstrap de la primera etapa de cada competición (3 peticiones). Ficha: `lookupteam` + rondas de la temporada con P2 (Boca en frío = 25 peticiones, en caliente 0; test `team_detail_sync_test.dart`).
+- Inicio (`GetHomeFeed`): por competición con `showInHome`, punteros + ≤ 2 rondas (último partido + etapa siguiente) → ≤ 12 peticiones en frío, 0 en caliente. No agregar consultas ni competiciones al Inicio sin revisar ese presupuesto (test `home_request_budget_test.dart`).
+- Equipos: índice local derivado de los partidos guardados + bootstrap de la primera etapa de cada competición con `inTeamIndex` (3 peticiones). Ficha: `lookupteam` + punteros del equipo (`eventsnext`/`eventslast`, TTL 30 min, store `team_pointers`; D8) + rondas de la temporada con P2 (Boca en frío = 27 peticiones, en caliente 0; test `team_detail_sync_test.dart`). Los punteros de competiciones fuera del catálogo se muestran en «Otras competiciones (información parcial)», sin detalle; nunca se guardan en `events`.
 - Favoritos: solo locales (store `favorites`, `FavoritesBloc` global). «Tus equipos» del Inicio lee lo guardado: 0 peticiones (tests `watch_favorite_teams_test.dart`, `home_page_test.dart`).
 - Historial (`CompleteRounds`, P2): nunca pide lo vigente; las rondas cerradas y las de temporadas anteriores terminadas no se vuelven a pedir salvo refresco manual. Primera 2026 completa = 17 (fechas 1–16 + ronda 0), Nacional 36, Copa 6; en caliente 0 (test `complete_rounds_test.dart`).
 - Datos guardados (`/ajustes`): borrado manual por temporada; la actual no se puede borrar; favoritos intactos. Sin purga automática de temporadas; la de `removed` verificados está pospuesta (falta la verificación con `lookupevent`).

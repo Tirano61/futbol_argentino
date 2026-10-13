@@ -30,7 +30,7 @@ void main() {
     Map<int, Failure> failures = const {},
   }) => FakeCompetitionRepository(
     pointersById: {
-      for (final d in CompetitionCatalog.all) d.id: recordedPointers(d.id),
+      for (final d in homeCompetitions) d.id: recordedPointers(d.id),
     },
     failuresById: failures,
   );

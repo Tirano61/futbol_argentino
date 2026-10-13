@@ -5,6 +5,7 @@ import 'package:futbol_argentino/core/network/rate_limiter.dart';
 import 'package:futbol_argentino/core/network/thesportsdb_client.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/competitions/data/datasources/competition_remote_data_source.dart';
+import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/data/repositories/competition_repository_impl.dart';
 import 'package:futbol_argentino/features/home/domain/usecases/get_home_feed.dart';
 import 'package:futbol_argentino/features/matches/data/datasources/match_local_data_source.dart';
@@ -19,6 +20,8 @@ import '../../helpers/fixtures.dart';
 
 /// Aceptación de la Fase 6: Inicio en frío ≤ 12 peticiones; en caliente,
 /// ninguna dentro de la vigencia. Repositorios reales, respuestas grabadas.
+/// Fase 15: con el catálogo completo (5 competiciones) solo entran las
+/// marcadas con `showInHome`.
 void main() {
   late FakeClock clock;
   late Database db;
@@ -85,6 +88,13 @@ void main() {
     );
     expect(feed.todayMatches, isNotEmpty);
     expect(feed.failedCompetitions, isEmpty);
+    // B Metro y Primera C están en el catálogo pero no en el Inicio.
+    expect(CompetitionCatalog.all, hasLength(5));
+    expect(
+      {for (final u in requests) u.queryParameters['id']},
+      {'4406', '4616', '4500'},
+    );
+    expect(feed.competitions.map((c) => c.competition.id), [4406, 4616, 4500]);
   });
 
   test('en caliente, dentro de la vigencia: 0 peticiones', () async {

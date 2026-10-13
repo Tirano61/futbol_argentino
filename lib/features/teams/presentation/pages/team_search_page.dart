@@ -137,6 +137,12 @@ class _TeamSearchViewState extends State<_TeamSearchView> {
   }
 }
 
+/// Competiciones cuyos equipos se bajan siempre para el índice.
+final _indexedCompetitions = [
+  for (final c in CompetitionCatalog.all)
+    if (c.inTeamIndex) c.name,
+].join(', ');
+
 class _Results extends StatelessWidget {
   const _Results({required this.state});
 
@@ -152,8 +158,8 @@ class _Results extends StatelessWidget {
         icon: Icons.shield_outlined,
         title: 'Buscá un equipo',
         message: state.indexSize > 0
-            ? 'Hay ${state.indexSize} equipos de '
-                  '${CompetitionCatalog.all.map((c) => c.name).join(', ')}. '
+            ? 'Hay ${state.indexSize} equipos guardados de '
+                  '$_indexedCompetitions y de los fixtures que abriste. '
                   'Probá con «river» o «gimnasia».'
             : 'Escribí el nombre del equipo, por ejemplo «river».',
       ),
@@ -198,7 +204,7 @@ class _TeamTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // En el orden del catálogo: Primera, Nacional, Copa.
+    // En el orden del catálogo: Primera, Nacional, Copa, B Metro, C.
     final competitions = [
       for (final c in CompetitionCatalog.all)
         if (team.competitionIds.contains(c.id)) c.name,
