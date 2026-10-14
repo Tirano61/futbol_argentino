@@ -140,6 +140,11 @@ abstract final class RoundMergePolicy {
       kickoff: kickoff,
       status: incoming.status,
       score: incoming.score ?? (_keepsScore(incoming) ? existing.score : null),
+      penalties:
+          incoming.penalties ??
+          (incoming.status.decidedBy == MatchDecision.penalties
+              ? existing.penalties
+              : null),
       venue: incoming.venue ?? existing.venue,
       thumbUrl: incoming.thumbUrl ?? existing.thumbUrl,
       videoUrl: incoming.videoUrl ?? existing.videoUrl,

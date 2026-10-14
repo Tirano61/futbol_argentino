@@ -84,6 +84,29 @@ void main() {
       await pumpCard(tester, pen);
 
       expect(find.text('Final (penales)'), findsOneWidget);
+      // Argentinos 1-1 Belgrano, 3-4 en penales (semifinal del Apertura).
+      expect(find.text('(3-4 pen.)'), findsOne);
+      expect(find.text('Avanza Belgrano (3-4 en penales)'), findsOne);
+      expect(
+        find.bySemanticsLabel(
+          RegExp('Penales: Argentinos Juniors 3, Belgrano 4'),
+        ),
+        findsOne,
+      );
+    });
+
+    testWidgets('definido por penales sin la tanda: no se inventa quién '
+        'avanzó', (tester) async {
+      final pen = fixtureMatches(
+        'eventsround_4500_r64_s2026',
+      ).firstWhere((m) => m.status.decidedBy == MatchDecision.penalties);
+      expect(pen.penalties, isNull);
+
+      await pumpCard(tester, pen);
+
+      expect(find.text('Final (penales)'), findsOneWidget);
+      expect(find.textContaining('pen.)'), findsNothing);
+      expect(find.textContaining('Avanza'), findsNothing);
     });
 
     testWidgets('no comenzado 3 h después: «Resultado pendiente»', (

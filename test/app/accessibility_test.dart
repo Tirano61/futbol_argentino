@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/bracket_panel.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/calendar_panel.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 
@@ -36,6 +37,12 @@ void main() {
       await expectGuidelines(tester);
       await openView(tester, 'Calendario');
       expect(find.text('Octubre 2026'), findsOne);
+      await expectGuidelines(tester);
+      await selectCompetition(tester, 'Copa');
+      await openView(tester, 'Llaves');
+      await tester.pump(const Duration(minutes: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Desde'), findsOne);
       await expectGuidelines(tester);
 
       await openSection(tester, 'Equipos');
@@ -96,6 +103,26 @@ void main() {
       find.text('Sábado 17/10/2026'),
       200,
       scrollable: calendarList,
+    );
+    await selectCompetition(tester, 'Primera');
+    await openView(tester, 'Llaves');
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    final bracketList = find
+        .descendant(
+          of: find.byType(BracketPanel),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Campeón: Belgrano'),
+      200,
+      scrollable: bracketList,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Semifinales').first,
+      200,
+      scrollable: bracketList,
     );
     await openView(tester, 'Fixture');
 

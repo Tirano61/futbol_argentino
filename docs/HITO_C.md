@@ -222,22 +222,34 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
   - respeta el TTL `live`.
 
 ## Fase 18 — Calendario mensual
-**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 19.
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Aprobada.
 
 `MonthCalendar` (lo guardado, agrupado por día argentino) + `WatchCompetitionCalendar` (que usa `CompleteRounds` solo si se pide). Vista «Calendario» en `CompetitionsPage`.
 
 - Abrir el calendario = 0 peticiones; «Completar» (P2) pide solo las fechas que faltan o vencieron; en caliente 0.
 - `CalendarBloc` (`restartable`, pausa y retomar en handlers propios); vuelve a leer lo guardado cuando el fixture de fondo guarda su etapa.
 
-## Fase 19 (nov–dic 2026)
-- Nacional: Reducido y final por el ascenso.
-- Playoffs del Clausura (V3), final de la Copa 2026, «Avanza X» tras penales, cuadro de llaves.
+## Fase 19 — Fin de temporada (dividida el 13/10/2026)
+Al 13/10 la mayor parte no tiene datos: Nacional termina su fase regular el 31/10, el Clausura sigue en fase regular, la final de la Copa 2026 no está cargada y no hay nada de 2027. Se divide en etapas, cada una con su aprobación.
+
+### Fase 19.1 — Llaves y «Avanza X»
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Esperando aprobación.
+
+- Tanda de penales (`intHomeScoreExtra`/`intAwayScoreExtra`) y «Avanza X» (`TieOutcome`: resultado, tanda o equipo que juega la ronda siguiente).
+- Vista «Llaves» con el cuadro del Apertura 2026 y de la Copa (2025 y 2026) armado con los partidos guardados (`KnockoutBracketBuilder`); Primera en frío = 2 peticiones, Copa = 6, en caliente 0.
+
+### Fase 19.2 (nov–dic 2026)
+- Nacional: Reducido y final por el ascenso (V3: cómo numera la API sus rondas; cuadro en el catálogo).
+- Playoffs del Clausura (V3): ventana de eliminatorias en el catálogo; el cuadro ya los muestra.
+- Final de la Copa 2026.
+
+### Fase 19.3 (cuando la AFA los publique)
 - Mantenimiento: reglamento y zonas de 2027 en el catálogo.
 
 ---
 
 ## Orden definitivo
-**11** Validaciones (incluye zonas con `idTeam`, el registro del reglamento y el formato de Nacional) → **12** Historial, conservación y limpieza manual → **13** Tabla Anual y zonas de Primera → **14** Tablas de Nacional → **15** Competiciones nuevas y D8 → **16** Ajustes, tema, aviso y escudos → **17** Compartir, calendario y en vivo → **18** Calendario mensual → **19** Fin de temporada.
+**11** Validaciones (incluye zonas con `idTeam`, el registro del reglamento y el formato de Nacional) → **12** Historial, conservación y limpieza manual → **13** Tabla Anual y zonas de Primera → **14** Tablas de Nacional → **15** Competiciones nuevas y D8 → **16** Ajustes, tema, aviso y escudos → **17** Compartir, calendario y en vivo → **18** Calendario mensual → **19** Fin de temporada (19.1 llaves y «Avanza X»; 19.2 nov–dic; 19.3 2027).
 
 Las zonas con `idTeam` pasan de la ex Fase 15 a la Fase 11, y su uso a la Fase 13. Las Fases 14 y 15 pueden esperar sus validaciones sin frenar las Fases 16–18.
 

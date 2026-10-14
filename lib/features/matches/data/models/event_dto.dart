@@ -18,6 +18,8 @@ class EventDto {
     required this.strAwayTeamBadge,
     required this.intHomeScore,
     required this.intAwayScore,
+    this.intHomeScoreExtra,
+    this.intAwayScoreExtra,
     required this.strTimestamp,
     required this.dateEvent,
     required this.strTime,
@@ -44,6 +46,8 @@ class EventDto {
     strAwayTeamBadge: _text(json['strAwayTeamBadge']),
     intHomeScore: _int(json['intHomeScore']),
     intAwayScore: _int(json['intAwayScore']),
+    intHomeScoreExtra: _int(json['intHomeScoreExtra']),
+    intAwayScoreExtra: _int(json['intAwayScoreExtra']),
     strTimestamp: _text(json['strTimestamp']),
     dateEvent: _text(json['dateEvent']),
     strTime: _text(json['strTime']),
@@ -69,6 +73,11 @@ class EventDto {
   final String? strAwayTeamBadge;
   final int? intHomeScore;
   final int? intAwayScore;
+
+  /// Goles de la tanda de penales (`PEN`); vacíos en el resto de los
+  /// partidos grabados y en algunos `PEN` (32avos de la Copa 2026).
+  final int? intHomeScoreExtra;
+  final int? intAwayScoreExtra;
   final String? strTimestamp;
   final String? dateEvent;
   final String? strTime;

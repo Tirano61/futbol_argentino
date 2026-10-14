@@ -86,6 +86,25 @@ void main() {
       // Los desbordes de layout fallan el test por sí solos.
     });
 
+    testWidgets('$width px: Llaves sin desbordes', (tester) async {
+      await pumpApp(tester, size);
+      await openSection(tester, 'Competiciones');
+
+      await openView(tester, 'Llaves');
+      await tester.pump(const Duration(minutes: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Campeón: Belgrano'), findsOne);
+
+      await selectCompetition(tester, 'Copa');
+      await tester.pump(const Duration(minutes: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Desde'), findsOne);
+      await tester.tap(find.widgetWithText(ChoiceChip, '32avos de final'));
+      await tester.pumpAndSettle();
+      expect(find.text('16avos de final'), findsWidgets);
+      // Los desbordes de layout fallan el test por sí solos.
+    });
+
     testWidgets('$width px: Ajustes sin desbordes', (tester) async {
       await pumpApp(tester, size);
 

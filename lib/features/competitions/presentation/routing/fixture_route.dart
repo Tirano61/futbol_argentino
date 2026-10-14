@@ -6,13 +6,15 @@ import '../../domain/entities/stage.dart';
 import '../bloc/competition_fixture_bloc.dart';
 
 /// Vista de la pantalla de competiciones.
-enum CompetitionsView { fixture, table, calendar }
+enum CompetitionsView { fixture, table, calendar, bracket }
 
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
 /// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:
 /// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`
 /// (Nacional: `tabla=zona-a`). Calendario:
 /// `/competiciones/4406?temporada=2026&vista=calendario&mes=2026-10`.
+/// Llaves: `/competiciones/4406?temporada=2026&vista=llaves&llave=apertura`
+/// (la Copa, sin `llave`).
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
@@ -51,11 +53,19 @@ abstract final class FixtureRoute {
       switch (query['vista']) {
         'tabla' => CompetitionsView.table,
         'calendario' => CompetitionsView.calendar,
+        'llaves' => CompetitionsView.bracket,
         _ => CompetitionsView.fixture,
       };
 
   /// Tabla elegida (`anual`, `apertura-a`…), si viene en la URL.
   static String? parseTable(Map<String, String> query) => query['tabla'];
+
+  /// Torneo del cuadro de llaves (`apertura`), si viene en la URL.
+  static PhaseKey? parseBracketPhase(Map<String, String> query) => _phaseNames
+      .entries
+      .where((e) => e.value == query['llave'])
+      .firstOrNull
+      ?.key;
 
   /// Mes del calendario (`2026-10`), si viene en la URL y es válido.
   static CalendarMonth? parseMonth(Map<String, String> query) =>
@@ -98,6 +108,19 @@ abstract final class FixtureRoute {
       'mes': ?month?.toString(),
     },
   );
+
+  /// URL del cuadro de llaves (sin [phase], el último torneo con
+  /// eliminatorias).
+  static Uri bracketUri(int competitionId, Season season, PhaseKey? phase) =>
+      Uri(
+        path: '$basePath/$competitionId',
+        queryParameters: {
+          'temporada': season.apiValue,
+          'vista': 'llaves',
+          if (phase != null && phase != PhaseKey.unica)
+            'llave': _phaseNames[phase]!,
+        },
+      );
 
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(

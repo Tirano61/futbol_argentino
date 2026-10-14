@@ -1,4 +1,5 @@
 import '../../domain/entities/match.dart';
+import '../../domain/entities/match_status.dart';
 import '../../domain/entities/score.dart';
 import '../../domain/entities/team_ref.dart';
 import '../../domain/services/kickoff_resolver.dart';
@@ -34,6 +35,12 @@ abstract final class EventMapper {
 
     final home = dto.intHomeScore;
     final away = dto.intAwayScore;
+    final status = MatchStatusMapper.fromApi(
+      dto.strStatus,
+      postponed: dto.strPostponed,
+    );
+    final homePenalties = dto.intHomeScoreExtra;
+    final awayPenalties = dto.intAwayScoreExtra;
     return Match(
       id: id,
       competitionId: competitionId,
@@ -57,12 +64,17 @@ abstract final class EventMapper {
         localTime: dto.strTimeLocal,
         localDate: dto.dateEventLocal,
       ),
-      status: MatchStatusMapper.fromApi(
-        dto.strStatus,
-        postponed: dto.strPostponed,
-      ),
+      status: status,
       score: home != null && away != null
           ? Score(home: home, away: away)
+          : null,
+      // Solo en partidos definidos por penales: en otros torneos de la API
+      // `…ScoreExtra` puede ser otra cosa.
+      penalties:
+          status.decidedBy == MatchDecision.penalties &&
+              homePenalties != null &&
+              awayPenalties != null
+          ? Score(home: homePenalties, away: awayPenalties)
           : null,
       venue: dto.strVenue,
       thumbUrl: dto.strThumb,

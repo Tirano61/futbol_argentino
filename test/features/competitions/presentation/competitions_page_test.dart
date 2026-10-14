@@ -416,6 +416,41 @@ void main() {
       );
     });
 
+    test('URL de las llaves', () {
+      final uri = FixtureRoute.bracketUri(
+        4406,
+        const Season(2026),
+        PhaseKey.clausura,
+      );
+
+      expect(
+        uri.toString(),
+        '/competiciones/4406?temporada=2026&vista=llaves&llave=clausura',
+      );
+      expect(
+        FixtureRoute.parseView(uri.queryParameters),
+        CompetitionsView.bracket,
+      );
+      expect(
+        FixtureRoute.parseBracketPhase(uri.queryParameters),
+        PhaseKey.clausura,
+      );
+      // La Copa (y sin elegir): sin `llave`.
+      expect(
+        FixtureRoute.bracketUri(
+          4500,
+          const Season(2026),
+          PhaseKey.unica,
+        ).toString(),
+        '/competiciones/4500?temporada=2026&vista=llaves',
+      );
+      expect(FixtureRoute.parseBracketPhase(const {'llave': 'x'}), isNull);
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
+        uri,
+      );
+    });
+
     test('valores desconocidos se ignoran', () {
       final event = FixtureRoute.parse(leagueId: '999', query: {'fase': 'x'});
 

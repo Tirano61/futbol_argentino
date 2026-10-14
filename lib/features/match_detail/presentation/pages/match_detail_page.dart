@@ -19,6 +19,7 @@ import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/match_status.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
+import '../../../matches/domain/services/tie_outcome.dart';
 import '../../domain/entities/match_detail.dart';
 import '../../domain/usecases/get_match_detail.dart';
 import '../bloc/match_detail_bloc.dart';
@@ -304,9 +305,21 @@ class _DetailBody extends StatelessWidget {
                       icon: Icons.flag_outlined,
                       label: 'Estado',
                       value: status,
-                      note: m.status.decidedBy == MatchDecision.penalties
+                      note:
+                          m.status.decidedBy == MatchDecision.penalties &&
+                              m.penalties == null
                           ? 'TheSportsDB no informa el resultado de los '
                                 'penales.'
+                          : null,
+                    ),
+                  if (detail.advancement case final outcome?)
+                    _InfoTile(
+                      icon: Icons.check_circle_outline,
+                      label: 'Llave',
+                      value: MatchLabels.advances(outcome, m),
+                      note: outcome.source == TieOutcomeSource.laterMatch
+                          ? 'Según los partidos guardados de la ronda '
+                                'siguiente.'
                           : null,
                     ),
                   if (m.venue case final venue?)
@@ -430,6 +443,13 @@ class _Scoreboard extends StatelessWidget {
                         : null,
                   ),
                 ),
+                if (showScore && match.status.isFinished)
+                  if (MatchLabels.penalties(match) case final shootout?)
+                    Text(
+                      'Penales: $shootout',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleSmall,
+                    ),
                 const SizedBox(height: 6),
                 MatchStatusChip(status: match.status, overdue: overdue),
               ],

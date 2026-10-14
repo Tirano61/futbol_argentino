@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/matches/domain/entities/match.dart';
+import '../../../features/matches/domain/services/tie_outcome.dart';
 import '../formatters/match_labels.dart';
 import 'match_status_chip.dart';
 import 'team_badge.dart';
@@ -32,6 +33,12 @@ class MatchCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final overdue = match.isResultOverdue(now);
+    // Con un empate, quién pasó solo se sabe por la tanda (ver
+    // `TieOutcome`); si se ganó en el partido, el marcador lo dice.
+    final outcome = TieOutcome.of(match);
+    final advances = outcome?.source == TieOutcomeSource.penalties
+        ? MatchLabels.advances(outcome!, match)
+        : null;
 
     return Semantics(
       button: onTap != null,
@@ -81,13 +88,19 @@ class MatchCard extends StatelessWidget {
                   ],
                 ),
                 if (match.wasRescheduled ||
-                    match.membership == MatchMembership.unconfirmed)
+                    match.membership == MatchMembership.unconfirmed ||
+                    advances != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Wrap(
                       alignment: WrapAlignment.center,
                       spacing: 6,
                       children: [
+                        if (advances != null)
+                          _Note(
+                            icon: Icons.check_circle_outline,
+                            text: advances,
+                          ),
                         if (match.wasRescheduled)
                           const _Note(icon: Icons.update, text: 'Reprogramado'),
                         if (match.membership == MatchMembership.unconfirmed)
@@ -178,10 +191,19 @@ class _Center extends StatelessWidget {
       );
     }
 
+    final shootout = showScore && match.status.isFinished
+        ? MatchLabels.penalties(match)
+        : null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         main,
+        if (shootout != null)
+          Text(
+            '($shootout pen.)',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall,
+          ),
         const SizedBox(height: 4),
         MatchStatusChip(status: match.status, overdue: overdue),
       ],
@@ -203,7 +225,9 @@ class _Note extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: style?.color),
         const SizedBox(width: 4),
-        Text(text, style: style),
+        // «Avanza Gimnasia y Esgrima de La Plata (4-2 en penales)» no entra
+        // en un renglón con texto grande.
+        Flexible(child: Text(text, style: style)),
       ],
     );
   }
