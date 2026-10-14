@@ -228,3 +228,11 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 - **Tope**: con todo abierto a la vez (Inicio, fixture con panel y una ficha) son unas pocas consultas cada 2 min, lejos de las 25/min.
 - **Tablet** (13/10, sin partidos en juego): 5 min con el Inicio abierto = 0 consultas. El refresco con partidos en juego reales queda por verificar en el próximo partido (14/10, Sarmiento–River, 19:00).
 - Compartir y agregar al calendario no hacen consultas: usan el partido ya cargado.
+
+## Estado de implementación (Fase 18, 13/10/2026) — Calendario mensual
+
+- **Fuente**: solo los partidos guardados de la temporada (`storedSeason`), agrupados por día argentino. Sin consultas nuevas en la API: el calendario no usa `eventsday` ni otra fuente.
+- **Al abrirse**: 0 peticiones. `CompleteRounds(fetch: false)` informa qué rondas faltan o vencieron (sin red); si hay alguna, la vista lo avisa con «Completar».
+- **A pedido**: «Completar» = `CompleteRounds` con P2 (10/min, de a una, en pausa con la app oculta o la vista sin verse; cancelable). Mismas reglas que el historial: nunca pide una ronda vigente; las cerradas y las de temporadas terminadas no se vuelven a pedir salvo con «Actualizar» (refresco manual, igual que en las tablas).
+- **Presupuesto** (tests con JSON reales del 11/10/2026): Primera 2026 en frío = 17 (fechas 1–16 + ronda 0), Nacional = 36, Copa = 6; en caliente = 0. En la app completa, después del Inicio y del fixture: 15 (las fechas 12 y 13 ya guardadas). Cambiar de competición con el calendario abierto = solo lo que pide el fixture de fondo.
+- **Tablet** (13/10): abrir el calendario de Primera, B Metro, Primera C y Copa = 0 peticiones del calendario; «Actualizar» con todo al día = 0; B Metro «Completar» = 18 (fechas 1–17 y 42), sin repetir.

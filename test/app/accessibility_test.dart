@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/calendar_panel.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 
 import '../helpers/accessibility.dart';
@@ -33,6 +34,9 @@ void main() {
       await openNacionalTable(tester);
       expect(find.text('Posiciones 2026 · Zona A'), findsOne);
       await expectGuidelines(tester);
+      await openView(tester, 'Calendario');
+      expect(find.text('Octubre 2026'), findsOne);
+      await expectGuidelines(tester);
 
       await openSection(tester, 'Equipos');
       await expectGuidelines(tester);
@@ -49,6 +53,7 @@ void main() {
   }
 
   testWidgets('texto al 200 % en un teléfono: sin desbordes', (tester) async {
+    final semantics = tester.ensureSemantics();
     tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await pumpApp(tester, const Size(360, 780));
@@ -72,8 +77,27 @@ void main() {
     expect(find.text('Tabla Anual 2026'), findsWidgets);
     await openNacionalTable(tester);
     expect(find.text('Posiciones 2026 · Zona A'), findsOne);
-    await tester.tap(find.text('Fixture'));
+    await openView(tester, 'Calendario');
+    // Con los selectores, el calendario queda bajo: se desplaza la lista.
+    final calendarList = find
+        .descendant(
+          of: find.byType(CalendarPanel),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    // Nacional (la última elegida): 12 partidos el sábado 17.
+    final saturday = find.bySemanticsLabel('Sábado 17/10/2026: 12 partidos');
+    await tester.scrollUntilVisible(saturday, 200, scrollable: calendarList);
     await tester.pumpAndSettle();
+    expect(find.text('Octubre 2026'), findsOne);
+    await tester.tap(saturday);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Sábado 17/10/2026'),
+      200,
+      scrollable: calendarList,
+    );
+    await openView(tester, 'Fixture');
 
     await openSection(tester, 'Equipos');
     await tester.enterText(find.byType(TextField), 'river');
@@ -94,6 +118,7 @@ void main() {
     await tester.tap(find.byTooltip('Ajustes'));
     await tester.pumpAndSettle();
     expect(find.text('Datos guardados'), findsOne);
+    semantics.dispose();
     // Los desbordes de layout fallan el test por sí solos.
   });
 }

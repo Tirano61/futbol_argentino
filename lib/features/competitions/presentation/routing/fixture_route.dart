@@ -1,3 +1,4 @@
+import '../../../../core/time/calendar_month.dart';
 import '../../domain/catalog/competition_catalog.dart';
 import '../../domain/entities/phase.dart';
 import '../../domain/entities/season.dart';
@@ -5,12 +6,13 @@ import '../../domain/entities/stage.dart';
 import '../bloc/competition_fixture_bloc.dart';
 
 /// Vista de la pantalla de competiciones.
-enum CompetitionsView { fixture, table }
+enum CompetitionsView { fixture, table, calendar }
 
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
 /// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:
 /// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`
-/// (Nacional: `tabla=zona-a`).
+/// (Nacional: `tabla=zona-a`). Calendario:
+/// `/competiciones/4406?temporada=2026&vista=calendario&mes=2026-10`.
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
@@ -46,12 +48,18 @@ abstract final class FixtureRoute {
   }
 
   static CompetitionsView parseView(Map<String, String> query) =>
-      query['vista'] == 'tabla'
-      ? CompetitionsView.table
-      : CompetitionsView.fixture;
+      switch (query['vista']) {
+        'tabla' => CompetitionsView.table,
+        'calendario' => CompetitionsView.calendar,
+        _ => CompetitionsView.fixture,
+      };
 
   /// Tabla elegida (`anual`, `apertura-a`…), si viene en la URL.
   static String? parseTable(Map<String, String> query) => query['tabla'];
+
+  /// Mes del calendario (`2026-10`), si viene en la URL y es válido.
+  static CalendarMonth? parseMonth(Map<String, String> query) =>
+      CalendarMonth.tryParse(query['mes']);
 
   /// URL a reponer cuando el router vuelve a la ubicación del fixture (p. ej.
   /// al volver de un partido o de otra sección): la ubicación del router es
@@ -76,6 +84,20 @@ abstract final class FixtureRoute {
           'tabla': ?tableKey,
         },
       );
+
+  /// URL del calendario (sin [month], el que corresponde a hoy).
+  static Uri calendarUri(
+    int competitionId,
+    Season season,
+    CalendarMonth? month,
+  ) => Uri(
+    path: '$basePath/$competitionId',
+    queryParameters: {
+      'temporada': season.apiValue,
+      'vista': 'calendario',
+      'mes': ?month?.toString(),
+    },
+  );
 
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(

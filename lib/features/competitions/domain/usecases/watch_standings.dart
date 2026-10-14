@@ -3,9 +3,6 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/sync/cancel_token.dart';
 import '../../../../core/sync/sync_progress.dart';
-import '../../../../core/sync/sync_scheduler.dart';
-import '../../../../core/time/argentina_time.dart';
-import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/season.dart';
@@ -15,6 +12,7 @@ import '../standings/standings_table.dart';
 import '../standings/table_builders.dart';
 import '../standings/zone_validator.dart';
 import 'complete_rounds.dart';
+import 'refresh_recent_rounds.dart';
 
 /// Tablas de una competición y temporada a medida que se completan.
 final class StandingsView extends Equatable {
@@ -106,27 +104,19 @@ class WatchStandings {
     var forced = 0;
     Failure? forcedFailure;
     if (forceRefresh) {
-      final rounds = await _roundsToForce(
-        competitionId,
-        season,
-        format.regularRounds,
-        now,
-      );
-      for (final query in rounds) {
-        try {
-          final queried = await _matches.syncRound(
-            query,
-            priority: SyncPriority.visible,
-            forceRefresh: true,
-            cancelToken: cancelToken,
-          );
-          if (queried) forced++;
-        } on SyncCancelled {
-          return;
-        } on Failure catch (failure) {
-          forcedFailure = failure;
-          break;
-        }
+      try {
+        (
+          fetched: forced,
+          failure: forcedFailure,
+        ) = await RefreshRecentRounds(_matches, catalog: _catalog)(
+          competitionId,
+          season,
+          now: now,
+          cancelToken: cancelToken,
+          rounds: format.regularRounds,
+        );
+      } on SyncCancelled {
+        return;
       }
     }
 
@@ -224,39 +214,5 @@ class WatchStandings {
       progress: progress,
       zoneIssues: validation.issues,
     );
-  }
-
-  /// Rondas con partidos guardados sin terminar de ayer o de hoy (o en
-  /// juego).
-  Future<List<RoundQuery>> _roundsToForce(
-    int competitionId,
-    Season season,
-    List<int> rounds,
-    DateTime now,
-  ) async {
-    final today = ArgentinaTime.dayOf(now);
-    bool recent(Match m) {
-      if (m.status.isInPlay) return true;
-      final day = m.kickoff.argentinaDay;
-      return !m.status.isFinished &&
-          day != null &&
-          !day.isBefore(today.addDays(-1)) &&
-          !day.isAfter(today);
-    }
-
-    final stored = await _matches.storedSeason(competitionId, season.apiValue);
-    final definition = _catalog.firstWhere((d) => d.id == competitionId);
-    return [
-      for (final r in {
-        for (final m in stored)
-          if (rounds.contains(m.apiRound) && recent(m)) m.apiRound,
-      })
-        RoundQuery(
-          competitionId: competitionId,
-          season: season.apiValue,
-          apiRound: r,
-          expectedMinimum: definition.expectedMinimumMatches(r),
-        ),
-    ];
   }
 }
