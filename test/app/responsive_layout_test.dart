@@ -65,6 +65,27 @@ void main() {
       // Los desbordes de layout fallan el test por sí solos.
     });
 
+    testWidgets('$width px: Calendario sin desbordes', (tester) async {
+      await pumpApp(tester, size);
+      await openSection(tester, 'Competiciones');
+
+      await openView(tester, 'Calendario');
+      expect(find.text('Octubre 2026'), findsOne);
+      await tester.tap(find.text('Completar'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(minutes: 2));
+      await tester.pumpAndSettle();
+      expect(find.text('Completar'), findsNothing);
+
+      await tester.tap(find.byTooltip('Mes anterior'));
+      await tester.pumpAndSettle();
+      expect(find.text('Septiembre 2026'), findsOne);
+      // Otra competición: vuelve al mes de hoy.
+      await selectCompetition(tester, 'Nacional');
+      expect(find.text('Octubre 2026'), findsOne);
+      // Los desbordes de layout fallan el test por sí solos.
+    });
+
     testWidgets('$width px: Ajustes sin desbordes', (tester) async {
       await pumpApp(tester, size);
 

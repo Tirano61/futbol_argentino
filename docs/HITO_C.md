@@ -212,7 +212,7 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
 - `BadgeImageResolver`: Android usa `CachedNetworkImageProvider`; Web queda igual.
 
 ## Fase 17 — Compartir, agregar al calendario y auto-refresco en vivo
-**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 18.
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Aprobada.
 
 - **Compartir:** texto con las reglas de horario, vía `share_plus`. En Web, si no se puede, se copia al portapapeles.
 - **Calendario:** `IcsBuilder` en Dart puro. Los partidos con hora sin confirmar (`tentative`) se agregan como evento de día completo. Android usa `add_2_calendar`; Web descarga el `.ics`.
@@ -222,7 +222,12 @@ Ajuste aprobado por el usuario: **no se borran temporadas automáticamente**.
   - respeta el TTL `live`.
 
 ## Fase 18 — Calendario mensual
+**Estado:** ✅ completada el 13/10/2026 (ver `docs/PLAN.md`). Esperando aprobación para la Fase 19.
+
 `MonthCalendar` (lo guardado, agrupado por día argentino) + `WatchCompetitionCalendar` (que usa `CompleteRounds` solo si se pide). Vista «Calendario» en `CompetitionsPage`.
+
+- Abrir el calendario = 0 peticiones; «Completar» (P2) pide solo las fechas que faltan o vencieron; en caliente 0.
+- `CalendarBloc` (`restartable`, pausa y retomar en handlers propios); vuelve a leer lo guardado cuando el fixture de fondo guarda su etapa.
 
 ## Fase 19 (nov–dic 2026)
 - Nacional: Reducido y final por el ascenso.

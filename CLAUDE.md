@@ -21,7 +21,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 ## Convenciones de código
 - DDD por features (`lib/features/<feature>/{data,domain,presentation}`), `lib/core`, `lib/shared`, `lib/app`.
 - `flutter_bloc` con `Bloc` y events/states `sealed`. **Prohibido `Cubit`.**
-- Con `restartable`, un evento que solo cancela (p. ej. pausar) va en su propio handler: si pasa por `restartable`, los eventos siguientes esperan a que termine la cancelación de la carga en curso.
+- Con `restartable`, un evento que solo cancela (p. ej. pausar) va en su propio handler: si pasa por `restartable`, los eventos siguientes esperan a que termine la cancelación de la carga en curso. Tampoco reemplazar una carga en curso solo para releer lo guardado (en los widget tests la cola quedó trabada): anotarlo y releer al terminar (`CalendarBloc`).
 - `domain/` es Dart puro: sin imports de `flutter`, `http` ni `sembast`.
 - Sin HTTP en widgets, sin lógica de negocio en presentation, sin DTO/JSON en pantallas.
 - El parsing de JSON vive en los DTO (`fromJson`); mappers DTO → entidad.
@@ -43,6 +43,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Datos guardados (`/ajustes`): borrado manual por temporada; la actual no se puede borrar; favoritos intactos. Sin purga automática de temporadas; la de `removed` verificados está pospuesta (falta la verificación con `lookupevent`).
 - Tablas (`competitions/domain/standings/`, formato en el catálogo con `StandingsFormat`): Primera 2026 = Tabla Anual (art. 24, **sin enfrentamiento directo**) + zonas A/B por torneo (art. 9/10 y 15/16, con enfrentamiento directo); Fair Play y sorteo no se calculan → «posición compartida». La app no define descensos. Solo rondas 1–16 (16 peticiones en frío, 0 en caliente). Nacional 2026 (`LeagueZones`) = una tabla por zona A/B de 18, interzonales incluidos, desempate art. 112 del R.G. puntos 1 a 3 (DG, GF, enfrentamiento directo; **sin Fair Play ni sorteo**); rondas 1–36 (36 en frío, 0 en caliente). Copa y temporadas sin formato verificado: sin tabla.
 - Identificadores: `idEvent` (partidos, deduplicación), `idTeam` (equipos), `idLeague`.
+- Calendario mensual (D20): vista «Calendario» de Competiciones; lee solo lo guardado (0 peticiones al abrirse) y «Completar» usa `CompleteRounds` (P2) solo si se pide. No sumar fuentes ni descargas automáticas sin revisar el presupuesto (`test/app/calendar_budget_test.dart`).
 - En vivo (D11): `MatchGrouping.isLive` (la misma regla que la clase `live` de `RoundCachePolicy`). `LiveAutoRefresh` avisa cada 2 min 5 s solo con la pantalla visible (`TickerMode`), la app en primer plano y partidos en vivo; el aviso (`…LiveTick`) es una carga **sin forzar** (la vigencia decide). No avisar con la pantalla cargando: en un BLoC `restartable` cancelaría la carga. Presupuesto en `test/app/live_refresh_test.dart`.
 - Compartir y calendario: siempre por `ExternalActions` (`core/platform`, inyectado; en tests uno falso). `IcsBuilder` en `core/calendar` (Dart puro). Solo se agenda un partido programado que no empezó; hora sin confirmar → día completo. Android, día completo: de medianoche a medianoche **de Argentina** (Google Calendar toma la zona del dispositivo y el fin exclusivo).
 

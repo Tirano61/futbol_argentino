@@ -1,5 +1,6 @@
 import '../../../core/time/argentina_time.dart';
 import '../../../core/time/calendar_day.dart';
+import '../../../core/time/calendar_month.dart';
 import '../../../features/matches/domain/entities/kickoff.dart';
 import '../../../features/matches/domain/entities/match.dart';
 import '../../../features/matches/domain/entities/match_status.dart';
@@ -16,6 +17,24 @@ abstract final class MatchLabels {
     'Domingo',
   ];
 
+  static const _months = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
+  /// Iniciales de los días, de lunes a domingo (encabezado del calendario).
+  static const weekdayInitials = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
   static const unconfirmedTime = 'Horario por confirmar';
   static const unconfirmedDate = 'Fecha por confirmar';
 
@@ -23,6 +42,10 @@ abstract final class MatchLabels {
   static String day(CalendarDay? day) => day == null
       ? unconfirmedDate
       : '${_weekdays[day.weekday - 1]} ${ArgentinaTime.formatDay(day)}';
+
+  /// «Octubre 2026».
+  static String month(CalendarMonth month) =>
+      '${_months[month.month - 1]} ${month.year}';
 
   /// «17:45» si el horario es confiable; si no, «Horario por confirmar».
   static String kickoffTime(Kickoff kickoff) {

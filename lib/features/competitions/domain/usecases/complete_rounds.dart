@@ -25,6 +25,9 @@ import '../services/round_navigator.dart';
 ///   cerradas o históricas; las vigentes, nunca.
 ///
 /// Un error detiene la descarga: las siguientes fallarían igual.
+///
+/// Con `fetch: false` solo informa lo guardado y qué rondas faltan o
+/// vencieron (una emisión, sin red): el calendario lo usa al abrirse.
 class CompleteRounds {
   const CompleteRounds(
     this._matches, {
@@ -44,6 +47,7 @@ class CompleteRounds {
     required CancelToken cancelToken,
     List<int>? rounds,
     bool forceRefresh = false,
+    bool fetch = true,
   }) async* {
     final definition = _catalog.where((d) => d.id == competitionId).firstOrNull;
     final today = ArgentinaTime.dayOf(now);
@@ -94,10 +98,10 @@ class CompleteRounds {
       SyncProgress(
         done: done,
         total: apiRounds.length,
-        isRunning: toFetch.isNotEmpty,
+        isRunning: fetch && toFetch.isNotEmpty,
       ),
     );
-    if (toFetch.isEmpty) return;
+    if (!fetch || toFetch.isEmpty) return;
 
     for (final r in toFetch) {
       try {

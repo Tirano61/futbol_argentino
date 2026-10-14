@@ -82,11 +82,21 @@ Future<void> openSection(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
+/// Elige una vista de Competiciones («Fixture», «Tabla», «Calendario»).
+/// Con texto grande el selector se desplaza: la opción puede quedar fuera
+/// de la vista.
+Future<void> openView(WidgetTester tester, String label) async {
+  final segment = find.text(label);
+  await tester.ensureVisible(segment);
+  await tester.pumpAndSettle();
+  await tester.tap(segment);
+  await tester.pumpAndSettle();
+}
+
 /// Abre la vista «Tabla» y deja pasar el tiempo que necesita el cupo P2
 /// (10 fechas por minuto) para completar las 16 fechas.
 Future<void> openTable(WidgetTester tester) async {
-  await tester.tap(find.text('Tabla'));
-  await tester.pumpAndSettle();
+  await openView(tester, 'Tabla');
   await tester.pump(const Duration(minutes: 2));
   await tester.pumpAndSettle();
 }

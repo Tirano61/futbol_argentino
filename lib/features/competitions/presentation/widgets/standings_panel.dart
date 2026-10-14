@@ -7,6 +7,7 @@ import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../domain/catalog/competition_catalog.dart';
@@ -132,7 +133,7 @@ class _LoadedView extends StatelessWidget {
           ),
           if (view.zoneIssues.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _Banner(
+            InfoBanner(
               icon: Icons.warning_amber,
               text:
                   'Zonas no verificadas: las tablas por zona no se muestran. '
@@ -196,7 +197,7 @@ class _SyncStatus extends StatelessWidget {
     final (:title, message: _) = failureMessage(failure);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: _Banner(
+      child: InfoBanner(
         icon: Icons.cloud_off,
         text:
             'No se pudieron consultar todas las fechas '
@@ -206,42 +207,6 @@ class _SyncStatus extends StatelessWidget {
             const StandingsRefreshRequested(),
           ),
           child: const Text('Reintentar'),
-        ),
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({required this.icon, required this.text, this.action});
-
-  final IconData icon;
-  final String text;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      liveRegion: true,
-      child: Material(
-        color: colors.tertiaryContainer,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-          child: Row(
-            children: [
-              Icon(icon, color: colors.onTertiaryContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(color: colors.onTertiaryContainer),
-                ),
-              ),
-              ?action,
-            ],
-          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/time/calendar_month.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
@@ -377,6 +378,38 @@ void main() {
       expect(FixtureRoute.parseTable(uri.queryParameters), 'apertura-a');
       expect(FixtureRoute.parseView(const {}), CompetitionsView.fixture);
       // Al volver de un equipo abierto desde la tabla se repone la tabla.
+      expect(
+        FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
+        uri,
+      );
+    });
+
+    test('URL del calendario', () {
+      final uri = FixtureRoute.calendarUri(
+        4406,
+        const Season(2026),
+        const CalendarMonth(2026, 3),
+      );
+
+      expect(
+        uri.toString(),
+        '/competiciones/4406?temporada=2026&vista=calendario&mes=2026-03',
+      );
+      expect(
+        FixtureRoute.parseView(uri.queryParameters),
+        CompetitionsView.calendar,
+      );
+      expect(
+        FixtureRoute.parseMonth(uri.queryParameters),
+        const CalendarMonth(2026, 3),
+      );
+      // Sin mes: el que corresponde a hoy.
+      expect(
+        FixtureRoute.calendarUri(4406, const Season(2026), null).toString(),
+        '/competiciones/4406?temporada=2026&vista=calendario',
+      );
+      expect(FixtureRoute.parseMonth(const {'mes': '2026-13'}), isNull);
+      expect(FixtureRoute.parseMonth(const {}), isNull);
       expect(
         FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
         uri,
