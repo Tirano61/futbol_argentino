@@ -40,6 +40,7 @@ final class Match extends Equatable {
     required this.status,
     required this.lastSeenAt,
     this.score,
+    this.penalties,
     this.venue,
     this.thumbUrl,
     this.videoUrl,
@@ -63,6 +64,9 @@ final class Match extends Equatable {
   final Kickoff kickoff;
   final MatchStatus status;
   final Score? score;
+
+  /// Tanda de penales, si la API la informa (no siempre: ver `docs/API.md`).
+  final Score? penalties;
   final String? venue;
   final String? thumbUrl;
   final String? videoUrl;
@@ -111,6 +115,7 @@ final class Match extends Equatable {
     status: status,
     lastSeenAt: lastSeenAt ?? this.lastSeenAt,
     score: score,
+    penalties: penalties,
     venue: venue,
     thumbUrl: thumbUrl,
     videoUrl: videoUrl,
@@ -131,6 +136,7 @@ final class Match extends Equatable {
     kickoff,
     status,
     score,
+    penalties,
     venue,
     thumbUrl,
     videoUrl,

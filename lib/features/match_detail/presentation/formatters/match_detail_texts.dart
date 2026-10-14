@@ -47,8 +47,10 @@ abstract final class MatchDetailTexts {
     final status = MatchLabels.status(m.status, overdue: overdue);
     final day = m.kickoff.argentinaDay;
 
+    final shootout = m.status.isFinished ? MatchLabels.penalties(m) : null;
     final teams = score != null && (m.status.isFinished || m.status.isInPlay)
         ? '${m.home.name} ${score.home} – ${score.away} ${m.away.name}'
+              '${shootout == null ? '' : ' ($shootout pen.)'}'
         : title(detail);
     final when = m.status.isInPlay
         ? '$status · actualizado a las ${ArgentinaTime.formatTime(fetchedAt)}'

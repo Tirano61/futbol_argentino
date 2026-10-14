@@ -72,6 +72,9 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
                   initialMonth: FixtureRoute.parseMonth(
                     state.uri.queryParameters,
                   ),
+                  initialBracketPhase: FixtureRoute.parseBracketPhase(
+                    state.uri.queryParameters,
+                  ),
                 ),
               ),
               // Ruta hermana (no anidada): un enlace directo no apila la
@@ -91,6 +94,9 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
                     state.uri.queryParameters,
                   ),
                   initialMonth: FixtureRoute.parseMonth(
+                    state.uri.queryParameters,
+                  ),
+                  initialBracketPhase: FixtureRoute.parseBracketPhase(
                     state.uri.queryParameters,
                   ),
                 ),

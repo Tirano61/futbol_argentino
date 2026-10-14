@@ -1,11 +1,15 @@
 import '../../../../core/error/failure.dart';
 import '../../../../core/result/data_result.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
+import '../../../competitions/domain/entities/phase.dart';
+import '../../../competitions/domain/entities/phase_assignment.dart';
 import '../../../competitions/domain/entities/season.dart';
+import '../../../competitions/domain/knockout/knockout_bracket.dart';
 import '../../../competitions/domain/services/phase_resolver.dart';
 import '../../../competitions/domain/services/stage_labeler.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
+import '../../../matches/domain/services/tie_outcome.dart';
 import '../entities/match_detail.dart';
 
 /// Partido + fase y etapa. La fase necesita la ronda completa (consistencia
@@ -37,6 +41,7 @@ class GetMatchDetail {
       apiRound: match.apiRound,
       matches: round,
     )[match.id]!;
+    final advancement = await _advancement(definition, season, match, phase);
 
     return result.map(
       (m) => MatchDetail(
@@ -46,8 +51,49 @@ class GetMatchDetail {
         stageLabel: phase.isDetermined
             ? StageLabeler.label(definition, m.apiRound, phase.stageKind)
             : 'Ronda ${m.apiRound}',
+        advancement: advancement,
       ),
     );
+  }
+
+  /// Quién avanzó en un empate de eliminación: la tanda que informa la API
+  /// o, si no la informa, el cuadro armado con lo guardado (el equipo que
+  /// juega la ronda siguiente). Sin red.
+  Future<TieOutcome?> _advancement(
+    CompetitionDefinition definition,
+    Season season,
+    Match match,
+    PhaseAssignment phase,
+  ) async {
+    final score = match.score;
+    if (!phase.isDetermined ||
+        phase.stageKind != StageKind.knockout ||
+        !match.status.isFinished ||
+        score == null ||
+        score.home != score.away) {
+      return null;
+    }
+    if (TieOutcome.of(match) case final outcome?) return outcome;
+
+    final stored = await _matches.storedSeason(
+      match.competitionId,
+      match.season,
+    );
+    final bracket = KnockoutBracketBuilder.forSeason(
+      definition: definition,
+      season: season,
+      matches: [
+        for (final m in stored)
+          if (m.id != match.id) m,
+        match,
+      ],
+    )[phase.phase];
+    for (final round in bracket?.rounds ?? const <BracketRoundView>[]) {
+      for (final slot in round.slots) {
+        if (slot.match?.id == match.id) return slot.outcome;
+      }
+    }
+    return null;
   }
 
   Future<List<Match>> _roundOf(Match match) async {

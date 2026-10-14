@@ -236,3 +236,11 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 - **A pedido**: «Completar» = `CompleteRounds` con P2 (10/min, de a una, en pausa con la app oculta o la vista sin verse; cancelable). Mismas reglas que el historial: nunca pide una ronda vigente; las cerradas y las de temporadas terminadas no se vuelven a pedir salvo con «Actualizar» (refresco manual, igual que en las tablas).
 - **Presupuesto** (tests con JSON reales del 11/10/2026): Primera 2026 en frío = 17 (fechas 1–16 + ronda 0), Nacional = 36, Copa = 6; en caliente = 0. En la app completa, después del Inicio y del fixture: 15 (las fechas 12 y 13 ya guardadas). Cambiar de competición con el calendario abierto = solo lo que pide el fixture de fondo.
 - **Tablet** (13/10): abrir el calendario de Primera, B Metro, Primera C y Copa = 0 peticiones del calendario; «Actualizar» con todo al día = 0; B Metro «Completar» = 18 (fechas 1–17 y 42), sin repetir.
+
+## Estado de implementación (Fase 19.1, 13/10/2026) — Llaves
+
+- **Fuente**: las rondas de eliminación del catálogo (`bracketRounds`): Primera = 16 y 0; Copa = 64, 32, 16, 125, 150 y 200. Sin consultas nuevas en la API.
+- **Al abrirse**: como la Tabla, `CompleteRounds` (P2) completa las rondas que faltan o vencieron (nunca las vigentes; las cerradas y las de temporadas terminadas, solo con «Actualizar»).
+- **Presupuesto** (tests con JSON reales del 11/10/2026): Primera en frío = 2, Copa = 6, Nacional = 0 (sin cuadro); en caliente = 0. En la app completa, ninguna ronda se pide dos veces en la sesión.
+- **Tanda de penales**: llega con la ronda (no hace falta otra consulta). Los partidos guardados antes de la Fase 19.1 la reciben cuando su ronda vence o al actualizar el partido desde su detalle (1 petición, `lookupevent`).
+- **Tablet** (13/10): abrir las llaves de Primera y Copa = 0 peticiones (ya guardadas); «Actualizar» con las rondas vigentes = 0.

@@ -39,7 +39,7 @@
 
 **Primera Nacional (4616)**: 18 partidos por ronda, sin zonas en eventos; `r=38` vacío; Reducido pendiente.
 
-**Copa Argentina (4500)**: códigos `64` (32 p.), `32` (16), `16` (8), `125` (4), `150` (2), `200` (vacío aún). `PEN` sin goles de penales ni ganador.
+**Copa Argentina (4500)**: códigos `64` (32 p.), `32` (16), `16` (8), `125` (4), `150` (2), `200` (vacío aún). `PEN`: la tanda viene en `intHomeScoreExtra`/`intAwayScoreExtra` (corregido en la Fase 19.1; vacía en los 32avos de 2026).
 
 **Horarios**: `strTimestamp` UTC sin zona (preferido) · `dateEvent`+`strTime` UTC (a veces `HH:mm`) · `strTimeLocal` inconsistente (20:45 UTC → `18:00`; vacío o null) · `dateEventLocal` = fecha local · varios `00:00:00` ambiguos.
 
@@ -51,7 +51,7 @@
 |---|---|---|
 | V1 | Escudos en Flutter Web | ✅ **Resuelto en T0.2 (11/10/2026)**: carga normal bloqueada por CORS en Web; `webHtmlElementStrategy.fallback` funciona (ver «Resultado T0.2») |
 | V2 | Código de la final de Copa (¿200?) | ✅ Resuelto: 200 = Final (final 2025) |
-| V3 | Reducido de Nacional / playoffs del Clausura | nov–dic 2026 |
+| V3 | Reducido de Nacional / playoffs del Clausura | nov–dic 2026 (Fase 19.2) |
 | V4 | Estados no observados (`PST`, `CANC`, `ABD`…) | log de estados desconocidos en debug |
 | V5 | Significado de `00:00:00` UTC | regla conservadora D5 mientras tanto |
 | V6 | Ausencia de tope en `eventsround` | clasificación de calidad de respuesta (§5.3) |
@@ -134,6 +134,12 @@ Grabadas en `test/fixtures/api/` (y una instantánea en `snapshot_20261012/`), r
 - **Primera B Metropolitana 2026** (5215): la fecha 42 tiene 11 partidos (31/10) y la 43 vuelve vacía: 42 fechas = 22 equipos a dos ruedas (cargado en el catálogo). **2025**: la fecha 1 trae 20 partidos (10 de febrero y 10 de junio): ese año mezclaba dos torneos en la numeración, como Primera; queda sin cantidad de fechas.
 - **Primera C 2026** (5524): la fecha 33 vuelve vacía y `eventsnextleague` no devuelve nada aunque la fecha 32 tenía partidos sin terminar. 32 fechas no cierran con 28 equipos todos contra todos: sin cantidad de fechas ni formato hasta investigar el reglamento. **2025**: 26 equipos (13 partidos en la fecha 1).
 - **`strLeague` de los punteros por equipo** viene en inglés para las ligas del catálogo («Argentinian Primera Division») y en español para la Sudamericana («Copa Sudamericana»). La sección «Otras competiciones» usa ese nombre; las del catálogo usan el del catálogo.
+
+### Hallazgos de la Fase 19.1 (13/10/2026, sin grabaciones nuevas)
+- **Tanda de penales**: los partidos `PEN` traen los goles de la tanda en `intHomeScoreExtra` / `intAwayScoreExtra` (texto). En los JSON grabados: **14 de 19** `PEN` la traen (Primera 2026 r16 y r0; Copa 2026 r32, r16 y r125); los 5 de los 32avos de la Copa 2026 (r64) vienen vacíos. En los `AET` y en el resto, vacíos. Se cruzó con la ronda siguiente: siempre avanza el que ganó la tanda (p. ej. Riestra 1-1 Banfield, 6-7 → Banfield en semis). La app solo la toma con estado `PEN`.
+- **Copa 2025**: la API no tiene todas sus rondas (r16 con 4 de 8 partidos, r125 y r150 vacías) y la final (Independiente Rivadavia 2-2 Argentinos, 06/11/2025) figura `FT` sin tanda: no se puede decir quién ganó con los datos.
+- **Ronda 0 de Primera**: cuartos, semifinales y final del Apertura se distinguen por equipo (el primer partido de cada uno en la ronda es de cuartos, el segundo de semis…), sin depender de las fechas.
+- **Copa 2026**: las semifinales grabadas el 11/10 (25/10) ya cambiaron de fecha en la API (la tablet guardó 28/10 y 14/11 el 13/10).
 
 **Primera División 2026 — zonas (V12)**. Fuente: [sorteo AFA](https://www.afa.com.ar/a/posts/se-realizo-el-sorteo-de-la-liga-profesional-2026-ya-se-conocen-los-grupos-del-torneo-apertura-y-torneo-clausura) (consultada el 12/10/2026), `idTeam` de los partidos grabados. Mismas zonas en Apertura y Clausura (art. 14.1.1, verificado con los datos).
 

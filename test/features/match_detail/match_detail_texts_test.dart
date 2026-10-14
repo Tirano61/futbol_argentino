@@ -17,6 +17,7 @@ void main() {
       11: fixtureMatches('eventsround_4406_r11_s2026'),
       33: fixtureMatches('eventsround_4616_r33_s2026'),
       34: fixtureMatches('eventsround_4616_r34_s2026'),
+      0: fixtureMatches('eventsround_4406_r0_s2026'),
     }),
   );
   Future<MatchDetail> detail(int id) async => (await getDetail(id)).data;
@@ -40,6 +41,23 @@ void main() {
         'Estadio Alberto José Armando\n'
         'Horarios de Argentina · Datos de TheSportsDB',
       );
+    });
+
+    test('por penales: con la tanda', () async {
+      final semi = fixtureMatches(
+        'eventsround_4406_r0_s2026',
+      ).singleWhere((m) => m.penalties != null);
+      final text = MatchDetailTexts.share(
+        await detail(semi.id),
+        now: now,
+        fetchedAt: now,
+      );
+
+      expect(text.split('\n').take(3), [
+        'Argentinos Juniors 1 – 1 Belgrano (3-4 pen.)',
+        'Primera División · Apertura · Cuartos, semifinales y final',
+        'Final (penales) · Domingo 17/05/2026',
+      ]);
     });
 
     test('en juego: resultado parcial y hora de los datos', () async {

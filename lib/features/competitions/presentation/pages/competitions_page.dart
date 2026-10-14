@@ -18,21 +18,26 @@ import '../../../match_detail/presentation/pages/match_detail_page.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
+import '../../domain/entities/phase.dart';
 import '../../domain/entities/season.dart';
 import '../../domain/repositories/competition_repository.dart';
 import '../../domain/usecases/resolve_current_stage.dart';
 import '../../domain/usecases/watch_competition_calendar.dart';
+import '../../domain/usecases/watch_knockout_bracket.dart';
 import '../../domain/usecases/watch_stage_matches.dart';
 import '../../domain/usecases/watch_standings.dart';
+import '../bloc/bracket_bloc.dart';
 import '../bloc/calendar_bloc.dart';
 import '../bloc/competition_fixture_bloc.dart';
 import '../bloc/standings_bloc.dart';
 import '../routing/fixture_route.dart';
+import '../widgets/bracket_panel.dart';
 import '../widgets/calendar_panel.dart';
 import '../widgets/fixture_controls.dart';
 import '../widgets/standings_panel.dart';
 
-/// Fixture, tablas y calendario de cualquier competición del catálogo.
+/// Fixture, tablas, calendario y llaves de cualquier competición del
+/// catálogo.
 class CompetitionsPage extends StatelessWidget {
   const CompetitionsPage({
     super.key,
@@ -40,6 +45,7 @@ class CompetitionsPage extends StatelessWidget {
     this.initialView = CompetitionsView.fixture,
     this.initialTable,
     this.initialMonth,
+    this.initialBracketPhase,
   });
 
   /// Selección inicial (de la URL o por defecto).
@@ -51,6 +57,9 @@ class CompetitionsPage extends StatelessWidget {
 
   /// Mes del calendario elegido en la URL.
   final CalendarMonth? initialMonth;
+
+  /// Torneo del cuadro de llaves elegido en la URL.
+  final PhaseKey? initialBracketPhase;
 
   @override
   Widget build(BuildContext context) {
@@ -86,11 +95,19 @@ class CompetitionsPage extends StatelessWidget {
             clock: clock,
           ),
         ),
+        // Se crea al abrir la vista «Llaves».
+        BlocProvider(
+          create: (context) => BracketBloc(
+            watchBracket: WatchKnockoutBracket(context.read<MatchRepository>()),
+            clock: clock,
+          ),
+        ),
       ],
       child: _CompetitionsView(
         initialView: initialView,
         initialTable: initialTable,
         initialMonth: initialMonth,
+        initialBracketPhase: initialBracketPhase,
       ),
     );
   }
@@ -101,11 +118,13 @@ class _CompetitionsView extends StatefulWidget {
     required this.initialView,
     this.initialTable,
     this.initialMonth,
+    this.initialBracketPhase,
   });
 
   final CompetitionsView initialView;
   final String? initialTable;
   final CalendarMonth? initialMonth;
+  final PhaseKey? initialBracketPhase;
 
   @override
   State<_CompetitionsView> createState() => _CompetitionsViewState();
@@ -121,6 +140,9 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   /// Mes del calendario; `null`: el que corresponde a hoy.
   late CalendarMonth? _month = widget.initialMonth;
 
+  /// Torneo del cuadro de llaves; `null`: el último con eliminatorias.
+  late PhaseKey? _bracketPhase = widget.initialBracketPhase;
+
   /// Competición y temporada mostradas (para saber cuándo cambian).
   int? _competitionId;
   Season? _season;
@@ -130,6 +152,9 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
 
   /// Competición y temporada pedidas al `CalendarBloc`.
   (int, Season)? _calendarTarget;
+
+  /// Competición y temporada pedidas al `BracketBloc`.
+  (int, Season)? _bracketTarget;
 
   /// Partido abierto en el panel de detalle (escritorio).
   int? _selectedMatchId;
@@ -163,7 +188,8 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     super.dispose();
   }
 
-  /// Las tablas y el calendario descargan fechas solo mientras se ven.
+  /// Las tablas, el calendario y las llaves descargan fechas solo mientras
+  /// se ven.
   void _onVisibilityChanged() {
     final visible = _visible!.value.enabled;
     switch (_view) {
@@ -174,6 +200,10 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
       case CompetitionsView.calendar:
         context.read<CalendarBloc>().add(
           visible ? const CalendarResumed() : const CalendarPaused(),
+        );
+      case CompetitionsView.bracket:
+        context.read<BracketBloc>().add(
+          visible ? const BracketResumed() : const BracketPaused(),
         );
       case CompetitionsView.fixture:
     }
@@ -211,6 +241,22 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     }
   }
 
+  /// Pide las llaves de la competición y temporada elegidas (o sigue la
+  /// descarga si son las mismas).
+  void _loadBracket(CompetitionFixtureState fixture) {
+    final definition = fixture.definition;
+    final season = fixture.season;
+    if (definition == null || season == null) return;
+    final target = (definition.id, season);
+    final bloc = context.read<BracketBloc>();
+    if (target == _bracketTarget) {
+      bloc.add(const BracketResumed());
+    } else {
+      _bracketTarget = target;
+      bloc.add(BracketStarted(competitionId: definition.id, season: season));
+    }
+  }
+
   void _showView(CompetitionsView view) {
     if (view == _view) return;
     setState(() => _view = view);
@@ -220,6 +266,8 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         _loadStandings(fixture);
       case CompetitionsView.calendar:
         _loadCalendar(fixture);
+      case CompetitionsView.bracket:
+        _loadBracket(fixture);
       case CompetitionsView.fixture:
     }
     if (view != CompetitionsView.table) {
@@ -228,7 +276,15 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     if (view != CompetitionsView.calendar) {
       context.read<CalendarBloc>().add(const CalendarPaused());
     }
+    if (view != CompetitionsView.bracket) {
+      context.read<BracketBloc>().add(const BracketPaused());
+    }
     _updateUrl(fixture);
+  }
+
+  void _selectBracketPhase(PhaseKey phase) {
+    setState(() => _bracketPhase = phase);
+    _updateUrl(context.read<CompetitionFixtureBloc>().state);
   }
 
   void _selectMonth(CalendarMonth month) {
@@ -250,9 +306,19 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     final definition = fixture.definition;
     final season = fixture.season;
     if (definition == null || season == null) return null;
-    return _view == CompetitionsView.table
-        ? FixtureRoute.tableUri(definition.id, season, _tableKey)
-        : FixtureRoute.calendarUri(definition.id, season, _month);
+    return switch (_view) {
+      CompetitionsView.table => FixtureRoute.tableUri(
+        definition.id,
+        season,
+        _tableKey,
+      ),
+      CompetitionsView.bracket => FixtureRoute.bracketUri(
+        definition.id,
+        season,
+        _bracketPhase,
+      ),
+      _ => FixtureRoute.calendarUri(definition.id, season, _month),
+    };
   }
 
   /// En Web, la URL refleja lo que se ve para poder compartirla. Se
@@ -297,6 +363,9 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     final calendarBusy = context.select<CalendarBloc, bool>(
       (bloc) => bloc.state.isBusy,
     );
+    final bracketBusy = context.select<BracketBloc, bool>(
+      (bloc) => bloc.state.isBusy,
+    );
     return BlocConsumer<CompetitionFixtureBloc, CompetitionFixtureState>(
       listenWhen: (previous, current) =>
           previous.stage != current.stage ||
@@ -312,7 +381,10 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         // El mes del calendario vale para una competición y temporada.
         final competitionId = state.definition?.id;
         if (_competitionId != null && competitionId != _competitionId) {
-          setState(() => _tableKey = null);
+          setState(() {
+            _tableKey = null;
+            _bracketPhase = null;
+          });
         }
         if ((_competitionId != null && competitionId != _competitionId) ||
             (_season != null && state.season != _season)) {
@@ -325,6 +397,8 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
             _loadStandings(state);
           case CompetitionsView.calendar:
             _loadCalendar(state);
+          case CompetitionsView.bracket:
+            _loadBracket(state);
           case CompetitionsView.fixture:
         }
         _updateUrl(state);
@@ -360,6 +434,14 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
                   month: _month,
                   onMonthChanged: _selectMonth,
                   onRefresh: () => _refreshCalendar(context),
+                ),
+              )
+            else if (_view == CompetitionsView.bracket)
+              Expanded(
+                child: BracketPanel(
+                  phase: _bracketPhase,
+                  onPhaseSelected: _selectBracketPhase,
+                  onRefresh: () => _refreshBracket(context),
                 ),
               )
             else ...[
@@ -401,6 +483,8 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
                     standingsBusy ? null : () => _refreshStandings(context),
                   CompetitionsView.calendar =>
                     calendarBusy ? null : () => _refreshCalendar(context),
+                  CompetitionsView.bracket =>
+                    bracketBusy ? null : () => _refreshBracket(context),
                   CompetitionsView.fixture =>
                     state.stage == null || state.isRefreshing
                         ? null
@@ -450,7 +534,7 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   }
 }
 
-/// «Fixture | Tabla | Calendario».
+/// «Fixture | Tabla | Calendario | Llaves».
 class _ViewSelector extends StatelessWidget {
   const _ViewSelector({required this.view, required this.onChanged});
 
@@ -461,6 +545,7 @@ class _ViewSelector extends StatelessWidget {
     (CompetitionsView.fixture, 'Fixture', Icons.format_list_bulleted),
     (CompetitionsView.table, 'Tabla', Icons.leaderboard_outlined),
     (CompetitionsView.calendar, 'Calendario', Icons.calendar_month_outlined),
+    (CompetitionsView.bracket, 'Llaves', Icons.account_tree_outlined),
   ];
 
   @override
@@ -525,6 +610,19 @@ Future<void> _refreshCalendar(BuildContext context) async {
     ..add(const CalendarRefreshRequested());
   final after = await bloc.stream.firstWhere((s) => !s.isBusy);
   if (after case CalendarLoaded(:final view)
+      when context.mounted &&
+          view.progress.failure == null &&
+          view.progress.fetched == 0) {
+    showAlreadyUpToDate(context);
+  }
+}
+
+/// Actualiza las llaves y, si no hizo falta consultar la red, lo avisa.
+Future<void> _refreshBracket(BuildContext context) async {
+  final bloc = context.read<BracketBloc>()
+    ..add(const BracketRefreshRequested());
+  final after = await bloc.stream.firstWhere((s) => !s.isBusy);
+  if (after case BracketLoaded(:final view)
       when context.mounted &&
           view.progress.failure == null &&
           view.progress.fetched == 0) {

@@ -42,6 +42,9 @@ abstract final class MatchRecord {
       'raw': m.status.raw,
     },
     'score': m.score == null ? null : [m.score!.home, m.score!.away],
+    'penalties': m.penalties == null
+        ? null
+        : [m.penalties!.home, m.penalties!.away],
     'venue': m.venue,
     'thumbUrl': m.thumbUrl,
     'videoUrl': m.videoUrl,
@@ -55,6 +58,8 @@ abstract final class MatchRecord {
     final kickoff = map['kickoff']! as Map<String, Object?>;
     final status = map['status']! as Map<String, Object?>;
     final score = map['score'] as List<Object?>?;
+    // Los guardados antes de la Fase 19.1 no la tienen.
+    final penalties = map['penalties'] as List<Object?>?;
     return Match(
       id: map['id']! as int,
       competitionId: map['competitionId']! as int,
@@ -79,6 +84,9 @@ abstract final class MatchRecord {
       score: score == null
           ? null
           : Score(home: score[0]! as int, away: score[1]! as int),
+      penalties: penalties == null
+          ? null
+          : Score(home: penalties[0]! as int, away: penalties[1]! as int),
       venue: map['venue'] as String?,
       thumbUrl: map['thumbUrl'] as String?,
       videoUrl: map['videoUrl'] as String?,

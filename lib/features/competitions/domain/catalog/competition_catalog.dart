@@ -59,6 +59,26 @@ sealed class CompetitionRules {
   const CompetitionRules();
 }
 
+/// Ronda del cuadro de eliminación directa (a un solo partido).
+///
+/// Una ronda de la API puede tener varias: en Primera, la ronda 0 trae
+/// cuartos, semifinales y final.
+final class BracketRound {
+  const BracketRound({
+    required this.label,
+    required this.apiRound,
+    required this.matches,
+  });
+
+  final String label;
+
+  /// `intRound` de la API.
+  final int apiRound;
+
+  /// Partidos de la ronda: la mitad que en la anterior; la final, 1.
+  final int matches;
+}
+
 /// Liga con dos torneos por temporada que comparten numeración de rondas
 /// (Primera División: Apertura y Clausura).
 final class SplitSeasonLeagueRules extends CompetitionRules {
@@ -71,6 +91,7 @@ final class SplitSeasonLeagueRules extends CompetitionRules {
     required this.knockoutOpeningLabel,
     required this.knockoutLabel,
     required this.windowsBySeason,
+    this.knockoutBracket = const [],
     this.inferenceMinGapDays = 45,
   });
 
@@ -91,6 +112,9 @@ final class SplitSeasonLeagueRules extends CompetitionRules {
 
   /// Ventanas verificadas por temporada (año → torneos).
   final Map<int, List<PhaseWindow>> windowsBySeason;
+
+  /// Cuadro de las eliminatorias de cada torneo, en orden.
+  final List<BracketRound> knockoutBracket;
 
   /// Separación mínima entre torneos para inferir fases sin catálogo.
   final int inferenceMinGapDays;
@@ -178,6 +202,17 @@ final class CompetitionDefinition {
   StandingsFormat standingsFor(Season season) =>
       standingsBySeason[season.year] ?? const NoStandings();
 
+  /// Cuadro de eliminación de cada fase, en orden; vacío si la
+  /// competición no tiene eliminatorias verificadas (Nacional: Fase 19.2).
+  List<BracketRound> get bracketRounds => switch (rules) {
+    SplitSeasonLeagueRules(:final knockoutBracket) => knockoutBracket,
+    SingleTableLeagueRules() => const [],
+    KnockoutCupRules(:final rounds) => [
+      for (final r in rounds)
+        BracketRound(label: r.label, apiRound: r.code, matches: r.matches),
+    ],
+  };
+
   /// Fases que se ofrecen al usuario, en orden.
   List<PhaseKey> get phases => switch (rules) {
     SplitSeasonLeagueRules(:final phases) => phases,
@@ -215,6 +250,14 @@ abstract final class CompetitionCatalog {
       knockoutOpeningRound: 16,
       knockoutOpeningLabel: 'Octavos de final',
       knockoutLabel: 'Cuartos, semifinales y final',
+      // Verificado con el Apertura 2026 (octavos en la ronda 16; cuartos,
+      // semifinales y final en la 0).
+      knockoutBracket: [
+        BracketRound(label: 'Octavos de final', apiRound: 16, matches: 8),
+        BracketRound(label: 'Cuartos de final', apiRound: 0, matches: 4),
+        BracketRound(label: 'Semifinales', apiRound: 0, matches: 2),
+        BracketRound(label: 'Final', apiRound: 0, matches: 1),
+      ],
       windowsBySeason: {
         2025: [
           // La API no tiene las eliminatorias de 2025 (r=0 vacía).
