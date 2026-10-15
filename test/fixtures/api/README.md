@@ -183,3 +183,72 @@ Grabadas en la Fase 15 (13/10/2026 01:26 UTC): fecha siguiente y fin de temporad
 | `eventsround_5215_r1_s2025.json` | `eventsround.php?id=5215&r=1&s=2025` | 200 | `events` = 20 | 2025-02: 10, 2025-06: 10 | 13/10/2026 01:26 UTC | `5e33f103cc19` |
 | `eventsround_5524_r33_s2026.json` | `eventsround.php?id=5524&r=33&s=2026` | 200 | `events` = null |  | 13/10/2026 01:26 UTC | `ac165cc3ca83` |
 | `eventsround_5524_r1_s2025.json` | `eventsround.php?id=5524&r=1&s=2025` | 200 | `events` = 13 | 2025-03: 12, 2025-04: 1 | 13/10/2026 01:26 UTC | `2e343109ddf9` |
+
+## Hito D · Fase D1 (14/10/2026, ~21:40 ART) — Copa Libertadores (4501) y Copa Sudamericana (4724)
+
+Grabadas con `curl` a ~17 consultas por minuto. Temporadas 2025 (completa) y 2026 (semifinales en curso, finales sin cargar: `r=200` vacío).
+
+- Rondas por temporada: ver `docs/API.md` (V16). En 2026 `r=1/2/3` mezclan fases previas (feb–mar) con las fechas 1–3 de grupos (abr–may).
+- `lookuptable_*`: la API responde HTTP 200 con **cuerpo vacío** (no hay tabla para estas copas).
+- `lookupevent_*`: casos testigo: 2399234 (U. Católica–Juventud, `PEN` 3-4 con tanda 3-4), 2405728 (Táchira–The Strongest, `PEN` con tanda), 2600657 (Atlético Mineiro–Santos, `PEN` **sin** tanda), 2478540 (Ind. Rivadavia–Fluminense, `PEN` con tanda), 2453080 (grupo con `strGroup` «A»), 2239192 (`WO`), 2453109 (`AWD`).
+
+| Archivo | Consulta | HTTP | Registros | Meses (dateEvent) | Grabado | SHA-256 (12) |
+|---|---|---|---|---|---|---|
+| `lookupleague_4501.json` | `lookupleague.php?id=4501` | 200 | `leagues` = 1 |  | 15/10/2026 00:38 UTC | `6392552b7b45` |
+| `eventsnextleague_4501.json` | `eventsnextleague.php?id=4501` | 200 | `events` = 1 | 2026-10: 1 | 15/10/2026 00:38 UTC | `d830a53488a8` |
+| `eventspastleague_4501.json` | `eventspastleague.php?id=4501` | 200 | `events` = 1 | 2026-10: 1 | 15/10/2026 00:38 UTC | `17eabbfdb26f` |
+| `eventsnextleague_4724.json` | `eventsnextleague.php?id=4724` | 200 | `events` = 1 | 2026-10: 1 | 15/10/2026 00:38 UTC | `106cd0d13a7d` |
+| `eventspastleague_4724.json` | `eventspastleague.php?id=4724` | 200 | `events` = 1 | 2026-10: 1 | 15/10/2026 00:38 UTC | `7ef4b9e0a719` |
+| `eventsround_4501_r400_s2025.json` | `eventsround.php?id=4501&r=400&s=2025` | 200 | `events` = 30 | 2025-02: 22, 2025-03: 8 | 15/10/2026 00:38 UTC | `450205f52891` |
+| `eventsround_4501_r1_s2025.json` | `eventsround.php?id=4501&r=1&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:38 UTC | `d5cd125c7d05` |
+| `eventsround_4501_r2_s2025.json` | `eventsround.php?id=4501&r=2&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:38 UTC | `ca514ca1acdd` |
+| `eventsround_4501_r3_s2025.json` | `eventsround.php?id=4501&r=3&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:38 UTC | `0d0045f0e6a7` |
+| `eventsround_4501_r4_s2025.json` | `eventsround.php?id=4501&r=4&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:38 UTC | `7eb58c2472cc` |
+| `eventsround_4501_r5_s2025.json` | `eventsround.php?id=4501&r=5&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:38 UTC | `c474a6d2c124` |
+| `eventsround_4501_r6_s2025.json` | `eventsround.php?id=4501&r=6&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:38 UTC | `0956344c92f8` |
+| `eventsround_4501_r16_s2025.json` | `eventsround.php?id=4501&r=16&s=2025` | 200 | `events` = 16 | 2025-08: 16 | 15/10/2026 00:38 UTC | `e903b0437b08` |
+| `eventsround_4501_r125_s2025.json` | `eventsround.php?id=4501&r=125&s=2025` | 200 | `events` = 8 | 2025-09: 8 | 15/10/2026 00:38 UTC | `cac377108ccd` |
+| `eventsround_4501_r150_s2025.json` | `eventsround.php?id=4501&r=150&s=2025` | 200 | `events` = 4 | 2025-10: 4 | 15/10/2026 00:38 UTC | `e807ce1b75bf` |
+| `eventsround_4501_r200_s2025.json` | `eventsround.php?id=4501&r=200&s=2025` | 200 | `events` = 1 | 2025-11: 1 | 15/10/2026 00:39 UTC | `f40fed114f5e` |
+| `eventsround_4501_r1_s2026.json` | `eventsround.php?id=4501&r=1&s=2026` | 200 | `events` = 22 | 2026-02: 6, 2026-04: 16 | 15/10/2026 00:39 UTC | `fe32f0873b2a` |
+| `eventsround_4501_r2_s2026.json` | `eventsround.php?id=4501&r=2&s=2026` | 200 | `events` = 32 | 2026-02: 16, 2026-04: 16 | 15/10/2026 00:39 UTC | `d0c309ccaf2c` |
+| `eventsround_4501_r3_s2026.json` | `eventsround.php?id=4501&r=3&s=2026` | 200 | `events` = 24 | 2026-03: 8, 2026-04: 14, 2026-05: 2 | 15/10/2026 00:39 UTC | `292b9f837e30` |
+| `eventsround_4501_r4_s2026.json` | `eventsround.php?id=4501&r=4&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:39 UTC | `60f042d019a2` |
+| `eventsround_4501_r5_s2026.json` | `eventsround.php?id=4501&r=5&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:39 UTC | `5536a812daae` |
+| `eventsround_4501_r6_s2026.json` | `eventsround.php?id=4501&r=6&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:39 UTC | `9514ab4242e3` |
+| `eventsround_4501_r16_s2026.json` | `eventsround.php?id=4501&r=16&s=2026` | 200 | `events` = 16 | 2026-08: 16 | 15/10/2026 00:39 UTC | `a0a537314ab3` |
+| `eventsround_4501_r125_s2026.json` | `eventsround.php?id=4501&r=125&s=2026` | 200 | `events` = 8 | 2026-09: 8 | 15/10/2026 00:39 UTC | `d3b05f28f3e2` |
+| `eventsround_4501_r150_s2026.json` | `eventsround.php?id=4501&r=150&s=2026` | 200 | `events` = 4 | 2026-10: 4 | 15/10/2026 00:39 UTC | `cd3afa1f07e3` |
+| `eventsround_4501_r200_s2026.json` | `eventsround.php?id=4501&r=200&s=2026` | 200 | `events` = null |  | 15/10/2026 00:39 UTC | `ac165cc3ca83` |
+| `eventsround_4724_r400_s2025.json` | `eventsround.php?id=4724&r=400&s=2025` | 200 | `events` = 16 | 2025-03: 16 | 15/10/2026 00:39 UTC | `22b64460d634` |
+| `eventsround_4724_r1_s2025.json` | `eventsround.php?id=4724&r=1&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:39 UTC | `58cb33dbc679` |
+| `eventsround_4724_r2_s2025.json` | `eventsround.php?id=4724&r=2&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:39 UTC | `ea253c35db66` |
+| `eventsround_4724_r3_s2025.json` | `eventsround.php?id=4724&r=3&s=2025` | 200 | `events` = 16 | 2025-04: 16 | 15/10/2026 00:39 UTC | `1c1571f1842c` |
+| `eventsround_4724_r4_s2025.json` | `eventsround.php?id=4724&r=4&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:40 UTC | `02ee43d229d9` |
+| `eventsround_4724_r5_s2025.json` | `eventsround.php?id=4724&r=5&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:40 UTC | `9a74c2b02137` |
+| `eventsround_4724_r6_s2025.json` | `eventsround.php?id=4724&r=6&s=2025` | 200 | `events` = 16 | 2025-05: 16 | 15/10/2026 00:40 UTC | `b1a2a4dec446` |
+| `eventsround_4724_r160_s2025.json` | `eventsround.php?id=4724&r=160&s=2025` | 200 | `events` = 16 | 2025-07: 16 | 15/10/2026 00:40 UTC | `3ed5215760d8` |
+| `eventsround_4724_r16_s2025.json` | `eventsround.php?id=4724&r=16&s=2025` | 200 | `events` = 16 | 2025-08: 16 | 15/10/2026 00:40 UTC | `7ed73b6b011a` |
+| `eventsround_4724_r125_s2025.json` | `eventsround.php?id=4724&r=125&s=2025` | 200 | `events` = 8 | 2025-09: 8 | 15/10/2026 00:40 UTC | `baecaea75e29` |
+| `eventsround_4724_r150_s2025.json` | `eventsround.php?id=4724&r=150&s=2025` | 200 | `events` = 4 | 2025-10: 4 | 15/10/2026 00:40 UTC | `a463d5533863` |
+| `eventsround_4724_r200_s2025.json` | `eventsround.php?id=4724&r=200&s=2025` | 200 | `events` = 1 | 2025-11: 1 | 15/10/2026 00:40 UTC | `1d1bb769d96f` |
+| `eventsround_4724_r1_s2026.json` | `eventsround.php?id=4724&r=1&s=2026` | 200 | `events` = 32 | 2026-03: 16, 2026-04: 16 | 15/10/2026 00:40 UTC | `8a8e0c30c67c` |
+| `eventsround_4724_r2_s2026.json` | `eventsround.php?id=4724&r=2&s=2026` | 200 | `events` = 16 | 2026-04: 16 | 15/10/2026 00:40 UTC | `98fb672bf00c` |
+| `eventsround_4724_r3_s2026.json` | `eventsround.php?id=4724&r=3&s=2026` | 200 | `events` = 16 | 2026-04: 13, 2026-05: 3 | 15/10/2026 00:40 UTC | `24cd3f061c19` |
+| `eventsround_4724_r4_s2026.json` | `eventsround.php?id=4724&r=4&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:40 UTC | `bf993d58d156` |
+| `eventsround_4724_r5_s2026.json` | `eventsround.php?id=4724&r=5&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:40 UTC | `75ad9cf1d86d` |
+| `eventsround_4724_r6_s2026.json` | `eventsround.php?id=4724&r=6&s=2026` | 200 | `events` = 16 | 2026-05: 16 | 15/10/2026 00:40 UTC | `ef6b872842ce` |
+| `eventsround_4724_r32_s2026.json` | `eventsround.php?id=4724&r=32&s=2026` | 200 | `events` = 16 | 2026-07: 16 | 15/10/2026 00:40 UTC | `3c394aae4307` |
+| `eventsround_4724_r16_s2026.json` | `eventsround.php?id=4724&r=16&s=2026` | 200 | `events` = 16 | 2026-08: 16 | 15/10/2026 00:41 UTC | `f2d5895de86c` |
+| `eventsround_4724_r125_s2026.json` | `eventsround.php?id=4724&r=125&s=2026` | 200 | `events` = 8 | 2026-09: 8 | 15/10/2026 00:41 UTC | `3dd5d5ddb9c6` |
+| `eventsround_4724_r150_s2026.json` | `eventsround.php?id=4724&r=150&s=2026` | 200 | `events` = 4 | 2026-10: 4 | 15/10/2026 00:41 UTC | `bd90998a7dbe` |
+| `eventsround_4724_r200_s2026.json` | `eventsround.php?id=4724&r=200&s=2026` | 200 | `events` = null |  | 15/10/2026 00:41 UTC | `ac165cc3ca83` |
+| `lookuptable_4501_s2026.json` | `lookuptable.php?l=4501&s=2026` | 200 | cuerpo vacío (0 bytes) |  | 15/10/2026 00:41 UTC | `e3b0c44298fc` |
+| `lookuptable_4724_s2026.json` | `lookuptable.php?l=4724&s=2026` | 200 | cuerpo vacío (0 bytes) |  | 15/10/2026 00:41 UTC | `e3b0c44298fc` |
+| `lookupevent_2399234.json` | `lookupevent.php?id=2399234` | 200 | `events` = 1 | 2026-02: 1 | 15/10/2026 00:41 UTC | `7c9b7cd24775` |
+| `lookupevent_2405728.json` | `lookupevent.php?id=2405728` | 200 | `events` = 1 | 2026-02: 1 | 15/10/2026 00:41 UTC | `f14ffc5e8fd0` |
+| `lookupevent_2600657.json` | `lookupevent.php?id=2600657` | 200 | `events` = 1 | 2026-09: 1 | 15/10/2026 00:41 UTC | `aa91a0aeb090` |
+| `lookupevent_2478540.json` | `lookupevent.php?id=2478540` | 200 | `events` = 1 | 2026-08: 1 | 15/10/2026 00:41 UTC | `1378ef0869f0` |
+| `lookupevent_2453080.json` | `lookupevent.php?id=2453080` | 200 | `events` = 1 | 2026-04: 1 | 15/10/2026 00:41 UTC | `8f65f5cd9fe4` |
+| `lookupevent_2239192.json` | `lookupevent.php?id=2239192` | 200 | `events` = 1 | 2025-04: 1 | 15/10/2026 00:41 UTC | `3ebc4b1e8045` |
+| `lookupevent_2453109.json` | `lookupevent.php?id=2453109` | 200 | `events` = 1 | 2026-05: 1 | 15/10/2026 00:42 UTC | `9f521455fd34` |

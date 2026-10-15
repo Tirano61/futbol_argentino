@@ -244,3 +244,24 @@ Límite conocido: si una fecha intermedia entra en la ventana (p. ej. jornada en
 - **Presupuesto** (tests con JSON reales del 11/10/2026): Primera en frío = 2, Copa = 6, Nacional = 0 (sin cuadro); en caliente = 0. En la app completa, ninguna ronda se pide dos veces en la sesión.
 - **Tanda de penales**: llega con la ronda (no hace falta otra consulta). Los partidos guardados antes de la Fase 19.1 la reciben cuando su ronda vence o al actualizar el partido desde su detalle (1 petición, `lookupevent`).
 - **Tablet** (13/10): abrir las llaves de Primera y Copa = 0 peticiones (ya guardadas); «Actualizar» con las rondas vigentes = 0.
+
+## Hito D — Plan de datos de Libertadores y Sudamericana (Fase D1, 14/10/2026)
+
+Relevamiento con datos reales (`docs/API.md`, V16–V21). Nada de esto está implementado todavía: son las reglas y los presupuestos que fijarán los tests de D3–D6.
+
+- **Unidad incremental: la ronda de la API** (`eventsround`), como en las competiciones argentinas. Es la única que existe sin paginación; las etapas que comparten ronda (previas y grupos en 2026) se separan al leer, con las ventanas del catálogo. No se usan `eventsseason` (truncado) ni `lookuptable` (vacío).
+- **Rondas por temporada** (únicas, para «Completar»): Libertadores 2025 = 11 (`400`, `1–6`, `16`, `125`, `150`, `200`), 2026 = 10 (`1–6`, `16`, `125`, `150`, `200`); Sudamericana 2025 = 12 (`400`, `1–6`, `160`, `16`, `125`, `150`, `200`), 2026 = 11 (`1–6`, `32`, `16`, `125`, `150`, `200`).
+- **Calidad de respuesta**: partidos esperados por ronda = suma de sus etapas (Libertadores 2026: `r=1` 22, `r=2` 32, `r=3` 24); menos → `retrySoon`.
+- **Vigencia**: las mismas clases de `RoundCachePolicy`. Una ronda con previas de febrero y grupos de mayo queda `closed` y no se vuelve a pedir.
+- **Presupuestos planificados** (frío / caliente):
+
+| Operación | Frío | Caliente |
+|---|---|---|
+| Abrir el Fixture de una copa (liga + 2 punteros + ronda + siguiente) | ≤ 5 | 0 |
+| Cambiar de categoría | solo la competición elegida | 0 |
+| Tabla de grupos (`r=1–6`) | 6 | 0 |
+| Llaves: Libertadores (`16`, `125`, `150`, `200`) / Sudamericana (+ playoffs) | 4 / 5 | 0 |
+| Calendario «Completar» Libertadores / Sudamericana 2026 (2025) | 10 / 11 (11 / 12) | 0 |
+| Ficha de un equipo, por copa (solo etapas ya empezadas; corte solo con evidencia) | ≤ 10–12 (P2) | 0 |
+| Arranque de búsqueda de equipos extranjeros (bajo demanda) | 2 | 0 |
+| Inicio y «Tus equipos» | +0 | 0 |
