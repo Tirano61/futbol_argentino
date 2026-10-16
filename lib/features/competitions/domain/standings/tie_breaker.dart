@@ -11,6 +11,12 @@ sealed class TieBreakCriterion {
   static const goalDifference = GoalDifferenceCriterion();
   static const goalsFor = GoalsForCriterion();
   static const headToHead = HeadToHeadCriterion();
+
+  /// Enfrentamiento directo sin repetirlo con los que siguen empatados
+  /// (CONMEBOL 2026: «una vez aplicado un criterio, no se regresará a los
+  /// anteriores»).
+  static const headToHeadOnce = HeadToHeadCriterion(reapply: false);
+  static const awayGoalsFor = AwayGoalsForCriterion();
   static const fairPlay = FairPlayCriterion();
   static const drawOfLots = DrawOfLotsCriterion();
 
@@ -35,12 +41,36 @@ final class GoalsForCriterion extends TieBreakCriterion {
 }
 
 /// Partidos entre los empatados: puntos, después diferencia de gol, después
-/// goles a favor; se repite con los que sigan empatados.
+/// goles a favor. Con [reapply] se repite con los que sigan empatados (un
+/// grupo más chico); sin él, pasan al criterio siguiente.
 final class HeadToHeadCriterion extends TieBreakCriterion {
-  const HeadToHeadCriterion();
+  const HeadToHeadCriterion({this.reapply = true});
+
+  final bool reapply;
 
   @override
   String get label => 'partidos entre los empatados';
+}
+
+/// Goles a favor como visitante en todos los partidos de la tabla
+/// (CONMEBOL 2025).
+final class AwayGoalsForCriterion extends TieBreakCriterion {
+  const AwayGoalsForCriterion();
+
+  @override
+  String get label => 'goles a favor como visitante';
+}
+
+/// Criterio del reglamento que la API no permite calcular (tarjetas,
+/// ranking de clubes).
+final class UnavailableCriterion extends TieBreakCriterion {
+  const UnavailableCriterion(this.label);
+
+  @override
+  final String label;
+
+  @override
+  bool get isComputable => false;
 }
 
 /// La API no informa tarjetas: no se puede calcular.
@@ -77,7 +107,7 @@ final class StandingsRow extends Equatable {
   final TeamStats stats;
 
   /// Siguen empatados al llegar a un criterio que la app no puede calcular
-  /// (Fair Play, sorteo) o sin más criterios.
+  /// (Fair Play, tarjetas, sorteo…) o sin más criterios.
   final bool isShared;
 
   @override
@@ -141,9 +171,24 @@ final class TieBreaker {
           for (final g in _splitBy(group, (s) => [s.goalsFor]))
             ..._resolve(g, rest, matches),
         ];
-      case HeadToHeadCriterion():
-        return _headToHead(group, rest, matches);
-      case FairPlayCriterion() || DrawOfLotsCriterion():
+      case HeadToHeadCriterion(:final reapply):
+        return _headToHead(group, rest, matches, reapply: reapply);
+      case AwayGoalsForCriterion():
+        final away = <int, int>{};
+        for (final m in matches) {
+          away.update(
+            m.away.id,
+            (n) => n + m.score!.away,
+            ifAbsent: () => m.score!.away,
+          );
+        }
+        return [
+          for (final g in _splitBy(group, (s) => [away[s.team.id] ?? 0]))
+            ..._resolve(g, rest, matches),
+        ];
+      case FairPlayCriterion() ||
+          DrawOfLotsCriterion() ||
+          UnavailableCriterion():
         return [group];
     }
   }
@@ -151,8 +196,9 @@ final class TieBreaker {
   List<List<TeamStats>> _headToHead(
     List<TeamStats> group,
     List<TieBreakCriterion> rest,
-    List<Match> matches,
-  ) {
+    List<Match> matches, {
+    required bool reapply,
+  }) {
     final ids = {for (final s in group) s.team.id};
     final mini = StatsAccumulator([for (final s in group) s.team])
       ..addAll(
@@ -168,8 +214,14 @@ final class TieBreaker {
     if (blocks.length == 1) return _resolve(group, rest, matches);
     return [
       for (final b in blocks)
-        // Se repite con los que siguen empatados (grupo más chico).
-        ...(b.length > 1 ? _headToHead(b, rest, matches) : [b]),
+        if (b.length == 1)
+          b
+        else if (reapply)
+          // Se repite con los que siguen empatados (grupo más chico).
+          ..._headToHead(b, rest, matches, reapply: true)
+        else
+          // No se vuelve a este criterio: sigue el siguiente.
+          ..._resolve(b, rest, matches),
     ];
   }
 

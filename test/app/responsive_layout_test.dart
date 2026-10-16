@@ -65,6 +65,24 @@ void main() {
       // Los desbordes de layout fallan el test por sí solos.
     });
 
+    testWidgets('$width px: tabla de grupos de una copa sin desbordes', (
+      tester,
+    ) async {
+      await pumpApp(tester, size, now: continentalRecordingTime);
+      await openSection(tester, 'Competiciones');
+      await selectCompetition(tester, 'Libertadores');
+
+      await openTable(tester);
+      expect(find.text('Fase de grupos 2026 · Grupo A'), findsOne);
+      final groupH = find.widgetWithText(ChoiceChip, 'Grupo H');
+      await tester.ensureVisible(groupH);
+      await tester.pumpAndSettle();
+      await tester.tap(groupH);
+      await tester.pumpAndSettle();
+      expect(find.text('Fase de grupos 2026 · Grupo H'), findsOne);
+      // Los desbordes de layout fallan el test por sí solos.
+    });
+
     testWidgets('$width px: Calendario sin desbordes', (tester) async {
       await pumpApp(tester, size);
       await openSection(tester, 'Competiciones');

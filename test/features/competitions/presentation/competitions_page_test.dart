@@ -469,9 +469,9 @@ void main() {
           4500: 'fixture,calendar,bracket',
           5215: 'fixture,calendar',
           5524: 'fixture,calendar',
-          // Tabla en la Fase D4; Llaves en la D5.
-          4501: 'fixture,calendar',
-          4724: 'fixture,calendar',
+          // Tabla desde la Fase D4; Llaves en la D5.
+          4501: 'fixture,table,calendar',
+          4724: 'fixture,table,calendar',
         },
       );
     });

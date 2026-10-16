@@ -59,6 +59,28 @@ void main() {
     });
   }
 
+  testWidgets('tabla de grupos de una copa en un teléfono: pautas y texto '
+      'al 200 % sin desbordes', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpApp(tester, const Size(360, 780), now: continentalRecordingTime);
+    await openSection(tester, 'Competiciones');
+    await selectCompetition(tester, 'Sudamericana');
+    await openTable(tester);
+    expect(find.text('Fase de grupos 2026 · Grupo A'), findsOne);
+    await expectGuidelines(tester);
+
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpAndSettle();
+    final groupH = find.widgetWithText(ChoiceChip, 'Grupo H');
+    await tester.ensureVisible(groupH);
+    await tester.pumpAndSettle();
+    await tester.tap(groupH);
+    await tester.pumpAndSettle();
+    expect(find.text('Fase de grupos 2026 · Grupo H'), findsOne);
+    semantics.dispose();
+  });
+
   testWidgets('texto al 200 % en un teléfono: sin desbordes', (tester) async {
     final semantics = tester.ensureSemantics();
     tester.platformDispatcher.textScaleFactorTestValue = 2;

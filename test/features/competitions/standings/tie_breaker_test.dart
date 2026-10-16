@@ -202,6 +202,96 @@ void main() {
     );
   });
 
+  test('directo una sola vez (CONMEBOL 2026) vs re-aplicado: con un '
+      'triple empate, los dos que siguen empatados pasan al criterio '
+      'siguiente', () {
+    // Entre los tres: 3 pts y DG 0 cada uno; GF Alfa 3, Beta 2, Gama 2 →
+    // Alfa primero. Beta y Gama siguen empatados: Beta le ganó a Gama,
+    // pero Gama tiene mejor diferencia de gol en total.
+    final teams = [
+      stats('Alfa', w: 3, gf: 6, ga: 3),
+      stats('Beta', w: 3, gf: 5, ga: 4),
+      stats('Gama', w: 3, gf: 7, ga: 4),
+    ];
+    final matches = [
+      game('Alfa', 2, 'Beta', 1),
+      game('Gama', 2, 'Alfa', 1),
+      game('Beta', 1, 'Gama', 0),
+    ];
+    const reapplied = TieBreaker([
+      TieBreakCriterion.headToHead,
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+    ]);
+    const once = TieBreaker([
+      TieBreakCriterion.headToHeadOnce,
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+    ]);
+
+    expect(order(reapplied.rank(teams, matches: matches)), [
+      '1 Alfa',
+      '2 Beta',
+      '3 Gama',
+    ]);
+    expect(order(once.rank(teams, matches: matches)), [
+      '1 Alfa',
+      '2 Gama',
+      '3 Beta',
+    ]);
+  });
+
+  test('goles a favor como visitante (CONMEBOL 2025), después criterios no '
+      'calculables', () {
+    const conmebol2025 = TieBreaker([
+      TieBreakCriterion.goalDifference,
+      TieBreakCriterion.goalsFor,
+      TieBreakCriterion.awayGoalsFor,
+      UnavailableCriterion('Ranking de Clubes de CONMEBOL al 16/12/2024'),
+      TieBreakCriterion.drawOfLots,
+    ]);
+    final teams = [
+      stats('Alfa', w: 1, gf: 2, ga: 1),
+      stats('Beta', w: 1, gf: 2, ga: 1),
+    ];
+
+    // Alfa hizo sus 2 goles de visitante; Beta, 1.
+    expect(
+      order(
+        conmebol2025.rank(
+          teams,
+          matches: [game('Zeta', 1, 'Alfa', 2), game('Beta', 1, 'Alfa', 0)],
+        ),
+      ),
+      ['1 Alfa', '2 Beta'],
+    );
+    // Mismos goles de visitante: el ranking y el sorteo no se calculan.
+    expect(
+      order(
+        conmebol2025.rank(
+          teams,
+          matches: [game('Zeta', 1, 'Alfa', 1), game('Zeta', 0, 'Beta', 1)],
+        ),
+      ),
+      ['1= Alfa', '1= Beta'],
+    );
+    expect(
+      StandingsNotes.shared(conmebol2025.criteria),
+      'Posición compartida: se define por Ranking de Clubes de CONMEBOL al '
+      '16/12/2024 o sorteo (no disponible).',
+    );
+    expect(
+      StandingsNotes.shared(const [
+        TieBreakCriterion.headToHeadOnce,
+        UnavailableCriterion('menos tarjetas rojas'),
+        UnavailableCriterion('menos tarjetas amarillas'),
+        TieBreakCriterion.drawOfLots,
+      ]),
+      'Posición compartida: se define por menos tarjetas rojas, menos '
+      'tarjetas amarillas o sorteo (no disponible).',
+    );
+  });
+
   test('StatsAccumulator: cada partido una vez, solo terminados con '
       'resultado', () {
     final played = game('Alfa', 2, 'Beta', 1);

@@ -2,7 +2,7 @@
 
 > **Aprobado por el usuario el 14/10/2026, con ajustes** (corte temprano solo con evidencia, D7 sin depender de las finales 2026, reglamentos oficiales). Se trabaja por fases: tarea por tarea dentro de cada fase y aprobación antes de la siguiente. Sin commits ni PR (los hace el usuario).
 >
-> **Estado:** Fases D1 y D2 terminadas y aprobadas (14 y 15/10/2026). Fase D3 terminada (15/10/2026), esperando aprobación para D4. Resultados en «Resultado de la Fase D1», «… D2» y «… D3» (§10).
+> **Estado:** Fases D1, D2 y D3 terminadas y aprobadas (14 y 15/10/2026). Fase D4 terminada (15/10/2026), esperando aprobación para D5. Resultados en «Resultado de la Fase D1» … «… D4» (§10).
 
 ## Contexto
 La app cubre el fútbol argentino (Primera, Nacional, B Metro, C, Copa Argentina) con fixture, tablas, calendario, llaves, fichas y favoritos sobre la API gratuita de TheSportsDB. El usuario quiere sumar **Copa Libertadores y Copa Sudamericana completas** (no solo los partidos de equipos argentinos) y ordenar el selector de competiciones en **cuatro categorías**. Hoy la Sudamericana solo aparece como «Otras competiciones» en la ficha de un equipo.
@@ -414,6 +414,28 @@ Orden: D1 → D2 → D3 → D4 → D5 → D6 → D7. Al terminar cada fase: `flu
 - **Aceptación**: 8 tablas por copa 2026 que coinciden con las oficiales salvo posiciones compartidas marcadas; «Fechas consultadas X de 6»; `WO`/`AWD` sumados.
 - **Pruebas**: `tie_breaker_test` (con re-aplicación vs sin ella en triple empate; goles de visitante), `table_builders_test` (grupos grabados con `ZoneValidator`, Grupo G Lib 2026), `watch_standings_test`, `standings_view_test`, `standings_budget_test`, regresión de Primera/Nacional.
 - **Resultado**: vista «Tabla» disponible para ambas copas.
+
+#### Resultado de la Fase D4 (15/10/2026)
+1. ✅ `tie_breaker.dart`: `HeadToHeadCriterion(reapply:)` + `TieBreakCriterion.headToHeadOnce` (los que siguen empatados después de la mini tabla pasan al criterio siguiente), `AwayGoalsForCriterion` (goles como visitante en todos los partidos de la tabla) y `UnavailableCriterion(label)` (tarjetas, Ranking CONMEBOL: posición compartida).
+2. ✅ `GroupStage` (`standings_format.dart`): `groups`, `regularRounds` 1–6, `interzonalsPerTeam` 0, `tieBreak`, `pointsArticle`, `tieBreakArticle`, `qualificationNote`, `regulation`; `ZonedStandingsFormat.zoneNoun` («zona»/«grupo»).
+3. ✅ `GroupTableBuilder` (clave `grupo-a`, «Fase de grupos 2026 · Grupo A», chip «Grupo A») sobre `_zoneTable`. `ZoneValidation.invalidZones`: en una fase de grupos se ocultan solo los grupos involucrados; Primera y Nacional siguen con la regla global.
+4. ✅ `WatchStandings`: caso `GroupStage` (cada grupo válido; `StandingsView.zoneNoun`).
+5. ✅ Catálogo: grupos con `idTeam` de las **cuatro** temporadas (Lib/Sud 2025 y 2026, todas con reglamento oficial verificado en D1), generados desde `docs/evidence/d1_grupos_y_etapas.md`. 2025: DG → GF → goles de visitante → Ranking CONMEBOL (no calculable) → sorteo. 2026: directo una sola vez → DG → GF → tarjetas rojas y amarillas (no calculables) → sorteo. Manuales de Clubes citados (2.4.1 puntos; 2.4.2 Lib / 2.4.3 Sud desempates).
+6. ✅ Textos: «Grupos no verificados» (vacío y aviso), «Sin tabla» de una copa internacional sin grupos verificados en la temporada («Todavía no hay grupos verificados…»), nota de clasificación por copa, posición compartida «se define por menos tarjetas rojas, menos tarjetas amarillas o sorteo (no disponible)».
+
+**Verificación con datos reales** (`group_tables_test.dart`): en las 4 temporadas, 96 partidos de grupos (las previas de `r=1–3` 2026 quedan afuera), 0 inconsistencias del validador, `strGroup` coincide con el catálogo en los 16 + 96 × 3 partidos que lo traen, 8 tablas completas de 4 × 6 PJ, y **el orden calculado coincide en los 32 grupos con la etapa que jugó después cada equipo** (octavos / playoffs / afuera), sin posiciones compartidas en la línea de clasificación. Casos de la prensa con la tabla parcial: Grupo D al 30/04 (U. Católica 1.º, Boca 2.º pese a mejor DG) y Grupo G al 05/05 (LDU, Lanús, Mirassol); con la regla 2025 los dos salen distintos; re-aplicar el directo no cambia ninguno (la diferencia se prueba con un triple empate armado en `tie_breaker_test`). `WO` (Lib 2025) y `AWD` (Lib 2026) suman con su resultado.
+
+**Ajustes respecto del plan** (en `DECISIONS.md`): nota de clasificación en cada grupo (texto del formato oficial; la app no marca posiciones); la invalidez por grupo marca los dos grupos de un partido cruzado y el del rival de un equipo sin grupo; el mensaje «Sin tabla» se elige por las reglas (eliminación directa vs. copa internacional), no por `format`.
+
+**Validación**: `flutter analyze` sin issues; `flutter test` **789 verdes** (744 + 45 nuevos). Presupuestos: Tabla de una copa en frío = **6** (fechas 1–6), en caliente **0** (`watch_standings_test`, `standings_budget_test`: Libertadores 6, después Sudamericana 5 del fixture + 6 de la tabla, cada consulta una vez); resto de los presupuestos sin cambios. Layout sin desbordes a 360/768/1280/1920 y pautas + texto al 200 % en 360 px con la tabla de grupos.
+
+**Dispositivos con datos grabados** (TheSportsDB respondía en ~20 s por consulta, por encima del timeout de 15 s: tablet `SOP10X2501001122` con el APK release de `tool/recorded_app`, y Web release grabada en el Chrome de la tablet con `adb reverse`):
+- Android, horizontal 1280: Libertadores → «Tabla» = exactamente 6 consultas (`r=1–6`); Grupo A y Grupo G iguales a D1 (`d4_android_horizontal_grupo_a.png`, `…_grupo_g.png`); Sudamericana desde la Tabla = 5 del fixture + 6 de la tabla; Sudamericana 2025 con su regla (goles de visitante, 2.4.3; `d4_android_sudamericana_2025.png`).
+- Teléfono emulado (400 px, texto al 200 %): sin desbordes; la tabla se alcanza desplazando.
+- Web, vertical 800: el enlace `…/4501?temporada=2026&vista=tabla&tabla=grupo-g` abre el Grupo G (`d4_web_tablet_url_grupo_g.png`); elegir el Grupo D y recargar conserva el Grupo D.
+- APK normal reinstalado y `build/web/fixtures` borrado al terminar.
+
+**Pendientes observados (previos a D4, también en Primera; fuera de alcance)**: en ~400 px con texto al 200 %, los chips de tabla se apilan (8 grupos = 4 renglones; Primera, 5) y la tabla queda debajo de la primera pantalla; el selector de vistas corta «Calendario» (la fila se desplaza). Una fila de chips con desplazamiento en < 600 px, como las fases en D3, lo resolvería. **Pendiente con la API real**: repetir la prueba contra TheSportsDB cuando responda en menos de 15 s.
 
 ### D5 — Series de ida y vuelta y cuadro
 - **Objetivo**: series con global, penales y «Avanza X» con evidencia; árbol Octavos → Final; Playoffs de la Sudamericana.

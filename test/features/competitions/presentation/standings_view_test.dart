@@ -34,6 +34,13 @@ FakeMatchRepository bothLeagues() => FakeMatchRepository({
     1000 + r: fixtureMatches('eventsround_4616_r${r}_s2026'),
 });
 
+/// Rondas reales de Libertadores 2026 (1–6, grabadas el 14/10/2026; las
+/// 1–3 traen también las fases previas).
+FakeMatchRepository libertadoresGroups() => FakeMatchRepository({
+  for (var r = 1; r <= 6; r++)
+    r: fixtureMatches('eventsround_4501_r${r}_s2026'),
+});
+
 Future<FakeMatchRepository> pumpTable(
   WidgetTester tester, {
   int competitionId = 4406,
@@ -55,7 +62,7 @@ Future<FakeMatchRepository> pumpTable(
         RepositoryProvider<CompetitionRepository>.value(
           value: FakeCompetitionRepository(
             pointersById: {
-              for (final id in [4406, 4616])
+              for (final id in [4406, 4616, 4501])
                 id: SchedulePointers(
                   next: fixtureMatches('eventsnextleague_$id').single,
                 ),
@@ -95,6 +102,37 @@ Finder get tableRows => find.descendant(
   of: find.byType(StandingsTableView),
   matching: find.byType(InkWell),
 );
+
+/// Solo el panel, con [catalog] en lugar del de la app.
+Future<void> pumpPanel(
+  WidgetTester tester, {
+  required FakeMatchRepository matches,
+  required List<CompetitionDefinition> catalog,
+  required int competitionId,
+  required Season season,
+}) async {
+  final bloc = StandingsBloc(
+    watchStandings: WatchStandings(matches, catalog: catalog),
+    clock: FixedClock(DateTime.utc(2026, 10, 11, 21)),
+  )..add(StandingsStarted(competitionId: competitionId, season: season));
+  addTearDown(bloc.close);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: BlocProvider.value(
+          value: bloc,
+          child: StandingsPanel(
+            tableKey: null,
+            onTableSelected: (_) {},
+            onRefresh: () async {},
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('Tabla Anual 2026: 30 equipos, cobertura y notas', (
@@ -302,6 +340,98 @@ void main() {
     expect(find.byType(StandingsTableView), findsNothing);
   });
 
+  testWidgets('Libertadores 2026: 8 grupos, la URL elige el grupo, notas '
+      'del Manual de Clubes', (tester) async {
+    await pumpTable(
+      tester,
+      competitionId: 4501,
+      table: 'grupo-g',
+      matches: libertadoresGroups(),
+    );
+
+    expect(find.text('Fase de grupos 2026 · Grupo G'), findsOne);
+    for (final g in 'ABCDEFGH'.split('')) {
+      expect(find.widgetWithText(ChoiceChip, 'Grupo $g'), findsOne);
+    }
+    expect(tableRows, findsNWidgets(4));
+    expect(
+      find.bySemanticsLabel(RegExp(r'^Posición 1: LDU Quito\.')),
+      findsOne,
+    );
+    expect(find.bySemanticsLabel(RegExp(r'^Posición 2: Mirassol\.')), findsOne);
+    expect(
+      find.text('Fechas consultadas 6 de 6 · 12 de 12 partidos sumados'),
+      findsOne,
+    );
+    expect(
+      find.textContaining('menos tarjetas amarillas y sorteo (2.4.2).'),
+      findsOne,
+    );
+    expect(
+      find.textContaining(
+        '(2.4.1 del Manual de Clubes CONMEBOL Libertadores '
+        '2026)',
+      ),
+      findsOne,
+    );
+    expect(find.textContaining('se miran una sola vez'), findsOne);
+    expect(
+      find.textContaining('a los playoffs de octavos de la Copa Sudamericana'),
+      findsOne,
+    );
+
+    await tester.tap(find.text('Grupo D'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fase de grupos 2026 · Grupo D'), findsOne);
+    expect(
+      find.bySemanticsLabel(RegExp(r'^Posición 3: Boca Juniors\.')),
+      findsOne,
+    );
+  });
+
+  testWidgets('copa con un grupo sin verificar: los demás grupos y el '
+      'aviso', (tester) async {
+    await pumpPanel(
+      tester,
+      matches: libertadoresGroups(),
+      catalog: [_libertadoresWithBocaInA()],
+      competitionId: 4501,
+      season: const Season(2026),
+    );
+
+    expect(find.widgetWithText(ChoiceChip, 'Grupo A'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Grupo D'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Grupo B'), findsOne);
+    expect(find.text('Fase de grupos 2026 · Grupo B'), findsOne);
+    expect(
+      find.textContaining(
+        'Grupos no verificados: las tablas de esos grupos no se muestran.',
+      ),
+      findsOne,
+    );
+  });
+
+  testWidgets('copa sin grupos verificados en la temporada: lo dice', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      matches: libertadoresGroups(),
+      catalog: CompetitionCatalog.all,
+      competitionId: 4501,
+      season: const Season(2027),
+    );
+
+    expect(find.text('Sin tabla'), findsOne);
+    expect(
+      find.text(
+        'Todavía no hay grupos verificados con el reglamento de la Copa '
+        'Libertadores 2027.',
+      ),
+      findsOne,
+    );
+  });
+
   testWidgets('actualizar sin consultas a la red avisa «Ya está '
       'actualizado»', (tester) async {
     final matches = primeraRounds()..syncFetches = false;
@@ -343,6 +473,36 @@ CompetitionDefinition _nacionalWithoutFerro() {
         tableArticle: format.tableArticle,
         tieBreakArticle: format.tieBreakArticle,
         relegationNote: format.relegationNote,
+        regulation: format.regulation,
+      ),
+    },
+  );
+}
+
+/// Libertadores 2026 con Boca (Grupo D) pasado al Grupo A en el test: los
+/// partidos de los dos grupos no coinciden con el catálogo.
+CompetitionDefinition _libertadoresWithBocaInA() {
+  const real = CompetitionCatalog.copaLibertadores;
+  final format = real.standingsFor(const Season(2026)) as GroupStage;
+  return CompetitionDefinition(
+    id: real.id,
+    name: real.name,
+    shortName: real.shortName,
+    category: real.category,
+    format: real.format,
+    rules: real.rules,
+    standingsBySeason: {
+      2026: GroupStage(
+        groups: {
+          ...format.groups,
+          'A': {...format.groups['A']!, 135156},
+          'D': {...format.groups['D']!}..remove(135156),
+        },
+        regularRounds: format.regularRounds,
+        tieBreak: format.tieBreak,
+        pointsArticle: format.pointsArticle,
+        tieBreakArticle: format.tieBreakArticle,
+        qualificationNote: format.qualificationNote,
         regulation: format.regulation,
       ),
     },

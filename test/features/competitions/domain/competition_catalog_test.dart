@@ -79,9 +79,9 @@ void main() {
           4500: false,
           5215: false,
           5524: false,
-          // Tablas de grupos en la Fase D4; cuadro en la D5.
-          4501: false,
-          4724: false,
+          // Tablas de grupos desde la Fase D4.
+          4501: true,
+          4724: true,
         },
       );
       expect(
