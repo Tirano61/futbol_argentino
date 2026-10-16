@@ -78,6 +78,53 @@ abstract final class LeagueZoneTableBuilder {
   );
 }
 
+/// Tabla de un grupo de una copa internacional (Manual de Clubes de
+/// CONMEBOL, 2.4).
+///
+/// Filas: los 4 equipos del grupo. Suma sus partidos de la fase de grupos;
+/// las fases previas y las eliminatorias que comparten la ronda de la API
+/// quedan afuera (las separa `PhaseResolver`).
+abstract final class GroupTableBuilder {
+  static String keyFor(String group) => 'grupo-${group.toLowerCase()}';
+
+  static StandingsTable build({
+    required GroupStage format,
+    required Season season,
+    required String group,
+    required RegularSeasonMatches matches,
+    required int roundsQueried,
+  }) {
+    final once = format.tieBreak.any(
+      (c) => c is HeadToHeadCriterion && !c.reapply,
+    );
+    return _zoneTable(
+      key: keyFor(group),
+      title: 'Fase de grupos ${season.year} · Grupo $group',
+      shortTitle: 'Grupo $group',
+      ids: format.groups[group]!,
+      tournamentMatches: matches.byTournament[PhaseKey.groups] ?? const [],
+      tieBreak: format.tieBreak,
+      matches: matches,
+      roundsQueried: roundsQueried,
+      roundsTotal: format.regularRounds.length,
+      rules: [
+        'Puntos de las ${format.regularRounds.length} fechas de la fase de '
+            'grupos: 3 por ganar y 1 por empatar (${format.pointsArticle} '
+            'del ${format.regulation.name}).',
+        StandingsNotes.tieBreak(
+              format.tieBreak,
+              source: format.tieBreakArticle,
+            ) +
+            (once
+                ? ' Los partidos entre los empatados se miran una sola vez: '
+                      'los que siguen empatados pasan al criterio siguiente.'
+                : ''),
+        format.qualificationNote,
+      ],
+    );
+  }
+}
+
 /// Suma los partidos de [tournamentMatches] en los que juega alguno de
 /// [ids] (los de la otra zona incluidos) y ordena la zona con [tieBreak].
 StandingsTable _zoneTable({
@@ -194,11 +241,13 @@ abstract final class StandingsNotes {
     ];
     return missing.isEmpty
         ? 'Posición compartida: el reglamento no define más criterios.'
-        : 'Posición compartida: se define por ${missing.join(' o ')} '
+        : 'Posición compartida: se define por ${_join(missing, 'o')} '
               '(no disponible).';
   }
 
-  static String _join(List<String> items) => items.length < 2
+  static String _join(List<String> items, [String conjunction = 'y']) =>
+      items.length < 2
       ? items.join()
-      : '${items.sublist(0, items.length - 1).join(', ')} y ${items.last}';
+      : '${items.sublist(0, items.length - 1).join(', ')} $conjunction '
+            '${items.last}';
 }

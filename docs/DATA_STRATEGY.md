@@ -259,7 +259,7 @@ Relevamiento con datos reales (`docs/API.md`, V16–V21): las reglas y los presu
 |---|---|---|
 | Abrir el Fixture de una copa (liga + 2 punteros + ronda + siguiente) | ≤ 5 | 0 |
 | Cambiar de categoría | solo la competición elegida | 0 |
-| Tabla de grupos (`r=1–6`) | 6 | 0 |
+| Tabla de grupos (`r=1–6`) — verificado en D4 (`standings_budget_test`) | 6 | 0 |
 | Llaves: Libertadores (`16`, `125`, `150`, `200`) / Sudamericana (+ playoffs) | 4 / 5 | 0 |
 | Calendario «Completar» Libertadores / Sudamericana 2026 (2025) | 10 / 11 (11 / 12) | 0 |
 | Ficha de un equipo, por copa (solo etapas ya empezadas; corte solo con evidencia) | ≤ 10–12 (P2) | 0 |

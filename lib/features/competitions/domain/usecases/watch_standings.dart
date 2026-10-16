@@ -22,6 +22,7 @@ final class StandingsView extends Equatable {
     required this.tables,
     required this.progress,
     this.zoneIssues = const [],
+    this.zoneNoun = 'zona',
     this.hasMatches = true,
   }) : isAvailable = true;
 
@@ -32,6 +33,7 @@ final class StandingsView extends Equatable {
   }) : tables = const [],
        progress = const SyncProgress(isRunning: false),
        zoneIssues = const [],
+       zoneNoun = 'zona',
        hasMatches = false,
        isAvailable = false;
 
@@ -39,13 +41,17 @@ final class StandingsView extends Equatable {
   final Season season;
 
   /// Primera: la anual primero y después las de zona; Nacional: las de
-  /// zona. Las de zona, solo si las zonas se verificaron (si no, puede
-  /// quedar vacía aunque haya partidos).
+  /// zona; copas internacionales: las de grupo. Las de zona, solo si las
+  /// zonas se verificaron (si no, puede quedar vacía aunque haya
+  /// partidos); en las copas, cada grupo por separado.
   final List<StandingsTable> tables;
   final SyncProgress progress;
 
   /// Por qué no hay tablas por zona («zonas no verificadas»).
   final List<String> zoneIssues;
+
+  /// Cómo se llaman las zonas de la competición: «zona» o «grupo».
+  final String zoneNoun;
 
   /// Hay partidos guardados de la fase regular.
   final bool hasMatches;
@@ -63,6 +69,7 @@ final class StandingsView extends Equatable {
     tables,
     progress,
     zoneIssues,
+    zoneNoun,
     hasMatches,
     isAvailable,
   ];
@@ -169,6 +176,7 @@ class WatchStandings {
         season: season,
         tables: const [],
         progress: progress,
+        zoneNoun: format.zoneNoun,
         hasMatches: false,
       );
     }
@@ -210,9 +218,22 @@ class WatchStandings {
                 roundsQueried: queried,
               ),
         ],
+        // Cada grupo por separado: uno que no coincide no tapa a los demás.
+        GroupStage() => [
+          for (final group in format.groups.keys)
+            if (!validation.invalidZones.contains(group))
+              GroupTableBuilder.build(
+                format: format,
+                season: season,
+                group: group,
+                matches: matches,
+                roundsQueried: queried,
+              ),
+        ],
       },
       progress: progress,
       zoneIssues: validation.issues,
+      zoneNoun: format.zoneNoun,
     );
   }
 }

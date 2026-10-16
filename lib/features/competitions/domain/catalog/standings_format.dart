@@ -36,6 +36,9 @@ sealed class ZonedStandingsFormat extends StandingsFormat {
 
   /// Torneos en orden.
   Iterable<PhaseKey> get tournaments => zonesByTournament.keys;
+
+  /// Cómo llama el reglamento a cada zona, en minúscula.
+  String get zoneNoun => 'zona';
 }
 
 /// Liga con dos torneos de zonas y una tabla anual (Primera 2026).
@@ -107,5 +110,49 @@ final class LeagueZones extends ZonedStandingsFormat {
   @override
   Map<PhaseKey, Map<String, Set<int>>> get zonesByTournament => {
     PhaseKey.regular: zones,
+  };
+}
+
+/// Fase de grupos de una copa internacional (Libertadores y Sudamericana):
+/// grupos de 4, todos contra todos a ida y vuelta, sin partidos entre
+/// grupos. Cada grupo se valida por separado: uno que no coincide con los
+/// partidos no tiene tabla, los demás sí.
+final class GroupStage extends ZonedStandingsFormat {
+  const GroupStage({
+    required this.groups,
+    required this.regularRounds,
+    required this.tieBreak,
+    required this.pointsArticle,
+    required this.tieBreakArticle,
+    required this.qualificationNote,
+    required this.regulation,
+  });
+
+  /// Grupo → `idTeam`.
+  final Map<String, Set<int>> groups;
+  @override
+  final List<int> regularRounds;
+  final List<TieBreakCriterion> tieBreak;
+
+  /// Dónde fija el reglamento cómo se suman los puntos.
+  final String pointsArticle;
+
+  /// De dónde salen los criterios de desempate.
+  final String tieBreakArticle;
+
+  /// Quiénes pasan a la etapa siguiente (la app no lo marca en la tabla).
+  final String qualificationNote;
+  @override
+  final RegulationSource regulation;
+
+  @override
+  int get interzonalsPerTeam => 0;
+
+  @override
+  String get zoneNoun => 'grupo';
+
+  @override
+  Map<PhaseKey, Map<String, Set<int>>> get zonesByTournament => {
+    PhaseKey.groups: groups,
   };
 }

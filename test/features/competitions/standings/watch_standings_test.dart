@@ -189,6 +189,98 @@ void main() {
     expect(last.zoneIssues, contains(startsWith('Ferro Carril Oeste tiene')));
   });
 
+  group('copas internacionales (Fase D4, grabaciones del 14/10/2026)', () {
+    setUp(() async {
+      clock = FakeClock(DateTime.utc(2026, 10, 15, 0, 45));
+      api = RecordedApi(
+        clock: clock,
+        db: await newDatabaseFactoryMemory().openDatabase('cups.db'),
+      );
+    });
+
+    test('Libertadores 2026 en frío: 6 peticiones (fechas 1–6 de grupos) y '
+        'las 8 tablas; en caliente 0', () async {
+      final last = await watch(4501, 2026).last;
+
+      expect(api.requestLabels, [
+        for (var r = 1; r <= 6; r++) '4501:r$r:s2026',
+      ]);
+      expect(last.zoneIssues, isEmpty);
+      expect(last.zoneNoun, 'grupo');
+      expect(last.tables.map((t) => t.key), [
+        for (final g in 'abcdefgh'.split('')) 'grupo-$g',
+      ]);
+      expect(last.table('grupo-a')!.coverage.roundsQueried, 6);
+      expect(last.table('grupo-a')!.coverage.roundsTotal, 6);
+
+      api.requests.clear();
+      final hot = await watch(4501, 2026).toList();
+      expect(api.requests, isEmpty);
+      expect(hot.single.tables, hasLength(8));
+    });
+
+    test('Sudamericana 2025: 6 peticiones, otra temporada y otros '
+        'criterios', () async {
+      final last = await watch(4724, 2025).last;
+
+      expect(api.requestLabels, [
+        for (var r = 1; r <= 6; r++) '4724:r$r:s2025',
+      ]);
+      expect(last.tables, hasLength(8));
+      expect(
+        last.table('grupo-a')!.notes[1],
+        contains('goles a favor como visitante'),
+      );
+    });
+
+    test('un grupo que no coincide con los partidos (armado en el test) '
+        'no tiene tabla; los demás sí', () async {
+      const real = CompetitionCatalog.copaLibertadores;
+      final format = real.standingsFor(const Season(2026)) as GroupStage;
+      // Boca (Grupo D) pasado al Grupo A: armado para probar la regla.
+      final wrong = CompetitionDefinition(
+        id: real.id,
+        name: real.name,
+        shortName: real.shortName,
+        category: real.category,
+        format: real.format,
+        rules: real.rules,
+        standingsBySeason: {
+          2026: GroupStage(
+            groups: {
+              ...format.groups,
+              'A': {...format.groups['A']!, 135156},
+              'D': {...format.groups['D']!}..remove(135156),
+            },
+            regularRounds: format.regularRounds,
+            tieBreak: format.tieBreak,
+            pointsArticle: format.pointsArticle,
+            tieBreakArticle: format.tieBreakArticle,
+            qualificationNote: format.qualificationNote,
+            regulation: format.regulation,
+          ),
+        },
+      );
+
+      final last = await WatchStandings(api.matches, catalog: [wrong])(
+        4501,
+        const Season(2026),
+        now: clock.now(),
+        cancelToken: CancelToken(),
+      ).last;
+
+      expect(last.tables.map((t) => t.shortTitle), [
+        'Grupo B',
+        'Grupo C',
+        'Grupo E',
+        'Grupo F',
+        'Grupo G',
+        'Grupo H',
+      ]);
+      expect(last.zoneIssues, contains(startsWith('Boca Juniors tiene')));
+    });
+  });
+
   test('sin red y sin nada guardado: termina con el error', () async {
     api.offline = true;
 

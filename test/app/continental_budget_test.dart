@@ -51,10 +51,11 @@ void main() {
       // Precarga de la etapa siguiente (la final, todavía vacía).
       '4501:r200:s2026',
     ]);
-    // Abre en la etapa del próximo partido; sin «Tabla» ni «Llaves».
+    // Abre en la etapa del próximo partido; «Tabla» desde la Fase D4, sin
+    // «Llaves» (D5).
     expect(find.text('Semifinales'), findsWidgets);
     expect(find.text('Calendario'), findsOne);
-    expect(find.text('Tabla'), findsNothing);
+    expect(find.text('Tabla'), findsOne);
     expect(find.text('Llaves'), findsNothing);
 
     await selectCompetition(tester, 'Sudamericana');

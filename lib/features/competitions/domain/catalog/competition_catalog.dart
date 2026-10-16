@@ -686,7 +686,8 @@ abstract final class CompetitionCatalog {
 
   /// Copa Libertadores (V16–V18). Etapas y ventanas (días argentinos) de
   /// los partidos grabados el 14/10/2026 (`docs/evidence/d1_grupos_y_etapas.md`).
-  /// Sin tabla ni cuadro hasta las Fases D4 y D5; fuera del Inicio.
+  /// Tablas de grupos 2025 y 2026 (Fase D4); sin cuadro hasta la Fase D5;
+  /// fuera del Inicio.
   static const copaLibertadores = CompetitionDefinition(
     id: 4501,
     name: 'Copa Libertadores',
@@ -817,6 +818,10 @@ abstract final class CompetitionCatalog {
         ),
       },
     ),
+    standingsBySeason: {
+      2025: _libertadores2025Standings,
+      2026: _libertadores2026Standings,
+    },
     showInHome: false,
     inTeamIndex: false,
   );
@@ -950,6 +955,10 @@ abstract final class CompetitionCatalog {
         ),
       },
     ),
+    standingsBySeason: {
+      2025: _sudamericana2025Standings,
+      2026: _sudamericana2026Standings,
+    },
     showInHome: false,
     inTeamIndex: false,
   );
@@ -977,6 +986,298 @@ abstract final class CompetitionCatalog {
     ContinentalStage.groupMatchday(5, from: _groupsFrom2026, to: _groupsTo2026),
     ContinentalStage.groupMatchday(6, from: _groupsFrom2026, to: _groupsTo2026),
   ];
+
+  /// Grupos (8 de 4, `idTeam`) de las dos copas, deducidos de los partidos
+  /// de grupos grabados el 14/10/2026 y cruzados con `strGroup` cuando la
+  /// API lo trae (`docs/evidence/d1_grupos_y_etapas.md`). Las previas de
+  /// las rondas 1–3 de 2026 no cuentan: las separa la ventana de la etapa.
+  static const _libertadores2025Groups = {
+    'A': {
+      134285, // Botafogo
+      137630, // Carabobo
+      135160, // Estudiantes de La Plata
+      137736, // Universidad de Chile
+    },
+    'B': {
+      138159, // Barcelona SC
+      138225, // Independiente del Valle
+      135171, // River Plate
+      138329, // Universitario
+    },
+    'C': {
+      137603, // Central Córdoba de Santiago del Estero
+      137634, // Deportivo Táchira
+      134287, // Flamengo
+      138227, // LDU Quito
+    },
+    'D': {
+      138311, // Alianza Lima
+      138294, // Club Libertad
+      134291, // São Paulo
+      136674, // Talleres de Córdoba
+    },
+    'E': {
+      137606, // Atlético Bucaramanga
+      137724, // Colo-Colo
+      136186, // Fortaleza
+      135170, // Racing Club
+    },
+    'F': {
+      137607, // Atlético Nacional
+      134293, // Bahia
+      134281, // Internacional
+      135364, // Nacional Montevideo
+    },
+    'G': {
+      138200, // Bolívar
+      138290, // Cerro Porteño
+      134465, // Palmeiras
+      138326, // Sporting Cristal
+    },
+    'H': {
+      138296, // Club Olimpia
+      135369, // Peñarol
+      148052, // San Antonio Bulo Bulo
+      135179, // Vélez Sarsfield
+    },
+  };
+  static const _libertadores2026Groups = {
+    'A': {
+      138320, // Cusco
+      135160, // Estudiantes de La Plata
+      134287, // Flamengo
+      137613, // Independiente Medellín
+    },
+    'B': {
+      137725, // Coquimbo Unido
+      137609, // Deportes Tolima
+      135364, // Nacional Montevideo
+      138329, // Universitario
+    },
+    'C': {
+      138200, // Bolívar
+      137644, // Deportivo La Guaira
+      134296, // Fluminense
+      137777, // Independiente Rivadavia
+    },
+    'D': {
+      138159, // Barcelona SC
+      135156, // Boca Juniors
+      134294, // Cruzeiro
+      137735, // Universidad Católica
+    },
+    'E': {
+      134284, // Corinthians
+      137621, // Independiente Santa Fe
+      135369, // Peñarol
+      137775, // Platense
+    },
+    'F': {
+      137615, // Atlético Junior
+      138290, // Cerro Porteño
+      134465, // Palmeiras
+      138326, // Sporting Cristal
+    },
+    'G': {
+      138209, // Always Ready
+      138227, // LDU Quito
+      135165, // Lanús
+      141181, // Mirassol
+    },
+    'H': {
+      138294, // Club Libertad
+      138225, // Independiente del Valle
+      135172, // Rosario Central
+      141313, // Universidad Central
+    },
+  };
+  static const _sudamericana2025Groups = {
+    'A': {
+      136051, // Boston River
+      138293, // Club Guaraní
+      135164, // Independiente
+      138208, // Nacional Potosí
+    },
+    'B': {
+      138817, // Cerro Largo
+      135159, // Defensa y Justicia
+      138233, // Universidad Católica del Ecuador
+      134280, // Vitória
+    },
+    'C': {
+      137604, // América de Cali
+      134284, // Corinthians
+      135163, // Huracán
+      135370, // Racing Montevideo
+    },
+    'D': {
+      138313, // Atlético Grau
+      135162, // Godoy Cruz
+      134288, // Grêmio
+      138300, // Sportivo Luqueño
+    },
+    'E': {
+      134294, // Cruzeiro
+      138229, // Mushuc Runa
+      137732, // Palestino
+      135178, // Unión
+    },
+    'F': {
+      134296, // Fluminense
+      148051, // GV San José
+      137618, // Once Caldas
+      137733, // Unión Española
+    },
+    'G': {
+      137643, // Academia Puerto Cabello
+      135165, // Lanús
+      138323, // Melgar
+      134282, // Vasco da Gama
+    },
+    'H': {
+      134299, // Atlético Mineiro
+      137631, // Caracas
+      138319, // Cienciano
+      137728, // Deportes Iquique
+    },
+  };
+  static const _sudamericana2026Groups = {
+    'A': {
+      140803, // Alianza Atlético
+      137604, // América de Cali
+      138228, // Macará
+      135177, // Tigre
+    },
+    'B': {
+      137643, // Academia Puerto Cabello
+      134299, // Atlético Mineiro
+      138319, // Cienciano
+      135368, // Juventud Las Piedras
+    },
+    'C': {
+      136051, // Boston River
+      137617, // Millonarios
+      137731, // O'Higgins
+      134291, // São Paulo
+    },
+    'D': {
+      138221, // Deportivo Cuenca
+      147065, // Recoleta
+      135173, // San Lorenzo
+      134286, // Santos
+    },
+    'E': {
+      134285, // Botafogo
+      137631, // Caracas
+      140718, // Independiente Petrolero
+      135170, // Racing Club
+    },
+    'F': {
+      137782, // Deportivo Riestra
+      134288, // Grêmio
+      138818, // Montevideo City Torque
+      137732, // Palestino
+    },
+    'G': {
+      137722, // Audax Italiano
+      137771, // Barracas Central
+      138296, // Club Olimpia
+      134282, // Vasco da Gama
+    },
+    'H': {
+      138203, // Blooming
+      134736, // Bragantino
+      137630, // Carabobo
+      135171, // River Plate
+    },
+  };
+
+  static const _groupRounds = [1, 2, 3, 4, 5, 6];
+
+  /// Manual de Clubes 2025 (Libertadores 2.4.2, Sudamericana 2.4.3): sin
+  /// enfrentamiento directo.
+  static const _conmebol2025TieBreak = [
+    TieBreakCriterion.goalDifference,
+    TieBreakCriterion.goalsFor,
+    TieBreakCriterion.awayGoalsFor,
+    UnavailableCriterion('Ranking de Clubes de CONMEBOL al 16/12/2024'),
+    TieBreakCriterion.drawOfLots,
+  ];
+
+  /// Manual de Clubes 2026 (Libertadores 2.4.2, Sudamericana 2.4.3): los
+  /// partidos entre los empatados una sola vez («una vez aplicado un
+  /// criterio, no se regresará a los anteriores»); después, diferencia de
+  /// gol y goles a favor de toda la fase.
+  static const _conmebol2026TieBreak = [
+    TieBreakCriterion.headToHeadOnce,
+    TieBreakCriterion.goalDifference,
+    TieBreakCriterion.goalsFor,
+    UnavailableCriterion('menos tarjetas rojas'),
+    UnavailableCriterion('menos tarjetas amarillas'),
+    TieBreakCriterion.drawOfLots,
+  ];
+
+  /// Formato de cada copa según su Manual de Clubes
+  /// (`docs/evidence/d1_reglamentos_conmebol.txt`).
+  static const _libertadoresQualification =
+      'Los dos primeros de cada grupo pasan a octavos de final y el tercero, '
+      'a los playoffs de octavos de la Copa Sudamericana.';
+  static const _sudamericanaQualification =
+      'El primero de cada grupo pasa a octavos de final y el segundo, a los '
+      'playoffs de octavos (contra los terceros de la Copa Libertadores).';
+
+  static const _libertadores2025Standings = GroupStage(
+    groups: _libertadores2025Groups,
+    regularRounds: _groupRounds,
+    tieBreak: _conmebol2025TieBreak,
+    pointsArticle: '2.4.1',
+    tieBreakArticle: '2.4.2',
+    qualificationNote: _libertadoresQualification,
+    regulation: RegulationSource(
+      name: 'Manual de Clubes CONMEBOL Libertadores 2025',
+      url:
+          'https://cdn.conmebol.com/wp-content/uploads/2024/12/Manual-de-Clubes-CL-2025-ESP-Digital.pdf',
+    ),
+  );
+  static const _libertadores2026Standings = GroupStage(
+    groups: _libertadores2026Groups,
+    regularRounds: _groupRounds,
+    tieBreak: _conmebol2026TieBreak,
+    pointsArticle: '2.4.1',
+    tieBreakArticle: '2.4.2',
+    qualificationNote: _libertadoresQualification,
+    regulation: RegulationSource(
+      name: 'Manual de Clubes CONMEBOL Libertadores 2026',
+      url:
+          'https://cdn.conmebol.com/wp-content/uploads/2025/12/CL-2026-Manual-de-Clubes-ESP-Jun.pdf',
+    ),
+  );
+  static const _sudamericana2025Standings = GroupStage(
+    groups: _sudamericana2025Groups,
+    regularRounds: _groupRounds,
+    tieBreak: _conmebol2025TieBreak,
+    pointsArticle: '2.4.1',
+    tieBreakArticle: '2.4.3',
+    qualificationNote: _sudamericanaQualification,
+    regulation: RegulationSource(
+      name: 'Manual de Clubes CONMEBOL Sudamericana 2025',
+      url:
+          'https://cdn.conmebol.com/wp-content/uploads/2024/12/Manual-de-Clubes-CS-2025-ESP-Digital.pdf',
+    ),
+  );
+  static const _sudamericana2026Standings = GroupStage(
+    groups: _sudamericana2026Groups,
+    regularRounds: _groupRounds,
+    tieBreak: _conmebol2026TieBreak,
+    pointsArticle: '2.4.1',
+    tieBreakArticle: '2.4.3',
+    qualificationNote: _sudamericanaQualification,
+    regulation: RegulationSource(
+      name: 'Manual de Clubes CONMEBOL Sudamericana 2026',
+      url:
+          'https://cdn.conmebol.com/wp-content/uploads/2025/12/CS-2026-Manual-de-Clubes-ESP-Jun.pdf',
+    ),
+  );
 
   /// Torneo Federal A (5523) no entra: mezcla etapas en la numeración de
   /// rondas (V8) y necesita un relevamiento propio.

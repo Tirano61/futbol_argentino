@@ -11,7 +11,6 @@ import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../domain/catalog/competition_catalog.dart';
-import '../../domain/entities/competition.dart';
 import '../../domain/standings/standings_table.dart';
 import '../../domain/standings/tie_breaker.dart';
 import '../../domain/usecases/watch_standings.dart';
@@ -49,13 +48,16 @@ class StandingsPanel extends StatelessWidget {
           ),
         ),
         StandingsUnavailable(:final view) => _Unavailable(view: view),
-        // Liga sin tabla anual con las zonas sin verificar (Nacional).
+        // Sin tabla anual y con todas las zonas (o grupos) sin verificar.
         StandingsLoaded(:final view) when view.tables.isEmpty => EmptyView(
           icon: Icons.warning_amber,
-          title: 'Zonas no verificadas',
+          title: view.zoneNoun == 'grupo'
+              ? 'Grupos no verificados'
+              : 'Zonas no verificadas',
           message:
-              'Los partidos no coinciden con las zonas del reglamento: la '
-              'tabla no se muestra. ${view.zoneIssues.firstOrNull ?? ''}',
+              'Los partidos no coinciden con ${_zonesOf(view)} del '
+              'reglamento: la tabla no se muestra. '
+              '${view.zoneIssues.firstOrNull ?? ''}',
         ),
         StandingsLoaded(:final view, :final isRefreshing) => _LoadedView(
           view: view,
@@ -71,6 +73,9 @@ class StandingsPanel extends StatelessWidget {
   }
 }
 
+String _zonesOf(StandingsView view) =>
+    view.zoneNoun == 'grupo' ? 'los grupos' : 'las zonas';
+
 class _Unavailable extends StatelessWidget {
   const _Unavailable({required this.view});
 
@@ -83,11 +88,17 @@ class _Unavailable extends StatelessWidget {
     return EmptyView(
       icon: Icons.leaderboard_outlined,
       title: 'Sin tabla',
-      message: definition?.format == CompetitionFormat.cup
-          ? 'La $name se juega por eliminación directa: no tiene tabla de '
-                'posiciones.'
-          : 'Todavía no hay una tabla verificada con el reglamento de '
-                '$name ${view.season.apiValue}.',
+      message: switch (definition?.rules) {
+        KnockoutCupRules() =>
+          'La $name se juega por eliminación directa: no tiene tabla de '
+              'posiciones.',
+        ContinentalCupRules() =>
+          'Todavía no hay grupos verificados con el reglamento de la $name '
+              '${view.season.apiValue}.',
+        _ =>
+          'Todavía no hay una tabla verificada con el reglamento de '
+              '$name ${view.season.apiValue}.',
+      },
     );
   }
 }
@@ -135,9 +146,11 @@ class _LoadedView extends StatelessWidget {
             const SizedBox(height: 8),
             InfoBanner(
               icon: Icons.warning_amber,
-              text:
-                  'Zonas no verificadas: las tablas por zona no se muestran. '
-                  '${view.zoneIssues.first}',
+              text: view.zoneNoun == 'grupo'
+                  ? 'Grupos no verificados: las tablas de esos grupos no se '
+                        'muestran. ${view.zoneIssues.first}'
+                  : 'Zonas no verificadas: las tablas por zona no se '
+                        'muestran. ${view.zoneIssues.first}',
             ),
           ],
           _SyncStatus(progress: view.progress, coverage: table.coverage),
