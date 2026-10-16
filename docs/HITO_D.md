@@ -2,7 +2,7 @@
 
 > **Aprobado por el usuario el 14/10/2026, con ajustes** (corte temprano solo con evidencia, D7 sin depender de las finales 2026, reglamentos oficiales). Se trabaja por fases: tarea por tarea dentro de cada fase y aprobación antes de la siguiente. Sin commits ni PR (los hace el usuario).
 >
-> **Estado:** Fase D1 terminada (14/10/2026), esperando aprobación para D2. Resultados en «Resultado de la Fase D1» (al final de D1, §10).
+> **Estado:** Fase D1 terminada y aprobada (14/10/2026). Fase D2 terminada (15/10/2026), esperando aprobación para D3. Resultados en «Resultado de la Fase D1» y «Resultado de la Fase D2» (§10).
 
 ## Contexto
 La app cubre el fútbol argentino (Primera, Nacional, B Metro, C, Copa Argentina) con fixture, tablas, calendario, llaves, fichas y favoritos sobre la API gratuita de TheSportsDB. El usuario quiere sumar **Copa Libertadores y Copa Sudamericana completas** (no solo los partidos de equipos argentinos) y ordenar el selector de competiciones en **cuatro categorías**. Hoy la Sudamericana solo aparece como «Otras competiciones» en la ficha de un equipo.
@@ -336,6 +336,19 @@ Orden: D1 → D2 → D3 → D4 → D5 → D6 → D7. Al terminar cada fase: `flu
 - **Aceptación**: links viejos y recarga en Web funcionan; B Metro/C sin segmento Tabla; Nacional sin Llaves; sin desbordes en 360/768/1280/1920.
 - **Pruebas**: `competition_catalog_test` (categorías, orden), `competitions_page_test` (selector, fallback `vista=tabla`), nuevo `competition_picker_test` (hoja < 600, chips ≥ 600), `new_competitions_test`, `bracket_view_test`, `home_page_test`, `accessibility_test`, `responsive_layout_test`, presupuestos (`calendar_budget_test`, `bracket_budget_test`) intactos.
 - **Resultado**: selector nuevo con las 5 competiciones actuales.
+
+#### Resultado de la Fase D2 (15/10/2026)
+1. ✅ `CompetitionCategory` (4 valores con `label`), `CompetitionDefinition.category`, `CompetitionCatalog.byCategory` (orden del enum, sin categorías vacías), `hasStandings`/`hasBracket`; `shortName` «Copa Argentina».
+2. ✅ `CompetitionPicker`: < 600 px botón «Categoría · Competición ▾» + hoja agrupada; 600–1199 dos filas de chips; ≥ 1200 en una línea si entran; memoria de la última competición por categoría; una sola carga por toque.
+3. ✅ Vistas por competición (`CompetitionsView.isAvailableFor`): Primera 4; Nacional sin Llaves; Copa Argentina sin Tabla; B Metro y C solo Fixture y Calendario. `vista=` no disponible → Fixture (vista inicial y al cambiar de competición) y la URL de Web pasa a la del Fixture.
+4. ✅ Inicio: accesos agrupados por categoría (en teléfonos, una fila con desplazamiento por categoría).
+5. ✅ Helper `selectCompetition` por categoría + competición (la categoría se deriva del nombre corto); `'Copa'` → `'Copa Argentina'` en los tests.
+
+**Ajustes respecto del plan** (registrados en `DECISIONS.md`): una categoría con una sola competición se nombra por la competición en el botón; la hoja usa el navegador raíz (en el de la sección quedaba detrás de la barra inferior: visto en la tablet); la memoria por categoría vive mientras viva la pantalla; Copa Argentina también pierde «Tabla».
+
+**Validación**: `flutter analyze` sin issues; `flutter test` 694 verdes (nuevos: `competition_picker_test`, tests de categorías y vistas, la hoja sobre la barra inferior). Presupuestos (`home_request_budget_test`, `calendar_budget_test`, `bracket_budget_test`, `standings_budget_test`) sin cambios. Tablet `SOP10X2501001122` (APK release): horizontal 1280 (una línea), vertical 800 (dos filas), densidad 320 = 400 px (botón y hoja); Tabla → B Metro vuelve al Fixture; memoria Ascenso → B Metro. Web release en el Chrome de la tablet: enlace viejo `vista=tabla&tabla=apertura-a` abre la tabla; `/competiciones/5215?vista=tabla` abre el Fixture y corrige la URL; Tabla → «Copas nacionales» deja la URL del Fixture de la Copa. TheSportsDB respondía muy lento durante la prueba (timeouts; 20 s por consulta desde la PC).
+
+**Pendiente observado (previo a D2, fuera de alcance)**: en ~400 px el selector de vistas de Primera (4 segmentos, desde la Fase 19.1) parte «Calendario» en dos renglones; no desborda.
 
 ### D3 — Integración básica de Libertadores y Sudamericana
 - **Objetivo**: fixture por fases/etapas, temporadas 2025–2026, resultados, detalle y calendario de ambas copas.

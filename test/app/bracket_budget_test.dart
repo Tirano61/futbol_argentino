@@ -48,7 +48,7 @@ void main() {
     final requests = <Uri>[];
     await pumpApp(tester, const Size(1280, 800), requests: requests);
     await openSection(tester, 'Competiciones');
-    await selectCompetition(tester, 'Copa');
+    await selectCompetition(tester, 'Copa Argentina');
     final before = requests.length;
 
     await openBracket(tester);

@@ -6,7 +6,21 @@ import '../../domain/entities/stage.dart';
 import '../bloc/competition_fixture_bloc.dart';
 
 /// Vista de la pantalla de competiciones.
-enum CompetitionsView { fixture, table, calendar, bracket }
+enum CompetitionsView {
+  fixture,
+  table,
+  calendar,
+  bracket;
+
+  /// Fixture y Calendario siempre; Tabla y Llaves solo en las competiciones
+  /// con tabla o cuadro verificados (una URL con otra vista abre el
+  /// Fixture).
+  bool isAvailableFor(CompetitionDefinition competition) => switch (this) {
+    table => competition.hasStandings,
+    bracket => competition.hasBracket,
+    fixture || calendar => true,
+  };
+}
 
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
 /// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:

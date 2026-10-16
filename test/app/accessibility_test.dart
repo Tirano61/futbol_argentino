@@ -38,7 +38,7 @@ void main() {
       await openView(tester, 'Calendario');
       expect(find.text('Octubre 2026'), findsOne);
       await expectGuidelines(tester);
-      await selectCompetition(tester, 'Copa');
+      await selectCompetition(tester, 'Copa Argentina');
       await openView(tester, 'Llaves');
       await tester.pump(const Duration(minutes: 1));
       await tester.pumpAndSettle();

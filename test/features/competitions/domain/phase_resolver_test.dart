@@ -36,6 +36,7 @@ final primeraWithoutCatalog = CompetitionDefinition(
   id: 4406,
   name: 'Primera División',
   shortName: 'Primera',
+  category: CompetitionCategory.firstDivision,
   format: CompetitionFormat.league,
   rules: SplitSeasonLeagueRules(
     phases: const [PhaseKey.apertura, PhaseKey.clausura],

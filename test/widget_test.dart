@@ -75,7 +75,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Fixture real; la API simulada no devuelve partidos.
-    expect(find.text('Primera División'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Primera División'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Sin partidos'), findsOneWidget);
   });
 

@@ -48,14 +48,11 @@ void main() {
     // La fecha 40 y la siguiente (precarga P1; la 41 no está grabada).
     expect(roundsOf(requests, 5215), ['r40', 'r41']);
 
-    await tester.tap(find.text('Tabla'));
-    await tester.pumpAndSettle();
-    expect(find.text('Sin tabla'), findsOne);
-    expect(
-      find.textContaining('reglamento de Primera B Metropolitana 2026'),
-      findsOne,
-    );
-    // Sin tabla no se baja la temporada.
+    // Sin tabla ni cuadro verificados: solo Fixture y Calendario (D2), y
+    // no se baja la temporada.
+    expect(find.text('Tabla'), findsNothing);
+    expect(find.text('Llaves'), findsNothing);
+    expect(find.text('Calendario'), findsOne);
     expect(roundsOf(requests, 5215), ['r40', 'r41']);
   });
 

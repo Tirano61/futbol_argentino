@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/bracket_panel.dart';
 
 import '../../../helpers/recorded_app.dart';
 
@@ -71,7 +72,7 @@ void main() {
       '32avos', (tester) async {
     await pumpApp(tester, laptop);
     await openSection(tester, 'Competiciones');
-    await selectCompetition(tester, 'Copa');
+    await selectCompetition(tester, 'Copa Argentina');
     await openBracket(tester);
 
     expect(find.text('Campeón'), findsNothing);
@@ -107,7 +108,7 @@ void main() {
       'la ronda siguiente guardada', (tester) async {
     await pumpApp(tester, laptop);
     await openSection(tester, 'Competiciones');
-    await selectCompetition(tester, 'Copa');
+    await selectCompetition(tester, 'Copa Argentina');
     await openBracket(tester);
     await tester.tap(find.widgetWithText(ChoiceChip, '32avos de final'));
     await tester.pumpAndSettle();
@@ -137,11 +138,17 @@ void main() {
     );
   });
 
-  testWidgets('Nacional: sin cuadro verificado', (tester) async {
+  testWidgets('Nacional: sin cuadro verificado, sin segmento «Llaves»; con '
+      'las llaves abiertas vuelve al Fixture', (tester) async {
     await pumpApp(tester, laptop);
     await openSection(tester, 'Competiciones');
-    await selectCompetition(tester, 'Nacional');
     await openView(tester, 'Llaves');
-    expect(find.text('Sin cuadro de llaves'), findsOne);
+    expect(find.byType(BracketPanel), findsOne);
+
+    await selectCompetition(tester, 'Nacional');
+    expect(find.text('Llaves'), findsNothing);
+    expect(find.text('Tabla'), findsOne);
+    expect(find.byType(BracketPanel), findsNothing);
+    expect(find.text('Sin cuadro de llaves'), findsNothing);
   });
 }

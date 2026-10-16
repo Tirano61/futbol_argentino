@@ -26,6 +26,58 @@ void main() {
     expect(CompetitionCatalog.byId(1), isNull);
   });
 
+  group('Fase D2: categorías y vistas', () {
+    test('categorías en el orden del selector; sin las vacías', () {
+      final byCategory = CompetitionCatalog.byCategory();
+
+      expect(byCategory.keys, [
+        CompetitionCategory.firstDivision,
+        CompetitionCategory.promotion,
+        CompetitionCategory.nationalCup,
+      ]);
+      expect(byCategory.map((k, v) => MapEntry(k, [for (final c in v) c.id])), {
+        CompetitionCategory.firstDivision: [4406],
+        CompetitionCategory.promotion: [4616, 5215, 5524],
+        CompetitionCategory.nationalCup: [4500],
+      });
+      // Cada competición en una sola categoría.
+      expect(
+        byCategory.values.expand((c) => c).length,
+        CompetitionCatalog.all.length,
+      );
+    });
+
+    test('dentro de la categoría, el orden del catálogo recibido', () {
+      final byCategory = CompetitionCatalog.byCategory([
+        CompetitionCatalog.primeraC,
+        CompetitionCatalog.primeraNacional,
+      ]);
+
+      expect(byCategory.keys, [CompetitionCategory.promotion]);
+      expect(byCategory[CompetitionCategory.promotion]!.map((c) => c.id), [
+        5524,
+        4616,
+      ]);
+    });
+
+    test('nombres cortos sin ambigüedad con las copas internacionales', () {
+      expect(CompetitionCatalog.copaArgentina.shortName, 'Copa Argentina');
+      final shortNames = CompetitionCatalog.all.map((c) => c.shortName);
+      expect(shortNames.toSet(), hasLength(shortNames.length));
+    });
+
+    test('vistas «Tabla» y «Llaves» solo donde hay formato verificado', () {
+      expect(
+        {for (final d in CompetitionCatalog.all) d.id: d.hasStandings},
+        {4406: true, 4616: true, 4500: false, 5215: false, 5524: false},
+      );
+      expect(
+        {for (final d in CompetitionCatalog.all) d.id: d.hasBracket},
+        {4406: true, 4616: false, 4500: true, 5215: false, 5524: false},
+      );
+    });
+  });
+
   test('fases ofrecidas por competición', () {
     expect(primera.phases, [PhaseKey.apertura, PhaseKey.clausura]);
     expect(CompetitionCatalog.primeraNacional.phases, [PhaseKey.regular]);

@@ -83,7 +83,13 @@ void main() {
   ) async {
     await pumpPage(tester, const FixtureOpened(competitionId: 4406));
 
-    expect(find.text('Primera División'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Primera División'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Fecha 12'), findsOneWidget);
     final clausura = tester.widget<ChoiceChip>(
       find.widgetWithText(ChoiceChip, 'Clausura'),
@@ -140,10 +146,11 @@ void main() {
 
     expect(find.text('Cuartos de final'), findsOneWidget);
     expect(find.byType(MatchCard), findsNWidgets(4));
-    // Solo los chips de competición: sin selector de fase.
+    // Solo los chips de categoría (la Copa es la única de la suya): sin
+    // selector de fase.
     expect(
       find.byType(ChoiceChip),
-      findsNWidgets(CompetitionCatalog.all.length),
+      findsNWidgets(CompetitionCatalog.byCategory().length),
     );
   });
 
@@ -448,6 +455,24 @@ void main() {
       expect(
         FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
         uri,
+      );
+    });
+
+    test('vistas por competición (D2): Fixture y Calendario siempre', () {
+      String views(CompetitionDefinition d) => [
+        for (final v in CompetitionsView.values)
+          if (v.isAvailableFor(d)) v.name,
+      ].join(',');
+
+      expect(
+        {for (final d in CompetitionCatalog.all) d.id: views(d)},
+        {
+          4406: 'fixture,table,calendar,bracket',
+          4616: 'fixture,table,calendar',
+          4500: 'fixture,calendar,bracket',
+          5215: 'fixture,calendar',
+          5524: 'fixture,calendar',
+        },
       );
     });
 

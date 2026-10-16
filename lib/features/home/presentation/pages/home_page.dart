@@ -428,11 +428,36 @@ class _FavoriteTeam extends StatelessWidget {
   }
 }
 
-/// Accesos al buscador y a cada competición.
+/// Accesos al buscador y a cada competición, por categoría.
 class _Shortcuts extends StatelessWidget {
   const _Shortcuts({required this.showSearch});
 
   final bool showSearch;
+
+  /// En un teléfono, una fila con desplazamiento por categoría: con los
+  /// chips en varios renglones «Tus equipos» y los partidos quedan bajos.
+  static Widget _chips(
+    BuildContext context,
+    List<CompetitionDefinition> competitions,
+  ) {
+    final chips = [
+      for (final competition in competitions)
+        ActionChip(
+          avatar: const Icon(Icons.emoji_events_outlined),
+          label: Text(competition.name),
+          tooltip: 'Fixture de ${competition.name}',
+          onPressed: () =>
+              context.go('${FixtureRoute.basePath}/${competition.id}'),
+        ),
+    ];
+    if (!Breakpoints.isCompact(context)) {
+      return Wrap(spacing: 8, runSpacing: 8, children: chips);
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(spacing: 8, children: chips),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -452,20 +477,20 @@ class _Shortcuts extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final competition in CompetitionCatalog.all)
-                ActionChip(
-                  avatar: const Icon(Icons.emoji_events_outlined),
-                  label: Text(competition.name),
-                  tooltip: 'Fixture de ${competition.name}',
-                  onPressed: () =>
-                      context.go('${FixtureRoute.basePath}/${competition.id}'),
+          for (final MapEntry(key: category, value: competitions)
+              in CompetitionCatalog.byCategory().entries) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  category.label,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-            ],
-          ),
+              ),
+            ),
+            _chips(context, competitions),
+          ],
         ],
       ),
     );
