@@ -18,6 +18,7 @@ import '../../../match_detail/presentation/pages/match_detail_page.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
+import '../../domain/catalog/competition_catalog.dart';
 import '../../domain/entities/phase.dart';
 import '../../domain/entities/season.dart';
 import '../../domain/repositories/competition_repository.dart';
@@ -104,7 +105,8 @@ class CompetitionsPage extends StatelessWidget {
         ),
       ],
       child: _CompetitionsView(
-        initialView: initialView,
+        competitionId: initialEvent.competitionId,
+        initialView: _availableView(initialEvent.competitionId, initialView),
         initialTable: initialTable,
         initialMonth: initialMonth,
         initialBracketPhase: initialBracketPhase,
@@ -113,14 +115,26 @@ class CompetitionsPage extends StatelessWidget {
   }
 }
 
+/// [view] si la competición la ofrece; si no, el Fixture (`vista=tabla` de
+/// una competición sin tabla).
+CompetitionsView _availableView(int competitionId, CompetitionsView view) {
+  final definition = CompetitionCatalog.byId(competitionId);
+  return definition == null || view.isAvailableFor(definition)
+      ? view
+      : CompetitionsView.fixture;
+}
+
 class _CompetitionsView extends StatefulWidget {
   const _CompetitionsView({
+    required this.competitionId,
     required this.initialView,
     this.initialTable,
     this.initialMonth,
     this.initialBracketPhase,
   });
 
+  /// Competición que abre la pantalla.
+  final int competitionId;
   final CompetitionsView initialView;
   final String? initialTable;
   final CalendarMonth? initialMonth;
@@ -144,7 +158,7 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   late PhaseKey? _bracketPhase = widget.initialBracketPhase;
 
   /// Competición y temporada mostradas (para saber cuándo cambian).
-  int? _competitionId;
+  late int _competitionId = widget.competitionId;
   Season? _season;
 
   /// Competición y temporada pedidas al `StandingsBloc`.
@@ -379,19 +393,24 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         // Cada competición tiene sus tablas: al cambiarla se muestra la
         // primera (la de la URL vale solo para la que abrió la pantalla).
         // El mes del calendario vale para una competición y temporada.
-        final competitionId = state.definition?.id;
-        if (_competitionId != null && competitionId != _competitionId) {
+        final definition = state.definition;
+        final changed = definition != null && definition.id != _competitionId;
+        if (changed) {
           setState(() {
             _tableKey = null;
             _bracketPhase = null;
           });
         }
-        if ((_competitionId != null && competitionId != _competitionId) ||
-            (_season != null && state.season != _season)) {
+        if (changed || (_season != null && state.season != _season)) {
           setState(() => _month = null);
         }
-        _competitionId = competitionId ?? _competitionId;
+        _competitionId = definition?.id ?? _competitionId;
         _season = state.season ?? _season;
+        // La competición nueva no ofrece la vista abierta (p. ej. la Tabla
+        // al pasar a la B Metro): se vuelve al Fixture.
+        if (definition != null && !_view.isAvailableFor(definition)) {
+          _showView(CompetitionsView.fixture);
+        }
         switch (_view) {
           case CompetitionsView.table:
             _loadStandings(state);
@@ -404,6 +423,8 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         _updateUrl(state);
       },
       builder: (context, state) {
+        final definition =
+            state.definition ?? CompetitionCatalog.byId(_competitionId);
         final content = Column(
           children: [
             Padding(
@@ -411,7 +432,18 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ViewSelector(view: _view, onChanged: _showView),
+                  _ViewSelector(
+                    view: _view,
+                    views: [
+                      for (final v in CompetitionsView.values)
+                        // La abierta sigue hasta que el listener la cambie.
+                        if (v == _view ||
+                            definition == null ||
+                            v.isAvailableFor(definition))
+                          v,
+                    ],
+                    onChanged: _showView,
+                  ),
                   const SizedBox(height: 8),
                   FixtureSelectors(
                     state: state,
@@ -534,11 +566,17 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   }
 }
 
-/// «Fixture | Tabla | Calendario | Llaves».
+/// «Fixture | Tabla | Calendario | Llaves», solo las que ofrece la
+/// competición.
 class _ViewSelector extends StatelessWidget {
-  const _ViewSelector({required this.view, required this.onChanged});
+  const _ViewSelector({
+    required this.view,
+    required this.views,
+    required this.onChanged,
+  });
 
   final CompetitionsView view;
+  final List<CompetitionsView> views;
   final ValueChanged<CompetitionsView> onChanged;
 
   static const _segments = [
@@ -555,11 +593,12 @@ class _ViewSelector extends StatelessWidget {
     final selector = SegmentedButton<CompetitionsView>(
       segments: [
         for (final (value, label, icon) in _segments)
-          ButtonSegment(
-            value: value,
-            label: Text(label),
-            icon: icons ? Icon(icon) : null,
-          ),
+          if (views.contains(value))
+            ButtonSegment(
+              value: value,
+              label: Text(label),
+              icon: icons ? Icon(icon) : null,
+            ),
       ],
       selected: {view},
       showSelectedIcon: false,

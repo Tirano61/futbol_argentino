@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../helpers/fakes.dart';
 import '../../../helpers/fixture_matches.dart';
+import '../../../helpers/recorded_app.dart';
 
 /// Rondas reales de Primera 2026 (0–16, grabadas el 11/10/2026).
 FakeMatchRepository primeraRounds() => FakeMatchRepository({
@@ -177,12 +178,36 @@ void main() {
     expect(find.text('Equipo 135156'), findsOne);
   });
 
-  testWidgets('Copa: sin tabla, sin consultas', (tester) async {
+  testWidgets('Copa: sin segmento «Tabla»; `vista=tabla` abre el Fixture, '
+      'sin bajar la temporada', (tester) async {
     final matches = await pumpTable(tester, competitionId: 4500);
 
-    expect(find.text('Sin tabla'), findsOne);
-    expect(find.textContaining('eliminación directa'), findsOne);
+    expect(find.text('Tabla'), findsNothing);
+    expect(find.text('Sin tabla'), findsNothing);
+    expect(find.text('Fixture'), findsOne);
+    expect(find.text('Llaves'), findsOne);
+    expect(find.byType(StandingsPanel), findsNothing);
     expect(matches.synced, isEmpty);
+  });
+
+  testWidgets('con la Tabla abierta, pasar a una competición sin tabla '
+      'vuelve al Fixture', (tester) async {
+    await pumpTable(tester, matches: bothLeagues());
+    expect(find.text('Tabla Anual 2026'), findsWidgets);
+
+    await selectCompetition(tester, 'Copa Argentina');
+
+    expect(find.byType(StandingsPanel), findsNothing);
+    expect(find.text('Tabla'), findsNothing);
+    final fixture = tester.widget<SegmentedButton<CompetitionsView>>(
+      find.byType(SegmentedButton<CompetitionsView>),
+    );
+    expect(fixture.selected, {CompetitionsView.fixture});
+
+    // Al volver, «Tabla» está otra vez (sin abrirse sola).
+    await selectCompetition(tester, 'Primera');
+    expect(find.text('Tabla'), findsOne);
+    expect(find.byType(StandingsPanel), findsNothing);
   });
 
   testWidgets('Nacional: Zona A por defecto, 18 equipos, sin Tabla Anual; '
@@ -238,12 +263,10 @@ void main() {
     await pumpTable(tester, table: 'clausura-b', matches: bothLeagues());
     expect(find.text('Clausura 2026 · Zona B'), findsOne);
 
-    await tester.tap(find.text('Nacional'));
-    await tester.pumpAndSettle();
+    await selectCompetition(tester, 'Nacional');
     expect(find.text('Posiciones 2026 · Zona A'), findsOne);
 
-    await tester.tap(find.text('Primera'));
-    await tester.pumpAndSettle();
+    await selectCompetition(tester, 'Primera');
     expect(find.text('Tabla Anual 2026'), findsWidgets);
   });
 
@@ -305,6 +328,7 @@ CompetitionDefinition _nacionalWithoutFerro() {
     id: real.id,
     name: real.name,
     shortName: real.shortName,
+    category: real.category,
     format: real.format,
     rules: real.rules,
     standingsBySeason: {

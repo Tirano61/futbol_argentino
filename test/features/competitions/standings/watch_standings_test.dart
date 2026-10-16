@@ -157,6 +157,7 @@ void main() {
       id: real.id,
       name: real.name,
       shortName: real.shortName,
+      category: real.category,
       format: real.format,
       rules: real.rules,
       standingsBySeason: {

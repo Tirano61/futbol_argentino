@@ -63,7 +63,7 @@ void main() {
     await openView(tester, 'Calendario');
     final before = requests.length;
 
-    await selectCompetition(tester, 'Copa');
+    await selectCompetition(tester, 'Copa Argentina');
 
     // El fixture de fondo resuelve y carga la etapa de la Copa (como con
     // «Tabla»); el calendario, nada.

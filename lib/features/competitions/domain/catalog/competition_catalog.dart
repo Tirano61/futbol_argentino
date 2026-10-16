@@ -166,12 +166,25 @@ final class KnockoutCupRules extends CompetitionRules {
   }
 }
 
+/// Agrupación del selector de competiciones, en el orden en que se muestra.
+enum CompetitionCategory {
+  firstDivision('Primera División'),
+  promotion('Ascenso'),
+  nationalCup('Copas nacionales'),
+  internationalCup('Copas internacionales');
+
+  const CompetitionCategory(this.label);
+
+  final String label;
+}
+
 /// Competición soportada por la app y sus reglas.
 final class CompetitionDefinition {
   const CompetitionDefinition({
     required this.id,
     required this.name,
     required this.shortName,
+    required this.category,
     required this.format,
     required this.rules,
     this.standingsBySeason = const {},
@@ -182,6 +195,7 @@ final class CompetitionDefinition {
   final int id;
   final String name;
   final String shortName;
+  final CompetitionCategory category;
   final CompetitionFormat format;
   final CompetitionRules rules;
 
@@ -201,6 +215,14 @@ final class CompetitionDefinition {
   /// Sin formato verificado para [season]: sin tablas.
   StandingsFormat standingsFor(Season season) =>
       standingsBySeason[season.year] ?? const NoStandings();
+
+  /// Alguna temporada tiene tabla verificada: se ofrece la vista «Tabla»
+  /// (una temporada sin formato la muestra vacía, «Sin tabla»).
+  bool get hasStandings =>
+      standingsBySeason.values.any((format) => format is! NoStandings);
+
+  /// Tiene cuadro de llaves verificado: se ofrece la vista «Llaves».
+  bool get hasBracket => bracketRounds.isNotEmpty;
 
   /// Cuadro de eliminación de cada fase, en orden; vacío si la
   /// competición no tiene eliminatorias verificadas (Nacional: Fase 19.2).
@@ -241,6 +263,7 @@ abstract final class CompetitionCatalog {
     id: 4406,
     name: 'Primera División',
     shortName: 'Primera',
+    category: CompetitionCategory.firstDivision,
     format: CompetitionFormat.league,
     rules: SplitSeasonLeagueRules(
       phases: [PhaseKey.apertura, PhaseKey.clausura],
@@ -371,6 +394,7 @@ abstract final class CompetitionCatalog {
     id: 4616,
     name: 'Primera Nacional',
     shortName: 'Nacional',
+    category: CompetitionCategory.promotion,
     format: CompetitionFormat.league,
     rules: SingleTableLeagueRules(
       matchesPerRound: 18,
@@ -493,7 +517,8 @@ abstract final class CompetitionCatalog {
   static const copaArgentina = CompetitionDefinition(
     id: 4500,
     name: 'Copa Argentina',
-    shortName: 'Copa',
+    shortName: 'Copa Argentina',
+    category: CompetitionCategory.nationalCup,
     format: CompetitionFormat.cup,
     rules: KnockoutCupRules(
       rounds: [
@@ -514,6 +539,7 @@ abstract final class CompetitionCatalog {
     id: 5215,
     name: 'Primera B Metropolitana',
     shortName: 'B Metro',
+    category: CompetitionCategory.promotion,
     format: CompetitionFormat.league,
     rules: SingleTableLeagueRules(
       matchesPerRound: 11,
@@ -533,6 +559,7 @@ abstract final class CompetitionCatalog {
     id: 5524,
     name: 'Primera C',
     shortName: 'Primera C',
+    category: CompetitionCategory.promotion,
     format: CompetitionFormat.league,
     rules: SingleTableLeagueRules(
       matchesPerRound: 14,
@@ -553,6 +580,18 @@ abstract final class CompetitionCatalog {
     primeraBMetropolitana,
     primeraC,
   ];
+
+  /// Competiciones de [catalog] por categoría, en el orden de
+  /// [CompetitionCategory] y, dentro de cada una, en el de [catalog]. Las
+  /// categorías sin competiciones no aparecen.
+  static Map<CompetitionCategory, List<CompetitionDefinition>> byCategory([
+    List<CompetitionDefinition> catalog = all,
+  ]) => {
+    for (final category in CompetitionCategory.values)
+      if (catalog.where((c) => c.category == category).toList()
+          case final competitions when competitions.isNotEmpty)
+        category: competitions,
+  };
 
   static CompetitionDefinition? byId(int id) {
     for (final definition in all) {

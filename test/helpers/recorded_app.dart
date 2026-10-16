@@ -6,10 +6,11 @@ import 'package:futbol_argentino/app/app.dart';
 import 'package:futbol_argentino/app/di/app_dependencies.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/badge_image_resolver.dart';
+import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:sembast/sembast_memory.dart';
+import 'package:sembast/sembast_memory.dart' show newDatabaseFactoryMemory;
 
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'fixtures.dart';
@@ -109,15 +110,41 @@ Future<void> openNacionalTable(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Elige una competición en el selector del fixture (una fila con
-/// desplazamiento: con texto grande el chip puede quedar fuera de la vista).
+/// Elige una competición en el selector del fixture por su nombre corto.
+/// En un teléfono abre la hoja y toca su nombre; desde 600 px toca su
+/// categoría (si no es la actual) y, si la categoría tiene varias, la
+/// competición. Las filas de chips se desplazan: con texto grande el chip
+/// puede quedar fuera de la vista.
 Future<void> selectCompetition(WidgetTester tester, String shortName) async {
-  final chip = find.descendant(
-    of: find.byKey(FixtureSelectors.competitionSelectorKey),
-    matching: find.text(shortName),
+  final competition = CompetitionCatalog.all.singleWhere(
+    (c) => c.shortName == shortName,
   );
-  await tester.ensureVisible(chip);
-  await tester.pumpAndSettle();
-  await tester.tap(chip);
-  await tester.pumpAndSettle();
+  final picker = find.byKey(FixtureSelectors.competitionSelectorKey);
+  Finder inPicker(Finder matching) =>
+      find.descendant(of: picker, matching: matching);
+
+  final sheetButton = inPicker(find.byType(OutlinedButton));
+  if (sheetButton.evaluate().isNotEmpty) {
+    await tester.tap(sheetButton);
+    await tester.pumpAndSettle();
+    final tile = find.widgetWithText(ListTile, competition.name);
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+    return;
+  }
+
+  Future<void> tapChip(String label) async {
+    final chip = inPicker(find.widgetWithText(ChoiceChip, label));
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    if (tester.widget<ChoiceChip>(chip).selected) return;
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+  }
+
+  await tapChip(competition.category.label);
+  final siblings = CompetitionCatalog.byCategory()[competition.category]!;
+  if (siblings.length > 1) await tapChip(shortName);
 }

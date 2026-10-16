@@ -95,7 +95,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Campeón: Belgrano'), findsOne);
 
-      await selectCompetition(tester, 'Copa');
+      await selectCompetition(tester, 'Copa Argentina');
       await tester.pump(const Duration(minutes: 1));
       await tester.pumpAndSettle();
       expect(find.text('Desde'), findsOne);
@@ -158,6 +158,38 @@ void main() {
       expect(list.width, lessThanOrEqualTo(1200));
     });
   }
+
+  testWidgets('teléfono: la hoja de competiciones va sobre la barra '
+      'inferior y elige la competición', (tester) async {
+    await pumpApp(tester, phone);
+    await openSection(tester, 'Competiciones');
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Primera División'));
+    await tester.pumpAndSettle();
+
+    // En el navegador raíz llega al borde de la pantalla; en el de la
+    // sección quedaba detrás de la barra (visto en la tablet).
+    final sheet = tester.getRect(find.byType(BottomSheet));
+    final bar = tester.getRect(find.byType(NavigationBar));
+    expect(sheet.bottom, bar.bottom);
+
+    final nacional = find.widgetWithText(ListTile, 'Primera Nacional');
+    await tester.ensureVisible(nacional);
+    await tester.pumpAndSettle();
+    await tester.tap(nacional);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Ascenso · Nacional'), findsOne);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Primera Nacional'),
+      ),
+      findsOne,
+    );
+    expect(find.byType(MatchCard), findsWidgets);
+  });
 
   testWidgets('escritorio: el buscador de la barra abre Equipos con la '
       'búsqueda', (tester) async {

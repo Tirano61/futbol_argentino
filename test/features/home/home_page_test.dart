@@ -140,6 +140,26 @@ void main() {
     for (final d in CompetitionCatalog.all) {
       expect(find.widgetWithText(ActionChip, d.name), findsOneWidget);
     }
+    // Agrupados por categoría (D2), en el orden del catálogo; sin la de
+    // copas internacionales, que todavía no tiene competiciones.
+    final headers = [
+      for (final label in ['Primera División', 'Ascenso', 'Copas nacionales'])
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is Semantics && (w.properties.header ?? false),
+          ),
+          matching: find.text(label),
+        ),
+    ];
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    final tops = [for (final h in headers) top(h)];
+    expect(tops, orderedEquals([...tops]..sort()));
+    expect(find.text('Copas internacionales'), findsNothing);
+    // La C (Ascenso) antes de las copas nacionales.
+    expect(
+      top(find.widgetWithText(ActionChip, 'Primera C')),
+      lessThan(top(headers[2])),
+    );
     await tester.tap(find.widgetWithText(ActionChip, 'Copa Argentina'));
     await tester.pumpAndSettle();
 

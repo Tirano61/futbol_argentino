@@ -33,6 +33,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Base: `https://www.thesportsdb.com/api/v1/json/123/` (clave en `--dart-define=TSDB_API_KEY`, por defecto `123`).
 - Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`, Primera B Metropolitana `5215`, Primera C `5524`. Federal A (`5523`) no entra sin un relevamiento propio (V8).
 - Marcas del catálogo: `showInHome` (Inicio) e `inTeamIndex` (bootstrap del índice). B Metro y Primera C van sin las dos y sin tabla (`NoStandings`).
+- Categorías (D22): `CompetitionCategory` obligatoria en cada entrada; `CompetitionCatalog.byCategory` omite las vacías. Selector `CompetitionPicker` (< 600 botón + hoja en el navegador raíz; ≥ 600 chips categoría → competición). Las vistas Tabla/Llaves se ofrecen solo si `hasStandings`/`hasBracket`; un `vista=` no disponible abre el Fixture. En tests, `selectCompetition(tester, shortName)` deriva la categoría.
 - Límite: 30 peticiones/minuto (HTTP 429). Sin paginación. Fuente principal: `eventsround.php?id=&r=&s=`.
 - Primera: cada `r` (1..16) trae **Apertura y Clausura juntos**; `r=0` = eliminatorias; `r=16` incluye octavos. La fase se resuelve con el catálogo por temporada (`PhaseResolver`); si no hay evidencia → `undetermined`.
 - Copa: rondas `64, 32, 16, 125 (cuartos), 150 (semis), 200 (final)` (V2 validada con la final 2025).
