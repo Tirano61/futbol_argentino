@@ -41,6 +41,9 @@ final class PhaseResolver {
                 : PhaseSource.inferred,
           ),
       },
+      final ContinentalCupRules rules => {
+        for (final m in matches) m.id: _continental(rules, season, apiRound, m),
+      },
     };
     if (definition.rules is KnockoutCupRules) return assigned;
     return _enforceOneMatchPerTeam(matches, assigned);
@@ -133,6 +136,39 @@ final class PhaseResolver {
       }
     }
     return result;
+  }
+
+  /// La etapa de [season] con esa ronda cuya ventana contiene el día del
+  /// partido. Ninguna o más de una: `undetermined`. Una etapa sin ventana
+  /// (sin datos todavía) solo toma la ronda si es la única que la usa.
+  PhaseAssignment _continental(
+    ContinentalCupRules rules,
+    Season season,
+    int apiRound,
+    Match m,
+  ) {
+    final candidates = [
+      for (final s in rules.stagesOf(season))
+        if (s.apiRound == apiRound) s,
+    ];
+    if (candidates case [final only] when !only.verified) {
+      return PhaseAssignment(
+        phase: only.phase,
+        stageKind: only.kind,
+        source: PhaseSource.inferred,
+      );
+    }
+    final day = m.kickoff.argentinaDay;
+    if (day == null) return const PhaseAssignment.undetermined();
+    final matching = candidates.where((s) => s.contains(day)).toList();
+    if (matching case [final stage]) {
+      return PhaseAssignment(
+        phase: stage.phase,
+        stageKind: stage.kind,
+        source: PhaseSource.catalog,
+      );
+    }
+    return const PhaseAssignment.undetermined();
   }
 
   PhaseAssignment _singleTable(

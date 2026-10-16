@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/time/calendar_day.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/result/data_result.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
@@ -175,5 +176,50 @@ void main() {
       expect(stage!.season, const Season(2025));
       expect(stage.label, 'Fecha 1');
     });
+
+    test('copa internacional sin punteros: la etapa vigente del día', () async {
+      final resolve = ResolveCurrentStage(
+        FakeCompetitionRepository(
+          failure: const NetworkFailure(
+            issue: NetworkIssue.timeout,
+            detail: 'timeout',
+          ),
+        ),
+      );
+
+      final stage = await resolve(
+        CompetitionCatalog.copaSudamericana,
+        const Season(2026),
+        today: const CalendarDay(2026, 10, 15),
+      );
+      expect(stage!.label, 'Semifinales');
+      // Sin el día, como antes: la primera etapa de la primera fase.
+      final first = await resolve(
+        CompetitionCatalog.copaSudamericana,
+        const Season(2026),
+      );
+      expect(first!.label, 'Primera fase');
+    });
+
+    test(
+      'Primera no tiene ventanas por etapa: el día no cambia nada',
+      () async {
+        final resolve = ResolveCurrentStage(
+          FakeCompetitionRepository(
+            failure: const NetworkFailure(
+              issue: NetworkIssue.timeout,
+              detail: 'timeout',
+            ),
+          ),
+        );
+
+        final stage = await resolve(
+          primera,
+          const Season(2026),
+          today: const CalendarDay(2026, 10, 11),
+        );
+        expect(stage!.label, 'Fecha 1');
+      },
+    );
   });
 }

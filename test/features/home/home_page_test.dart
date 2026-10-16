@@ -140,10 +140,14 @@ void main() {
     for (final d in CompetitionCatalog.all) {
       expect(find.widgetWithText(ActionChip, d.name), findsOneWidget);
     }
-    // Agrupados por categoría (D2), en el orden del catálogo; sin la de
-    // copas internacionales, que todavía no tiene competiciones.
+    // Agrupados por categoría (D2), en el orden del catálogo.
     final headers = [
-      for (final label in ['Primera División', 'Ascenso', 'Copas nacionales'])
+      for (final label in [
+        'Primera División',
+        'Ascenso',
+        'Copas nacionales',
+        'Copas internacionales',
+      ])
         find.descendant(
           of: find.byWidgetPredicate(
             (w) => w is Semantics && (w.properties.header ?? false),
@@ -154,11 +158,15 @@ void main() {
     double top(Finder f) => tester.getTopLeft(f).dy;
     final tops = [for (final h in headers) top(h)];
     expect(tops, orderedEquals([...tops]..sort()));
-    expect(find.text('Copas internacionales'), findsNothing);
     // La C (Ascenso) antes de las copas nacionales.
     expect(
       top(find.widgetWithText(ActionChip, 'Primera C')),
       lessThan(top(headers[2])),
+    );
+    // Las copas internacionales (Fase D3), después de la Copa Argentina.
+    expect(
+      top(find.widgetWithText(ActionChip, 'Copa Argentina')),
+      lessThan(top(headers[3])),
     );
     await tester.tap(find.widgetWithText(ActionChip, 'Copa Argentina'));
     await tester.pumpAndSettle();

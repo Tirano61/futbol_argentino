@@ -207,6 +207,6 @@ class CompleteRounds {
     competitionId: competitionId,
     season: season.apiValue,
     apiRound: apiRound,
-    expectedMinimum: definition?.expectedMinimumMatches(apiRound),
+    expectedMinimum: definition?.expectedMinimumMatches(season, apiRound),
   );
 }

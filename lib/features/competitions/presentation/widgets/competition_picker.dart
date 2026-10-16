@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../../shared/presentation/layout/breakpoints.dart';
 import '../../domain/catalog/competition_catalog.dart';
@@ -9,7 +10,10 @@ import '../../domain/catalog/competition_catalog.dart';
 /// va en la URL). En un teléfono es un botón que abre una hoja con las
 /// competiciones agrupadas; desde 600 px, una fila de categorías y otra con
 /// las competiciones de la categoría (oculta si tiene una sola); desde
-/// 1200 px, las dos en la misma línea si entran.
+/// 1200 px, las dos en la misma línea si entran. Si las categorías no entran
+/// en una línea (la columna del fixture junto al panel de detalle, o texto
+/// grande), vuelve al botón con la hoja: un solo renglón, sin chips
+/// cortados ni áreas táctiles más chicas.
 class CompetitionPicker extends StatefulWidget {
   const CompetitionPicker({
     super.key,
@@ -34,6 +38,11 @@ class _CompetitionPickerState extends State<CompetitionPicker> {
   /// Última competición vista de cada categoría, mientras la pantalla vive:
   /// tocar la categoría vuelve a ella.
   final _lastByCategory = <CompetitionCategory, int>{};
+
+  /// Ancho que necesitan los chips de categoría en una línea, medido con
+  /// [_measuredScaler] (cambia con la escala de texto).
+  double? _categoriesWidth;
+  TextScaler? _measuredScaler;
 
   @override
   void initState() {
@@ -63,6 +72,24 @@ class _CompetitionPickerState extends State<CompetitionPicker> {
     if (id != widget.selectedId) widget.onSelected(id);
   }
 
+  /// La medición llega durante el layout: el cambio se aplica en el cuadro
+  /// siguiente (mientras tanto la fila no se pinta).
+  void _onCategoriesMeasured(double width, TextScaler scaler) {
+    final known = _categoriesWidth;
+    if (scaler == _measuredScaler &&
+        known != null &&
+        (known - width).abs() < 0.5) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _categoriesWidth = width;
+        _measuredScaler = scaler;
+      });
+    });
+  }
+
   void _selectCategory(
     CompetitionCategory category,
     List<CompetitionDefinition> competitions,
@@ -77,27 +104,52 @@ class _CompetitionPickerState extends State<CompetitionPicker> {
   Widget build(BuildContext context) {
     final byCategory = CompetitionCatalog.byCategory(widget.catalog);
     final selected = _selected;
-    if (Breakpoints.isCompact(context)) {
-      return _SheetButton(
-        byCategory: byCategory,
-        selected: selected,
-        onSelected: _select,
-      );
-    }
+    final sheetButton = _SheetButton(
+      byCategory: byCategory,
+      selected: selected,
+      onSelected: _select,
+    );
+    if (Breakpoints.isCompact(context)) return sheetButton;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaler = MediaQuery.textScalerOf(context);
+        final needed = scaler == _measuredScaler ? _categoriesWidth : null;
+        if (needed != null && needed > constraints.maxWidth) {
+          return sheetButton;
+        }
+        return _chips(
+          context,
+          byCategory,
+          selected,
+          (width) => _onCategoriesMeasured(width, scaler),
+        );
+      },
+    );
+  }
+
+  Widget _chips(
+    BuildContext context,
+    Map<CompetitionCategory, List<CompetitionDefinition>> byCategory,
+    CompetitionDefinition? selected,
+    ValueChanged<double> onCategoriesMeasured,
+  ) {
     final category = selected?.category;
     final competitions = byCategory[category] ?? const [];
-    final categoryChips = _ChipRow([
-      for (final MapEntry(key: c, value: list) in byCategory.entries)
-        ChoiceChip(
-          label: Text(c.label),
-          showCheckmark: false,
-          selected: c == category,
-          onSelected: (_) {
-            if (c != category) _selectCategory(c, list);
-          },
-        ),
-    ]);
+    final categoryChips = _MeasuredRow(
+      onMeasured: onCategoriesMeasured,
+      children: [
+        for (final MapEntry(key: c, value: list) in byCategory.entries)
+          ChoiceChip(
+            label: Text(c.label),
+            showCheckmark: false,
+            selected: c == category,
+            onSelected: (_) {
+              if (c != category) _selectCategory(c, list);
+            },
+          ),
+      ],
+    );
     final competitionChips = competitions.length < 2
         ? null
         : _ChipRow([
@@ -125,6 +177,64 @@ class _CompetitionPickerState extends State<CompetitionPicker> {
       children: [categoryChips, ?competitionChips],
     );
   }
+}
+
+/// Fila de chips que informa el ancho que necesita para entrar en una línea.
+/// Si no entra no se pinta: el selector pasa al botón en el cuadro
+/// siguiente.
+class _MeasuredRow extends SingleChildRenderObjectWidget {
+  _MeasuredRow({required this.onMeasured, required List<Widget> children})
+    : super(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: children,
+        ),
+      );
+
+  final ValueChanged<double> onMeasured;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMeasuredRow(onMeasured);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMeasuredRow renderObject,
+  ) {
+    renderObject.onMeasured = onMeasured;
+  }
+}
+
+class _RenderMeasuredRow extends RenderProxyBox {
+  _RenderMeasuredRow(this.onMeasured);
+
+  ValueChanged<double> onMeasured;
+  var _fits = true;
+
+  @override
+  void performLayout() {
+    final child = this.child!;
+    final needed = child.getMaxIntrinsicWidth(double.infinity);
+    onMeasured(needed);
+    _fits = needed <= constraints.maxWidth;
+    // Sin entrar, se dispone sin límite de ancho (no desborda) y no se pinta.
+    child.layout(
+      _fits ? constraints.loosen() : const BoxConstraints(),
+      parentUsesSize: true,
+    );
+    size = constraints.constrain(child.size);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (_fits) super.paint(context, offset);
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      _fits && super.hitTest(result, position: position);
 }
 
 /// Chips en una fila con desplazamiento: con texto grande no entran, y
@@ -170,6 +280,9 @@ class _SheetButton extends StatelessWidget {
       useRootNavigator: true,
       showDragHandle: true,
       useSafeArea: true,
+      // Del alto de su contenido (no 9/16 de la pantalla: en horizontal
+      // dejaba las copas fuera de la vista); si no entra, se desplaza.
+      isScrollControlled: true,
       builder: (context) =>
           _CompetitionSheet(byCategory: byCategory, selectedId: selected?.id),
     );
@@ -199,15 +312,36 @@ class _SheetButton extends StatelessWidget {
 }
 
 /// Competiciones agrupadas por categoría, con la actual marcada.
-class _CompetitionSheet extends StatelessWidget {
+/// Se abre con la competición actual a la vista.
+class _CompetitionSheet extends StatefulWidget {
   const _CompetitionSheet({required this.byCategory, required this.selectedId});
 
   final Map<CompetitionCategory, List<CompetitionDefinition>> byCategory;
   final int? selectedId;
 
   @override
+  State<_CompetitionSheet> createState() => _CompetitionSheetState();
+}
+
+class _CompetitionSheetState extends State<_CompetitionSheet> {
+  final _selectedKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final selected = _selectedKey.currentContext;
+      if (selected != null && selected.mounted) {
+        Scrollable.ensureVisible(selected, alignment: 0.5);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final byCategory = widget.byCategory;
+    final selectedId = widget.selectedId;
     return ListView(
       shrinkWrap: true,
       padding: const EdgeInsets.only(bottom: 16),
@@ -228,6 +362,7 @@ class _CompetitionSheet extends StatelessWidget {
           ),
           for (final c in competitions)
             ListTile(
+              key: c.id == selectedId ? _selectedKey : null,
               title: Text(c.name),
               selected: c.id == selectedId,
               trailing: c.id == selectedId ? const Icon(Icons.check) : null,

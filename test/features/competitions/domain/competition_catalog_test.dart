@@ -18,6 +18,8 @@ void main() {
       4500,
       5215,
       5524,
+      4501,
+      4724,
     ]);
     expect(
       CompetitionCatalog.byId(4500),
@@ -34,11 +36,13 @@ void main() {
         CompetitionCategory.firstDivision,
         CompetitionCategory.promotion,
         CompetitionCategory.nationalCup,
+        CompetitionCategory.internationalCup,
       ]);
       expect(byCategory.map((k, v) => MapEntry(k, [for (final c in v) c.id])), {
         CompetitionCategory.firstDivision: [4406],
         CompetitionCategory.promotion: [4616, 5215, 5524],
         CompetitionCategory.nationalCup: [4500],
+        CompetitionCategory.internationalCup: [4501, 4724],
       });
       // Cada competición en una sola categoría.
       expect(
@@ -69,11 +73,28 @@ void main() {
     test('vistas «Tabla» y «Llaves» solo donde hay formato verificado', () {
       expect(
         {for (final d in CompetitionCatalog.all) d.id: d.hasStandings},
-        {4406: true, 4616: true, 4500: false, 5215: false, 5524: false},
+        {
+          4406: true,
+          4616: true,
+          4500: false,
+          5215: false,
+          5524: false,
+          // Tablas de grupos en la Fase D4; cuadro en la D5.
+          4501: false,
+          4724: false,
+        },
       );
       expect(
         {for (final d in CompetitionCatalog.all) d.id: d.hasBracket},
-        {4406: true, 4616: false, 4500: true, 5215: false, 5524: false},
+        {
+          4406: true,
+          4616: false,
+          4500: true,
+          5215: false,
+          5524: false,
+          4501: false,
+          4724: false,
+        },
       );
     });
   });
@@ -85,12 +106,27 @@ void main() {
   });
 
   test('cantidad mínima esperada por ronda', () {
-    expect(primera.expectedMinimumMatches(12), 15);
-    expect(primera.expectedMinimumMatches(0), isNull);
-    expect(CompetitionCatalog.primeraNacional.expectedMinimumMatches(33), 18);
-    expect(CompetitionCatalog.copaArgentina.expectedMinimumMatches(125), 4);
+    expect(primera.expectedMinimumMatches(const Season(2026), 12), 15);
+    expect(primera.expectedMinimumMatches(const Season(2026), 0), isNull);
     expect(
-      CompetitionCatalog.copaArgentina.expectedMinimumMatches(999),
+      CompetitionCatalog.primeraNacional.expectedMinimumMatches(
+        const Season(2026),
+        33,
+      ),
+      18,
+    );
+    expect(
+      CompetitionCatalog.copaArgentina.expectedMinimumMatches(
+        const Season(2026),
+        125,
+      ),
+      4,
+    );
+    expect(
+      CompetitionCatalog.copaArgentina.expectedMinimumMatches(
+        const Season(2026),
+        999,
+      ),
       isNull,
     );
   });
@@ -136,6 +172,120 @@ void main() {
     }
     expect(apertura.containsInKnockout(const CalendarDay(2026, 5, 4)), isFalse);
     expect(apertura.containsInRegular(const CalendarDay(2026, 5, 4)), isTrue);
+  });
+
+  group('Fase D3: copas internacionales', () {
+    const libertadores = CompetitionCatalog.copaLibertadores;
+    const sudamericana = CompetitionCatalog.copaSudamericana;
+    const recordedRounds = {
+      (4501, 2025): [400, 1, 2, 3, 4, 5, 6, 16, 125, 150, 200],
+      (4501, 2026): [1, 2, 3, 4, 5, 6, 16, 125, 150, 200],
+      (4724, 2025): [400, 1, 2, 3, 4, 5, 6, 160, 16, 125, 150, 200],
+      (4724, 2026): [1, 2, 3, 4, 5, 6, 32, 16, 125, 150, 200],
+    };
+
+    test('fuera del Inicio y del índice; sin tabla ni cuadro todavía', () {
+      for (final d in [libertadores, sudamericana]) {
+        expect(d.category, CompetitionCategory.internationalCup);
+        expect(d.showInHome, isFalse);
+        expect(d.inTeamIndex, isFalse);
+        expect(d.phases, [
+          PhaseKey.qualifying,
+          PhaseKey.groups,
+          PhaseKey.knockoutStage,
+        ]);
+        expect(d.bracketRounds, isEmpty);
+      }
+    });
+
+    test('etapas de cada temporada: identidad única y ventanas que no se '
+        'pisan en la misma ronda', () {
+      for (final d in [libertadores, sudamericana]) {
+        final rules = d.rules as ContinentalCupRules;
+        for (final MapEntry(key: year, value: format)
+            in rules.seasons.entries) {
+          final stages = format.stages;
+          final reason = '${d.shortName} $year';
+          expect(
+            {for (final s in stages) (s.phase, s.apiRound, s.kind)},
+            hasLength(stages.length),
+            reason: reason,
+          );
+          for (final s in stages) {
+            final sameRound = stages.where((o) => o.apiRound == s.apiRound);
+            if (!s.verified) {
+              // Sin ventana solo si es la única etapa de la ronda.
+              expect(sameRound, hasLength(1), reason: '$reason r${s.apiRound}');
+              continue;
+            }
+            for (final o in sameRound.where((o) => !identical(o, s))) {
+              expect(s.to, isNotNull, reason: '$reason ${s.label}');
+              expect(o.to, isNotNull, reason: '$reason ${o.label}');
+              expect(
+                s.to!.isBefore(o.from!) || o.to!.isBefore(s.from!),
+                isTrue,
+                reason: '$reason: ${s.label} y ${o.label}',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    for (final MapEntry(key: (id, year), value: rounds)
+        in recordedRounds.entries) {
+      test('$id $year: cada partido grabado cae en exactamente una etapa', () {
+        final definition = CompetitionCatalog.byId(id)!;
+        final rules = definition.rules as ContinentalCupRules;
+        final season = Season(year);
+        final counts = <ContinentalStage, int>{};
+        for (final r in rounds) {
+          final matches = fixtureMatches('eventsround_${id}_r${r}_s$year');
+          for (final m in matches) {
+            final day = m.kickoff.argentinaDay!;
+            final matching = [
+              for (final s in rules.stagesOf(season))
+                if (s.apiRound == m.apiRound && s.contains(day)) s,
+            ];
+            expect(matching, hasLength(1), reason: '${m.id} r$r $day');
+            counts[matching.single] = (counts[matching.single] ?? 0) + 1;
+          }
+          if (matches.isNotEmpty) {
+            expect(
+              matches,
+              hasLength(definition.expectedMinimumMatches(season, r)!),
+              reason: 'r$r: los partidos esperados de sus etapas',
+            );
+          }
+        }
+        // Cada etapa con datos tiene todos sus partidos; la final 2026 no
+        // tiene datos todavía.
+        for (final s in rules.stagesOf(season)) {
+          expect(
+            counts[s] ?? 0,
+            s.verified ? s.expectedMatches : 0,
+            reason: s.label,
+          );
+        }
+      });
+    }
+
+    test('las rondas compartidas suman las dos etapas (calidad)', () {
+      const s2026 = Season(2026);
+      expect(libertadores.expectedMinimumMatches(s2026, 1), 22);
+      expect(libertadores.expectedMinimumMatches(s2026, 2), 32);
+      expect(libertadores.expectedMinimumMatches(s2026, 3), 24);
+      expect(libertadores.expectedMinimumMatches(s2026, 16), 16);
+      expect(sudamericana.expectedMinimumMatches(s2026, 1), 32);
+      expect(sudamericana.expectedMinimumMatches(s2026, 32), 16);
+      expect(sudamericana.expectedMinimumMatches(s2026, 160), isNull);
+      expect(sudamericana.expectedMinimumMatches(const Season(2025), 160), 16);
+      // Temporada sin formato verificado.
+      expect(
+        libertadores.expectedMinimumMatches(const Season(2024), 1),
+        isNull,
+      );
+    });
   });
 
   group('Fase 15: competiciones nuevas (V8)', () {
@@ -185,7 +335,9 @@ void main() {
           );
           expect(
             events,
-            hasLength(definition.expectedMinimumMatches(r)!),
+            hasLength(
+              definition.expectedMinimumMatches(const Season(2026), r)!,
+            ),
             reason: 'fecha $r',
           );
           final ids = {

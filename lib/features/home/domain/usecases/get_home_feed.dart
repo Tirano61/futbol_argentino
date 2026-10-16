@@ -146,7 +146,10 @@ class GetHomeFeed {
     competitionId: definition.id,
     season: season,
     apiRound: apiRound,
-    expectedMinimum: definition.expectedMinimumMatches(apiRound),
+    expectedMinimum: switch (Season.tryParse(season)) {
+      final s? => definition.expectedMinimumMatches(s, apiRound),
+      null => null,
+    },
   );
 
   Future<void> _loadCompetition(
@@ -283,16 +286,26 @@ class GetHomeFeed {
     PhaseAssignment? assignment,
   ) {
     final season = Season.tryParse(match.season);
+    if (season == null) {
+      return HomeMatch(
+        match: match,
+        competitionName: definition.name,
+        stageLabel: 'Ronda ${match.apiRound}',
+      );
+    }
     final phase =
         assignment ??
-        (season == null
-            ? const PhaseAssignment.undetermined()
-            : PhaseResolver(definition).classifyRound(
-                season: season,
-                apiRound: match.apiRound,
-                matches: [match],
-              )[match.id]!);
-    final labels = StageLabeler.describe(definition, match.apiRound, phase);
+        PhaseResolver(definition).classifyRound(
+          season: season,
+          apiRound: match.apiRound,
+          matches: [match],
+        )[match.id]!;
+    final labels = StageLabeler.describe(
+      definition,
+      season,
+      match.apiRound,
+      phase,
+    );
     return HomeMatch(
       match: match,
       competitionName: definition.name,

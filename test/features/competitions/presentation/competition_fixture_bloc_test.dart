@@ -310,6 +310,92 @@ void main() {
   });
 
   test('catálogo: la Nacional 2026 tiene 36 fechas', () {
-    expect(CompetitionCatalog.primeraNacional.expectedMinimumMatches(36), 18);
+    expect(
+      CompetitionCatalog.primeraNacional.expectedMinimumMatches(
+        const Season(2026),
+        36,
+      ),
+      18,
+    );
+  });
+
+  group('Fase D3: copas internacionales', () {
+    final libertadoresRounds = {
+      for (final r in [1, 2, 3, 125, 150])
+        r: fixtureMatches('eventsround_4501_r${r}_s2026'),
+    };
+
+    blocTest<CompetitionFixtureBloc, CompetitionFixtureState>(
+      '`fase=previa&ronda=1` sin `etapa`: Fase 1 con sus 6 partidos',
+      build: () => buildBloc(FakeMatchRepository(libertadoresRounds)),
+      act: (bloc) => bloc.add(
+        const FixtureOpened(
+          competitionId: 4501,
+          season: Season(2026),
+          phase: PhaseKey.qualifying,
+          apiRound: 1,
+        ),
+      ),
+      verify: (bloc) {
+        final state = bloc.state;
+        expect(state.phases, [
+          PhaseKey.qualifying,
+          PhaseKey.groups,
+          PhaseKey.knockoutStage,
+        ]);
+        expect(state.stage!.label, 'Fase 1');
+        expect(state.stages.map((s) => s.label), [
+          'Fase 1',
+          'Fase 2',
+          'Fase 3',
+        ]);
+        expect(loadedMatches(state), hasLength(6));
+        // Los 16 de la Fecha 1 son de otra fase, no «sin fase».
+        expect(state.undeterminedInRound, 0);
+      },
+    );
+
+    blocTest<CompetitionFixtureBloc, CompetitionFixtureState>(
+      'de las previas a los grupos: la Fecha 1, con los otros 16 de la ronda',
+      build: () => buildBloc(FakeMatchRepository(libertadoresRounds)),
+      act: (bloc) async {
+        bloc.add(
+          const FixtureOpened(
+            competitionId: 4501,
+            season: Season(2026),
+            phase: PhaseKey.qualifying,
+            apiRound: 1,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const FixturePhaseChanged(PhaseKey.groups));
+      },
+      verify: (bloc) {
+        expect(bloc.state.stage!.label, 'Fecha 1');
+        expect(bloc.state.stage!.apiRound, 1);
+        expect(loadedMatches(bloc.state), hasLength(16));
+      },
+    );
+
+    blocTest<CompetitionFixtureBloc, CompetitionFixtureState>(
+      'sin punteros (sin red ni caché): la etapa vigente por fecha, no la '
+      'Fase 1 de febrero',
+      build: () => buildBloc(
+        FakeMatchRepository(libertadoresRounds),
+        competitions: FakeCompetitionRepository(
+          failure: const NetworkFailure(
+            issue: NetworkIssue.timeout,
+            detail: 'timeout',
+          ),
+        ),
+      ),
+      act: (bloc) => bloc.add(const FixtureOpened(competitionId: 4501)),
+      verify: (bloc) {
+        // 11/10/2026: las semifinales empiezan el 14.
+        expect(bloc.state.phase, PhaseKey.knockoutStage);
+        expect(bloc.state.stage!.label, 'Cuartos de final');
+        expect(loadedMatches(bloc.state), hasLength(8));
+      },
+    );
   });
 }

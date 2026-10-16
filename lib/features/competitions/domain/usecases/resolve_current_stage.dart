@@ -1,4 +1,5 @@
 import '../../../../core/error/failure.dart';
+import '../../../../core/time/calendar_day.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/season.dart';
@@ -8,13 +9,19 @@ import '../services/round_navigator.dart';
 
 /// Etapa con la que abre el fixture: la del próximo partido o, si no hay,
 /// la del último jugado. Si no se puede determinar (sin red y sin caché,
-/// otra temporada, fase dudosa), abre la primera etapa de la primera fase.
+/// otra temporada, fase dudosa), en las copas internacionales la etapa
+/// vigente [today] según el catálogo (no la Fase 1 de febrero); si no, la
+/// primera etapa de la primera fase.
 class ResolveCurrentStage {
   const ResolveCurrentStage(this._competitions);
 
   final CompetitionRepository _competitions;
 
-  Future<Stage?> call(CompetitionDefinition definition, Season season) async {
+  Future<Stage?> call(
+    CompetitionDefinition definition,
+    Season season, {
+    CalendarDay? today,
+  }) async {
     Match? pointer;
     try {
       final result = await _competitions.getSchedulePointers(definition.id);
@@ -26,6 +33,11 @@ class ResolveCurrentStage {
     if (pointer != null && pointer.season == season.apiValue) {
       final located = RoundNavigator.locate(definition, pointer);
       if (located != null) return located.stage;
+    }
+
+    if (today != null) {
+      final current = RoundNavigator.stageOnDay(definition, season, today);
+      if (current != null) return current;
     }
 
     for (final phase in definition.phases) {

@@ -64,6 +64,13 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 2;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await pumpApp(tester, const Size(360, 780));
+    // Con las cuatro categorías de accesos (Fase D3), «Tus equipos» queda
+    // debajo de la primera pantalla.
+    await tester.scrollUntilVisible(
+      find.text('Tus equipos'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Tus equipos'), findsOne);
     await tester.scrollUntilVisible(
       find.byType(MatchCard),

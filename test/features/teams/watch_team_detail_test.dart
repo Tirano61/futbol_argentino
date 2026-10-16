@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
+import 'package:futbol_argentino/features/teams/domain/entities/team_detail.dart';
 import 'package:futbol_argentino/features/teams/domain/entities/team_pointers.dart';
 import 'package:futbol_argentino/features/teams/domain/usecases/watch_team_detail.dart';
 
@@ -119,15 +120,21 @@ void main() {
       ]),
       ['2606044 Copa Sudamericana · Próximo partido'],
     );
+    // Fuera del catálogo, el último (Primera) está guardado: va en
+    // disputados y no se repite (Fase D3: se mira el partido, no la
+    // competición).
     expect(
       await others(TeamPointers(next: next, last: last), const [
         CompetitionCatalog.copaArgentina,
       ]),
-      [
-        '2606044 Copa Sudamericana · Próximo partido',
-        // Fuera del catálogo el nombre es el de la API (`strLeague`).
-        '2398104 Argentinian Primera Division · Último partido',
-      ],
+      ['2606044 Copa Sudamericana · Próximo partido'],
+    );
+    expect(
+      await others(TeamPointers(next: next, last: next), const [
+        CompetitionCatalog.copaArgentina,
+      ]),
+      // Fuera del catálogo el nombre es el de la API (`strLeague`).
+      ['2606044 Copa Sudamericana · Próximo partido'],
     );
     // El mismo partido como próximo y último (en juego) va una sola vez.
     expect(
@@ -136,5 +143,54 @@ void main() {
       ]),
       ['2606044 Copa Sudamericana · Próximo partido'],
     );
+  });
+
+  test('Fase D3: el puntero a la Sudamericana sigue en «otras» hasta que se '
+      'guarda su ronda; la ficha no sincroniza la copa', () async {
+    final next = fixtureMatches('eventsnext_135156').single;
+    final last = recordedLastMatch('eventslast_135156');
+    final pointers = FakeTeamRepository(
+      teams: {bocaId: recordedTeams('lookupteam_135156').single},
+      pointers: {bocaId: TeamPointers(next: next, last: last)},
+    );
+    const catalog = [
+      CompetitionCatalog.primeraDivision,
+      CompetitionCatalog.copaSudamericana,
+    ];
+    Future<TeamDetail> detail(FakeMatchRepository repository) =>
+        WatchTeamDetail(teams: pointers, matches: repository, catalog: catalog)(
+          bocaId,
+          now: DateTime.utc(2026, 10, 11, 20, 35),
+          cancelToken: CancelToken(),
+        ).last;
+
+    // La copa está en el catálogo y su ronda no está guardada.
+    final before = await detail(matches);
+    expect(before.otherCompetitions.map((m) => m.match.id), [2606044]);
+    expect(
+      before.otherCompetitions.single.competitionName,
+      'Copa Sudamericana',
+    );
+
+    // Con las semifinales guardadas (al abrir el fixture de la copa; la
+    // grabación es del 14/10, con la ida ya jugada), el partido pasa a la
+    // ficha con su fase y etapa.
+    final withCup = FakeMatchRepository({
+      for (var r = 0; r <= 16; r++)
+        r: fixtureMatches('eventsround_4406_r${r}_s2026'),
+      150: fixtureMatches('eventsround_4724_r150_s2026'),
+    });
+    final after = await detail(withCup);
+    expect(after.otherCompetitions, isEmpty);
+    final cup = [
+      ...after.upcoming,
+      ...after.played,
+    ].singleWhere((m) => m.match.id == 2606044);
+    expect(
+      [cup.competitionName, cup.phaseLabel, cup.stageLabel],
+      ['Copa Sudamericana', 'Eliminatorias', 'Semifinales'],
+    );
+    // Hasta la Fase D6 la ficha no pide rondas de las copas.
+    expect(withCup.synced.where((s) => s.query.competitionId == 4724), isEmpty);
   });
 }

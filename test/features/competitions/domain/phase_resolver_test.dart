@@ -305,4 +305,115 @@ void main() {
       expect(summary(result), {'unica/knockout/inferred': 2});
     });
   });
+
+  group('Fase D3: copas internacionales (datos reales)', () {
+    const libertadores = CompetitionCatalog.copaLibertadores;
+    const sudamericana = CompetitionCatalog.copaSudamericana;
+
+    Kickoff onDay(int year, int month, int day) => Kickoff(
+      utc: DateTime.utc(year, month, day, 23),
+      argentinaDay: CalendarDay(year, month, day),
+      certainty: KickoffCertainty.confirmed,
+      evidence: KickoffEvidence.timestamp,
+    );
+
+    test('Libertadores 2026, ronda 1: 6 de la Fase 1 y 16 de la Fecha 1', () {
+      final round = fixtureMatches('eventsround_4501_r1_s2026');
+
+      expect(summary(classify(libertadores, 2026, 1, round)), {
+        'qualifying/knockout/catalog': 6,
+        'groups/regular/catalog': 16,
+      });
+    });
+
+    test(
+      'Sudamericana 2026, ronda 1: 16 de la Primera fase y 16 de grupos',
+      () {
+        final round = fixtureMatches('eventsround_4724_r1_s2026');
+
+        expect(summary(classify(sudamericana, 2026, 1, round)), {
+          'qualifying/knockout/catalog': 16,
+          'groups/regular/catalog': 16,
+        });
+      },
+    );
+
+    test('2025: las previas en la ronda 400; playoffs en la 160', () {
+      expect(
+        summary(
+          classify(
+            libertadores,
+            2025,
+            400,
+            fixtureMatches('eventsround_4501_r400_s2025'),
+          ),
+        ),
+        {'qualifying/knockout/catalog': 30},
+      );
+      expect(
+        summary(
+          classify(
+            sudamericana,
+            2025,
+            160,
+            fixtureMatches('eventsround_4724_r160_s2025'),
+          ),
+        ),
+        {'knockoutStage/knockout/catalog': 16},
+      );
+    });
+
+    test('las series de ida y vuelta no anulan la ronda (no son fechas)', () {
+      // Octavos: cada equipo juega dos veces en la ronda 16.
+      final round = fixtureMatches('eventsround_4501_r16_s2026');
+
+      expect(summary(classify(libertadores, 2026, 16, round)), {
+        'knockoutStage/knockout/catalog': 16,
+      });
+    });
+
+    test('ronda 1 de 2026 entre las previas y los grupos: undetermined', () {
+      final moved = rebuild(
+        fixtureMatches('eventsround_4501_r1_s2026').first,
+        kickoff: onDay(2026, 3, 20),
+      );
+
+      expect(
+        classify(libertadores, 2026, 1, [moved])[moved.id],
+        const PhaseAssignment.undetermined(),
+      );
+    });
+
+    test('final 2026 sin datos todavía: la ronda 200 se infiere', () {
+      // Variante de la final 2025 movida a 2026 (solo para el test).
+      final finalMatch = rebuild(
+        fixtureMatches('eventsround_4501_r200_s2025').single,
+        kickoff: onDay(2026, 11, 28),
+      );
+
+      expect(summary(classify(libertadores, 2026, 200, [finalMatch])), {
+        'knockoutStage/knockout/inferred': 1,
+      });
+    });
+
+    test('temporada sin formato verificado: todo undetermined', () {
+      final round = fixtureMatches('eventsround_4501_r1_s2025');
+
+      expect(summary(classify(libertadores, 2024, 1, round)), {
+        'undetermined/regular/undetermined': 16,
+      });
+    });
+
+    test('sin día conocido: undetermined', () {
+      final noDate = rebuild(
+        fixtureMatches('eventsround_4724_r1_s2026').first,
+        kickoff: const Kickoff.unknown(),
+      );
+
+      expect(
+        classify(sudamericana, 2026, 1, [noDate])[noDate.id],
+        const PhaseAssignment.undetermined(),
+      );
+    });
+  });
 }

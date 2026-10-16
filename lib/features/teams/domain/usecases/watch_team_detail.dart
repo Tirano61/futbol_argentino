@@ -96,7 +96,7 @@ class WatchTeamDetail {
           for (final i in items)
             if (MatchGrouping.isPlayed(i.match, today)) i,
         ]..sort((a, b) => MatchGrouping.compare(b.match, a.match)),
-        otherCompetitions: _otherCompetitions(pointers),
+        otherCompetitions: _otherCompetitions(pointers, stored),
         progress: progress,
       );
     }
@@ -213,27 +213,42 @@ class WatchTeamDetail {
     }
   }
 
-  /// Los punteros de competiciones fuera del catálogo (las del catálogo ya
-  /// están en próximos y disputados, con su fixture).
-  List<TeamMatch> _otherCompetitions(TeamPointers? pointers) {
-    final seen = <int>{};
+  /// Los punteros de las competiciones que la ficha no sincroniza (fuera
+  /// del catálogo, o copas internacionales) mientras su partido no esté
+  /// guardado: las demás ya están en próximos y disputados, con su
+  /// fixture. Así el próximo de Boca en la Sudamericana no desaparece al
+  /// entrar la copa al catálogo; deja de listarse cuando se guarda su
+  /// ronda (p. ej. al abrir el fixture de la copa).
+  List<TeamMatch> _otherCompetitions(
+    TeamPointers? pointers,
+    List<Match> stored,
+  ) {
+    final seen = {for (final m in stored) m.id};
     return [
       for (final (match, label) in [
         (pointers?.next, 'Próximo partido'),
         (pointers?.last, 'Último partido'),
       ])
         if (match != null &&
-            _definition(match.competitionId) == null &&
+            !_syncedHere(_definition(match.competitionId)) &&
             seen.add(match.id))
           TeamMatch(
             match: match,
-            competitionName: match.competitionName.isEmpty
-                ? 'Otra competición'
-                : match.competitionName,
+            competitionName:
+                _definition(match.competitionId)?.name ??
+                (match.competitionName.isEmpty
+                    ? 'Otra competición'
+                    : match.competitionName),
             stageLabel: label,
           ),
     ];
   }
+
+  /// La ficha sincroniza las rondas de la temporada de [d]. Las copas
+  /// internacionales todavía no (Fase D6: límite superior y corte por
+  /// evidencia).
+  static bool _syncedHere(CompetitionDefinition? d) =>
+      d != null && d.rules is! ContinentalCupRules;
 
   /// La temporada del año argentino si el equipo tiene partidos guardados
   /// en ella; si no (p. ej. en enero), la más reciente que tenga.
@@ -262,6 +277,7 @@ class WatchTeamDetail {
   ) {
     final byCompetition = <List<RoundQuery>>[];
     for (final d in _catalog) {
+      if (!_syncedHere(d)) continue;
       final mine = [
         for (final m in stored)
           if (m.competitionId == d.id && m.season == season.apiValue) m,
@@ -316,7 +332,10 @@ class WatchTeamDetail {
     competitionId: d.id,
     season: season,
     apiRound: apiRound,
-    expectedMinimum: d.expectedMinimumMatches(apiRound),
+    expectedMinimum: switch (Season.tryParse(season)) {
+      final s? => d.expectedMinimumMatches(s, apiRound),
+      null => null,
+    },
   );
 
   static int _max(int a, int b) => a > b ? a : b;

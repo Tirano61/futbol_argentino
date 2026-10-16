@@ -166,6 +166,107 @@ final class KnockoutCupRules extends CompetitionRules {
   }
 }
 
+/// Etapa de una copa internacional en una temporada: «Fase 1», «Fecha 3»,
+/// «Octavos de final»… Corresponde a una ronda de la API; varias etapas
+/// pueden compartirla (2026: la ronda 1 trae la Fase 1 en febrero y la
+/// Fecha 1 de grupos en abril) y entonces se separan por la ventana.
+final class ContinentalStage {
+  const ContinentalStage({
+    required this.phase,
+    required this.label,
+    required this.apiRound,
+    required this.legs,
+    required this.expectedMatches,
+    this.from,
+    this.to,
+  });
+
+  /// Fecha [apiRound] de la fase de grupos (8 grupos de 4: 16 partidos).
+  const ContinentalStage.groupMatchday(
+    this.apiRound, {
+    required CalendarDay this.from,
+    required CalendarDay this.to,
+  }) : phase = PhaseKey.groups,
+       label = 'Fecha $apiRound',
+       legs = 1,
+       expectedMatches = 16;
+
+  /// [PhaseKey.qualifying], [PhaseKey.groups] o [PhaseKey.knockoutStage].
+  final PhaseKey phase;
+  final String label;
+
+  /// `intRound` de la API.
+  final int apiRound;
+
+  /// 1: partido único; 2: ida y vuelta (las dos piernas en la misma ronda).
+  final int legs;
+
+  /// Partidos de la etapa (piernas incluidas).
+  final int expectedMatches;
+
+  /// Primer día argentino de la etapa. `null`: sin datos todavía (la final
+  /// 2026); solo se admite si ninguna otra etapa de la temporada usa la
+  /// misma ronda, y sus partidos quedan como inferidos.
+  final CalendarDay? from;
+
+  /// Último día argentino; `null`: en curso, sin fin conocido.
+  final CalendarDay? to;
+
+  /// Los grupos son fechas regulares; las previas y las eliminatorias, de
+  /// eliminación.
+  StageKind get kind =>
+      phase == PhaseKey.groups ? StageKind.regular : StageKind.knockout;
+
+  /// Tiene ventana verificada con datos reales.
+  bool get verified => from != null;
+
+  bool contains(CalendarDay day) {
+    final first = from;
+    final last = to;
+    return first != null &&
+        !day.isBefore(first) &&
+        (last == null || !day.isAfter(last));
+  }
+}
+
+/// Formato verificado de una temporada de una copa internacional.
+final class ContinentalSeason {
+  const ContinentalSeason({required this.stages});
+
+  /// En orden cronológico.
+  final List<ContinentalStage> stages;
+}
+
+/// Copa internacional con fases previas, grupos y eliminatorias (Copa
+/// Libertadores, Copa Sudamericana). Los códigos de ronda cambian entre
+/// temporadas: sin formato verificado, la temporada no tiene etapas.
+final class ContinentalCupRules extends CompetitionRules {
+  const ContinentalCupRules({required this.seasons});
+
+  static const phases = [
+    PhaseKey.qualifying,
+    PhaseKey.groups,
+    PhaseKey.knockoutStage,
+  ];
+
+  /// Año → formato verificado.
+  final Map<int, ContinentalSeason> seasons;
+
+  List<ContinentalStage> stagesOf(Season season) =>
+      seasons[season.year]?.stages ?? const [];
+
+  ContinentalStage? stageFor(
+    Season season,
+    PhaseKey phase,
+    int apiRound,
+    StageKind kind,
+  ) => stagesOf(season)
+      .where(
+        (s) => s.phase == phase && s.apiRound == apiRound && s.kind == kind,
+      )
+      .firstOrNull;
+}
+
 /// Agrupación del selector de competiciones, en el orden en que se muestra.
 enum CompetitionCategory {
   firstDivision('Primera División'),
@@ -233,6 +334,8 @@ final class CompetitionDefinition {
       for (final r in rounds)
         BracketRound(label: r.label, apiRound: r.code, matches: r.matches),
     ],
+    // Las series de ida y vuelta llegan con el cuadro (Fase D5).
+    ContinentalCupRules() => const [],
   };
 
   /// Fases que se ofrecen al usuario, en orden.
@@ -240,16 +343,26 @@ final class CompetitionDefinition {
     SplitSeasonLeagueRules(:final phases) => phases,
     SingleTableLeagueRules() => const [PhaseKey.regular],
     KnockoutCupRules() => const [PhaseKey.unica],
+    ContinentalCupRules() => ContinentalCupRules.phases,
   };
 
   /// Cantidad mínima de partidos que debería traer una consulta de la ronda
-  /// [apiRound] (para clasificar respuestas incompletas). `null` si no se
-  /// sabe.
-  int? expectedMinimumMatches(int apiRound) => switch (rules) {
+  /// [apiRound] de [season] (para clasificar respuestas incompletas). `null`
+  /// si no se sabe.
+  int? expectedMinimumMatches(Season season, int apiRound) => switch (rules) {
     final SplitSeasonLeagueRules r =>
       apiRound >= 1 && apiRound <= r.regularRounds ? r.matchesPerRound : null,
     SingleTableLeagueRules(:final matchesPerRound) => matchesPerRound,
     final KnockoutCupRules r => r.roundFor(apiRound)?.matches,
+    // Las etapas que comparten la ronda suman (Libertadores 2026, ronda 1:
+    // 6 de la Fase 1 y 16 de la Fecha 1).
+    final ContinentalCupRules r => switch ([
+      for (final s in r.stagesOf(season))
+        if (s.apiRound == apiRound) s.expectedMatches,
+    ]) {
+      [] => null,
+      final counts => counts.reduce((a, b) => a + b),
+    },
   };
 }
 
@@ -571,6 +684,300 @@ abstract final class CompetitionCatalog {
     inTeamIndex: false,
   );
 
+  /// Copa Libertadores (V16–V18). Etapas y ventanas (días argentinos) de
+  /// los partidos grabados el 14/10/2026 (`docs/evidence/d1_grupos_y_etapas.md`).
+  /// Sin tabla ni cuadro hasta las Fases D4 y D5; fuera del Inicio.
+  static const copaLibertadores = CompetitionDefinition(
+    id: 4501,
+    name: 'Copa Libertadores',
+    shortName: 'Libertadores',
+    category: CompetitionCategory.internationalCup,
+    format: CompetitionFormat.cup,
+    rules: ContinentalCupRules(
+      seasons: {
+        2025: ContinentalSeason(
+          stages: [
+            // Las tres fases previas vienen juntas en la ronda 400.
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Fases 1, 2 y 3',
+              apiRound: 400,
+              legs: 2,
+              expectedMatches: 30,
+              from: CalendarDay(2025, 2, 4),
+              to: CalendarDay(2025, 3, 13),
+            ),
+            ..._groups2025,
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Octavos de final',
+              apiRound: 16,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2025, 8, 12),
+              to: CalendarDay(2025, 8, 21),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Cuartos de final',
+              apiRound: 125,
+              legs: 2,
+              expectedMatches: 8,
+              from: CalendarDay(2025, 9, 16),
+              to: CalendarDay(2025, 9, 25),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Semifinales',
+              apiRound: 150,
+              legs: 2,
+              expectedMatches: 4,
+              from: CalendarDay(2025, 10, 22),
+              to: CalendarDay(2025, 10, 30),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Final',
+              apiRound: 200,
+              legs: 1,
+              expectedMatches: 1,
+              from: CalendarDay(2025, 11, 29),
+              to: CalendarDay(2025, 11, 29),
+            ),
+          ],
+        ),
+        2026: ContinentalSeason(
+          stages: [
+            // Las previas comparten las rondas 1 a 3 con los grupos: se
+            // separan por la ventana.
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Fase 1',
+              apiRound: 1,
+              legs: 2,
+              expectedMatches: 6,
+              from: CalendarDay(2026, 2, 3),
+              to: CalendarDay(2026, 2, 12),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Fase 2',
+              apiRound: 2,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2026, 2, 17),
+              to: CalendarDay(2026, 2, 26),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Fase 3',
+              apiRound: 3,
+              legs: 2,
+              expectedMatches: 8,
+              from: CalendarDay(2026, 3, 3),
+              to: CalendarDay(2026, 3, 12),
+            ),
+            ..._groups2026,
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Octavos de final',
+              apiRound: 16,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2026, 8, 11),
+              to: CalendarDay(2026, 8, 25),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Cuartos de final',
+              apiRound: 125,
+              legs: 2,
+              expectedMatches: 8,
+              from: CalendarDay(2026, 9, 8),
+              to: CalendarDay(2026, 9, 17),
+            ),
+            // En curso (14/10/2026).
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Semifinales',
+              apiRound: 150,
+              legs: 2,
+              expectedMatches: 4,
+              from: CalendarDay(2026, 10, 14),
+            ),
+            // Sin datos todavía (Fase D-F).
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Final',
+              apiRound: 200,
+              legs: 1,
+              expectedMatches: 1,
+            ),
+          ],
+        ),
+      },
+    ),
+    showInHome: false,
+    inTeamIndex: false,
+  );
+
+  /// Copa Sudamericana (V16–V18), como [copaLibertadores].
+  static const copaSudamericana = CompetitionDefinition(
+    id: 4724,
+    name: 'Copa Sudamericana',
+    shortName: 'Sudamericana',
+    category: CompetitionCategory.internationalCup,
+    format: CompetitionFormat.cup,
+    rules: ContinentalCupRules(
+      seasons: {
+        2025: ContinentalSeason(
+          stages: [
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Primera fase',
+              apiRound: 400,
+              legs: 1,
+              expectedMatches: 16,
+              from: CalendarDay(2025, 3, 4),
+              to: CalendarDay(2025, 3, 6),
+            ),
+            ..._groups2025,
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Playoffs de octavos',
+              apiRound: 160,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2025, 7, 15),
+              to: CalendarDay(2025, 7, 24),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Octavos de final',
+              apiRound: 16,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2025, 8, 12),
+              to: CalendarDay(2025, 8, 21),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Cuartos de final',
+              apiRound: 125,
+              legs: 2,
+              expectedMatches: 8,
+              from: CalendarDay(2025, 9, 16),
+              to: CalendarDay(2025, 9, 25),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Semifinales',
+              apiRound: 150,
+              legs: 2,
+              expectedMatches: 4,
+              from: CalendarDay(2025, 10, 21),
+              to: CalendarDay(2025, 10, 30),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Final',
+              apiRound: 200,
+              legs: 1,
+              expectedMatches: 1,
+              from: CalendarDay(2025, 11, 22),
+              to: CalendarDay(2025, 11, 22),
+            ),
+          ],
+        ),
+        2026: ContinentalSeason(
+          stages: [
+            // Comparte la ronda 1 con la Fecha 1 de grupos.
+            ContinentalStage(
+              phase: PhaseKey.qualifying,
+              label: 'Primera fase',
+              apiRound: 1,
+              legs: 1,
+              expectedMatches: 16,
+              from: CalendarDay(2026, 3, 3),
+              to: CalendarDay(2026, 3, 5),
+            ),
+            ..._groups2026,
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Playoffs de octavos',
+              apiRound: 32,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2026, 7, 21),
+              to: CalendarDay(2026, 7, 30),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Octavos de final',
+              apiRound: 16,
+              legs: 2,
+              expectedMatches: 16,
+              from: CalendarDay(2026, 8, 11),
+              to: CalendarDay(2026, 8, 26),
+            ),
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Cuartos de final',
+              apiRound: 125,
+              legs: 2,
+              expectedMatches: 8,
+              from: CalendarDay(2026, 9, 8),
+              to: CalendarDay(2026, 9, 17),
+            ),
+            // En curso (13/10/2026).
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Semifinales',
+              apiRound: 150,
+              legs: 2,
+              expectedMatches: 4,
+              from: CalendarDay(2026, 10, 13),
+            ),
+            // Sin datos todavía (Fase D-F).
+            ContinentalStage(
+              phase: PhaseKey.knockoutStage,
+              label: 'Final',
+              apiRound: 200,
+              legs: 1,
+              expectedMatches: 1,
+            ),
+          ],
+        ),
+      },
+    ),
+    showInHome: false,
+    inTeamIndex: false,
+  );
+
+  /// Fechas de grupos de las dos copas (mismos días en las dos). La
+  /// ventana es la de toda la fase: la ronda ya dice qué fecha es, y así
+  /// no se separan las previas de 2026 por pocos días.
+  static const _groupsFrom2025 = CalendarDay(2025, 4, 1);
+  static const _groupsTo2025 = CalendarDay(2025, 5, 29);
+  static const _groups2025 = [
+    ContinentalStage.groupMatchday(1, from: _groupsFrom2025, to: _groupsTo2025),
+    ContinentalStage.groupMatchday(2, from: _groupsFrom2025, to: _groupsTo2025),
+    ContinentalStage.groupMatchday(3, from: _groupsFrom2025, to: _groupsTo2025),
+    ContinentalStage.groupMatchday(4, from: _groupsFrom2025, to: _groupsTo2025),
+    ContinentalStage.groupMatchday(5, from: _groupsFrom2025, to: _groupsTo2025),
+    ContinentalStage.groupMatchday(6, from: _groupsFrom2025, to: _groupsTo2025),
+  ];
+  static const _groupsFrom2026 = CalendarDay(2026, 4, 7);
+  static const _groupsTo2026 = CalendarDay(2026, 5, 28);
+  static const _groups2026 = [
+    ContinentalStage.groupMatchday(1, from: _groupsFrom2026, to: _groupsTo2026),
+    ContinentalStage.groupMatchday(2, from: _groupsFrom2026, to: _groupsTo2026),
+    ContinentalStage.groupMatchday(3, from: _groupsFrom2026, to: _groupsTo2026),
+    ContinentalStage.groupMatchday(4, from: _groupsFrom2026, to: _groupsTo2026),
+    ContinentalStage.groupMatchday(5, from: _groupsFrom2026, to: _groupsTo2026),
+    ContinentalStage.groupMatchday(6, from: _groupsFrom2026, to: _groupsTo2026),
+  ];
+
   /// Torneo Federal A (5523) no entra: mezcla etapas en la numeración de
   /// rondas (V8) y necesita un relevamiento propio.
   static const all = [
@@ -579,6 +986,8 @@ abstract final class CompetitionCatalog {
     copaArgentina,
     primeraBMetropolitana,
     primeraC,
+    copaLibertadores,
+    copaSudamericana,
   ];
 
   /// Competiciones de [catalog] por categoría, en el orden de

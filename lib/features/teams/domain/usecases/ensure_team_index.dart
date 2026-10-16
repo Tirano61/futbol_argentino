@@ -52,7 +52,10 @@ class EnsureTeamIndex {
       competitionId: definition.id,
       season: season.apiValue,
       apiRound: stage.apiRound,
-      expectedMinimum: definition.expectedMinimumMatches(stage.apiRound),
+      expectedMinimum: definition.expectedMinimumMatches(
+        season,
+        stage.apiRound,
+      ),
     );
   }
 

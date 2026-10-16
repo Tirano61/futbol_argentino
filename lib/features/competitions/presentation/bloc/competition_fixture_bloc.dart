@@ -59,7 +59,11 @@ class CompetitionFixtureBloc
         final definition = state.definition;
         if (definition == null) return;
         emit(state.copyWith(season: season, content: const FixtureLoading()));
-        final stage = await _resolveCurrentStage(definition, season);
+        final stage = await _resolveCurrentStage(
+          definition,
+          season,
+          today: ArgentinaTime.dayOf(_clock.now()),
+        );
         await _select(emit, definition, season, stage);
       case FixturePhaseChanged(:final phase):
         final definition = state.definition;
@@ -128,17 +132,23 @@ class CompetitionFixtureBloc
     final phase = event.phase;
     final apiRound = event.apiRound;
     if (phase != null && apiRound != null) {
+      // Sin tipo de etapa, la primera de esa ronda en la fase (en Primera,
+      // la fecha antes que los octavos).
       stage = phase == PhaseKey.undetermined
           ? _undeterminedStage(definition, season, apiRound)
           : RoundNavigator.stagesFor(definition, season, phase)
                 .where(
                   (s) =>
                       s.apiRound == apiRound &&
-                      s.kind == (event.kind ?? StageKind.regular),
+                      (event.kind == null || s.kind == event.kind),
                 )
                 .firstOrNull;
     }
-    stage ??= await _resolveCurrentStage(definition, season);
+    stage ??= await _resolveCurrentStage(
+      definition,
+      season,
+      today: ArgentinaTime.dayOf(_clock.now()),
+    );
     await _select(emit, definition, season, stage);
   }
 

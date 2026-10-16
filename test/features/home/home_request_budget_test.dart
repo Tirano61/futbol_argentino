@@ -88,8 +88,9 @@ void main() {
     );
     expect(feed.todayMatches, isNotEmpty);
     expect(feed.failedCompetitions, isEmpty);
-    // B Metro y Primera C están en el catálogo pero no en el Inicio.
-    expect(CompetitionCatalog.all, hasLength(5));
+    // B Metro, Primera C y las copas internacionales están en el catálogo
+    // pero no en el Inicio.
+    expect(CompetitionCatalog.all, hasLength(7));
     expect(
       {for (final u in requests) u.queryParameters['id']},
       {'4406', '4616', '4500'},
