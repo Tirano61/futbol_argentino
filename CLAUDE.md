@@ -31,7 +31,8 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 
 ## Datos clave de TheSportsDB
 - Base: `https://www.thesportsdb.com/api/v1/json/123/` (clave en `--dart-define=TSDB_API_KEY`, por defecto `123`).
-- Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`, Primera B Metropolitana `5215`, Primera C `5524`. Federal A (`5523`) no entra sin un relevamiento propio (V8).
+- Ligas: Primera División `4406`, Primera Nacional `4616`, Copa Argentina `4500`, Primera B Metropolitana `5215`, Primera C `5524`, Copa Libertadores `4501`, Copa Sudamericana `4724`. Federal A (`5523`) no entra sin un relevamiento propio (V8).
+- Copas internacionales (D23, Hito D en `docs/HITO_D.md`): `ContinentalCupRules` con etapas **por temporada** (ronda + ventana de días argentinos; los códigos cambian entre años y en 2026 las previas comparten `r=1–3` con los grupos). Fases `qualifying`/`groups`/`knockoutStage` (URL `previa`/`grupos`/`eliminatorias`). Sin ventana → `undetermined`; etapa sin datos (final 2026) sin ventana → «inferido» si es la única de su ronda. Fuera del Inicio y del índice; Tabla en D4, Llaves en D5; la ficha de equipo no las sincroniza hasta D6 (sus punteros siguen en «Otras competiciones» hasta que se guarda la ronda). Tests con las grabaciones de D1: `pumpApp(now: continentalRecordingTime)`; presupuestos en `test/app/continental_budget_test.dart`.
 - Marcas del catálogo: `showInHome` (Inicio) e `inTeamIndex` (bootstrap del índice). B Metro y Primera C van sin las dos y sin tabla (`NoStandings`).
 - Categorías (D22): `CompetitionCategory` obligatoria en cada entrada; `CompetitionCatalog.byCategory` omite las vacías. Selector `CompetitionPicker` (< 600 botón + hoja en el navegador raíz; ≥ 600 chips categoría → competición). Las vistas Tabla/Llaves se ofrecen solo si `hasStandings`/`hasBracket`; un `vista=` no disponible abre el Fixture. En tests, `selectCompetition(tester, shortName)` deriva la categoría.
 - Límite: 30 peticiones/minuto (HTTP 429). Sin paginación. Fuente principal: `eventsround.php?id=&r=&s=`.
@@ -53,6 +54,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Anchos en `Breakpoints` (`lib/shared/presentation/layout/breakpoints.dart`): < 600 navegación inferior · 600–1199 riel · ≥ 1200 escritorio (riel extendido, buscador en la barra, Inicio en 2 columnas, fixture con panel de detalle, contenido hasta 1200 px). La tablet a densidad 160 da 800 px en vertical y 1280 px en horizontal (escritorio).
 - Tests de layout y accesibilidad de la app completa con `pumpApp` (`test/helpers/recorded_app.dart`): 360/768/1280/1920 px, pautas `meetsGuideline` y texto al 200 %. Un desborde falla el test.
 - Un `SnackBar` con acción queda fijo por defecto en este Flutter: usar `persist: false`.
+- `CompetitionPicker`: desde 600 px usa chips de categoría solo si entran en una línea (mide su ancho); si no (fixture con panel de detalle a 1280 px, texto grande), el botón con la hoja. Con la fuente de los tests (14 px por letra) casi nunca entran: los tests que dependen de anchos reales cargan Roboto con `setUpAll(loadRealFonts)` (`test/helpers/real_fonts.dart`).
 
 ## Paquetes nativos
 - Después de agregar un plugin, `flutter clean` antes del build Web: la compilación puede reutilizar un `web_plugin_registrant.dart` viejo y el plugin da `MissingPluginException` (visto con `share_plus`).
@@ -82,6 +84,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - `flutter run -d SOP10X2501001122` (tablet) · `flutter run -d chrome`
 - Web release con diagnóstico: `flutter build web --dart-define=DIAGNOSTICS=true`; probar en la tablet con `adb reverse tcp:8080 tcp:8080` y `http://localhost:8080/`.
 - La pantalla de diagnóstico está en `/diagnostico` (botón 🐞 en Inicio, solo en debug o con `DIAGNOSTICS=true`).
+- Sin API (caída de TheSportsDB): `tool/recorded_app/main.dart` arma la app con las respuestas grabadas (base en memoria, reloj de la grabación de D1, banda «DATOS GRABADOS»). Android: `adb push test/fixtures/api/. /sdcard/Android/data/com.example.futbol_argentino/files/fixtures/` + `chmod 755` de esa carpeta, y `flutter build apk --release -t tool/recorded_app/main.dart`. Web: `flutter build web --release -t tool/recorded_app/main.dart` y copiar los JSON a `build/web/fixtures/`. Reinstalar después el APK normal y borrar `build/web/fixtures/`.
 
 ## Inspección de datos (Windows)
 - Al revisar JSON con Python desde un pipe, decodificar explícitamente como UTF-8 (`sys.stdin.buffer.read().decode('utf-8')`): por defecto usa cp1252 y simula «mojibake» que la API no tiene.

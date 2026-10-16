@@ -191,4 +191,39 @@ void main() {
       containsAll(['Cuartos de final', 'Semifinales']),
     );
   });
+
+  test('Fase D3: Libertadores 2026, «Completar» = 10 rondas y cada partido '
+      'con su fase', () async {
+    // Grabaciones del 14/10/2026: el reloj en esa hora.
+    clock = FakeClock(DateTime.utc(2026, 10, 15, 0, 45));
+    api = RecordedApi(
+      clock: clock,
+      db: await newDatabaseFactoryMemory().openDatabase('cup.db'),
+    );
+
+    final opened = await watch(4501).last;
+    expect(api.requests, isEmpty);
+    expect(opened.roundsTotal, 10);
+
+    final calendar = await watch(4501, download: true).last;
+    expect(api.requests, hasLength(10));
+    final counts = <String, int>{};
+    for (final l in calendar.labels.values) {
+      final key = [?l.phase, l.stage].join(' · ');
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    expect(counts, {
+      'Fases previas · Fase 1': 6,
+      'Fases previas · Fase 2': 16,
+      'Fases previas · Fase 3': 8,
+      for (var r = 1; r <= 6; r++) 'Fase de grupos · Fecha $r': 16,
+      'Eliminatorias · Octavos de final': 16,
+      'Eliminatorias · Cuartos de final': 8,
+      'Eliminatorias · Semifinales': 4,
+    });
+
+    api.requests.clear();
+    await watch(4501, download: true).last;
+    expect(api.requests, isEmpty);
+  });
 }

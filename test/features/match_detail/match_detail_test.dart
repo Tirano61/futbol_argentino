@@ -7,8 +7,8 @@ import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/phase.dart';
 import 'package:futbol_argentino/features/match_detail/domain/usecases/get_match_detail.dart';
 import 'package:futbol_argentino/features/match_detail/presentation/bloc/match_detail_bloc.dart';
+import 'package:futbol_argentino/features/match_detail/presentation/formatters/match_detail_texts.dart';
 import 'package:futbol_argentino/features/match_detail/presentation/pages/match_detail_page.dart';
-import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/shared/presentation/formatters/match_labels.dart';
 
@@ -55,28 +55,51 @@ void main() {
       expect(detail.stageLabel, 'Cuartos de final');
     });
 
-    test('competición fuera del catálogo: sin fase', () async {
-      final base = fixtureMatches('eventsround_4406_r12_s2026').first;
-      final other = Match(
-        id: 1,
-        competitionId: 4724,
-        competitionName: 'CONMEBOL Copa Sudamericana',
-        season: '2026',
-        apiRound: 150,
-        home: base.home,
-        away: base.away,
-        kickoff: base.kickoff,
-        status: base.status,
-        lastSeenAt: base.lastSeenAt,
+    test('Fase D3: copas internacionales, con fase y etapa', () async {
+      final r1 = fixtureMatches('eventsround_4501_r1_s2026');
+      final r16 = fixtureMatches('eventsround_4501_r16_s2026');
+      final getCup = GetMatchDetail(FakeMatchRepository({1: r1, 16: r16}));
+      Future<String> line(int id) async =>
+          MatchDetailTexts.competitionLine((await getCup(id)).data);
+
+      // La ronda 1 de 2026 trae la Fase 1 (febrero) y la Fecha 1 (abril).
+      final february = r1.firstWhere((m) => m.kickoff.argentinaDay!.month == 2);
+      final april = r1.firstWhere((m) => m.kickoff.argentinaDay!.month == 4);
+      expect(
+        await line(february.id),
+        'Copa Libertadores · Fases previas · Fase 1',
       );
+      expect(
+        await line(april.id),
+        'Copa Libertadores · Fase de grupos · Fecha 1',
+      );
+      expect(
+        await line(r16.first.id),
+        'Copa Libertadores · Eliminatorias · Octavos de final',
+      );
+
+      // Una pierna empatada de una serie no dice quién avanza (las series
+      // llegan en la Fase D5).
+      final drawn = r16.firstWhere(
+        (m) =>
+            m.status.isFinished &&
+            m.penalties == null &&
+            m.score!.home == m.score!.away,
+      );
+      expect((await getCup(drawn.id)).data.advancement, isNull);
+    });
+
+    test('competición fuera del catálogo: sin fase', () async {
+      // Torneo Federal A (5523): fuera del catálogo (V8).
+      final other = fixtureMatches('eventsround_5523_r1_s2026').first;
 
       final detail = (await GetMatchDetail(
         FakeMatchRepository({
-          150: [other],
+          1: [other],
         }),
-      )(1)).data;
+      )(other.id)).data;
 
-      expect(detail.competitionName, 'CONMEBOL Copa Sudamericana');
+      expect(detail.competitionName, 'Argentina Torneo Federal A');
       expect(detail.phase, isNull);
       expect(detail.stageLabel, isNull);
     });

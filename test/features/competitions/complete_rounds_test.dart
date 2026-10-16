@@ -223,6 +223,42 @@ void main() {
     });
   });
 
+  group('Fase D3: copas internacionales (grabadas el 14/10/2026)', () {
+    // Las rondas únicas de las etapas de cada temporada: las previas de
+    // 2026 comparten las rondas 1 a 3 con los grupos.
+    for (final (id, year, rounds, matches) in [
+      (4501, 2026, 10, 154),
+      (4724, 2026, 11, 156),
+      (4501, 2025, 11, 155),
+      (4724, 2025, 12, 157),
+    ]) {
+      test('$id $year: $rounds en frío, 0 en caliente', () async {
+        final cupClock = FakeClock(DateTime.utc(2026, 10, 15, 0, 45));
+        final cupApi = RecordedApi(
+          clock: cupClock,
+          db: await newDatabaseFactoryMemory().openDatabase('cup.db'),
+        );
+        Future<SeasonCompletion> run() => CompleteRounds(cupApi.matches)(
+          id,
+          Season(year),
+          now: cupClock.now(),
+          cancelToken: CancelToken(),
+        ).last;
+
+        final cold = await run();
+        expect(cupApi.requests, hasLength(rounds));
+        expect(cupApi.requestLabels.toSet(), hasLength(rounds));
+        expect(cold.progress.done, rounds);
+        expect(cold.matches, hasLength(matches));
+
+        cupApi.requests.clear();
+        final hot = await run();
+        expect(cupApi.requests, isEmpty);
+        expect(hot.matches, hasLength(matches));
+      });
+    }
+  });
+
   test('emite lo guardado antes de terminar', () async {
     await load(copa, 2026, rounds: [64]);
 

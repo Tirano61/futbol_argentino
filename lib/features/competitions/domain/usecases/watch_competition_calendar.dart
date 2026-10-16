@@ -172,7 +172,7 @@ class WatchCompetitionCalendar {
                   matches: round,
                 )
                 .entries)
-          id: StageLabeler.describe(definition, apiRound, assignment),
+          id: StageLabeler.describe(definition, season, apiRound, assignment),
     };
   }
 }

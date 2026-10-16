@@ -81,7 +81,7 @@ class RefreshRecentRounds {
           competitionId: competitionId,
           season: season.apiValue,
           apiRound: r,
-          expectedMinimum: definition?.expectedMinimumMatches(r),
+          expectedMinimum: definition?.expectedMinimumMatches(season, r),
         ),
     ];
   }

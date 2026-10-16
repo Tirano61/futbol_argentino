@@ -43,16 +43,23 @@ class _PumpedClock implements Clock {
   DateTime now() => start.add(_tester.binding.clock.now().difference(_origin));
 }
 
-/// La app completa con datos reales grabados, el domingo 11/10/2026 a las
-/// 17:00 de Argentina. [respond] puede reemplazar una respuesta (si
-/// devuelve `null`, se usa la grabada). Sin [settle] no espera a que
-/// terminen las cargas. Cada petición se agrega a [requests].
+/// Hora de las grabaciones de las copas internacionales (Fase D1): el
+/// 14/10/2026 a las 21:45 de Argentina. Los tests que las usan arrancan acá
+/// para no ver partidos «del futuro».
+final continentalRecordingTime = DateTime.utc(2026, 10, 15, 0, 45);
+
+/// La app completa con datos reales grabados, por defecto el domingo
+/// 11/10/2026 a las 17:00 de Argentina ([now] cambia el arranque del
+/// reloj). [respond] puede reemplazar una respuesta (si devuelve `null`, se
+/// usa la grabada). Sin [settle] no espera a que terminen las cargas. Cada
+/// petición se agrega a [requests].
 Future<void> pumpApp(
   WidgetTester tester,
   Size size, {
   http.Response? Function(Uri url)? respond,
   bool settle = true,
   List<Uri>? requests,
+  DateTime? now,
 }) async {
   tester.view
     ..physicalSize = size
@@ -63,7 +70,7 @@ Future<void> pumpApp(
   final deps = AppDependencies.create(
     database: db,
     config: const AppConfig(apiKey: '123', enableDiagnostics: false),
-    clock: _PumpedClock(tester, DateTime.utc(2026, 10, 11, 20)),
+    clock: _PumpedClock(tester, now ?? DateTime.utc(2026, 10, 11, 20)),
     // Escudos por la red simulada de los tests (sin caché en disco).
     badgeImages: const NetworkBadgeImages(),
     httpClient: MockClient((request) async {
@@ -111,7 +118,9 @@ Future<void> openNacionalTable(WidgetTester tester) async {
 }
 
 /// Elige una competición en el selector del fixture por su nombre corto.
-/// En un teléfono abre la hoja y toca su nombre; desde 600 px toca su
+/// Con el botón (teléfono, o categorías que no entran en una línea: con la
+/// fuente de los tests pasa en casi todos los anchos) abre la hoja y toca
+/// su nombre; con chips toca su
 /// categoría (si no es la actual) y, si la categoría tiene varias, la
 /// competición. Las filas de chips se desplazan: con texto grande el chip
 /// puede quedar fuera de la vista.
@@ -127,8 +136,16 @@ Future<void> selectCompetition(WidgetTester tester, String shortName) async {
   if (sheetButton.evaluate().isNotEmpty) {
     await tester.tap(sheetButton);
     await tester.pumpAndSettle();
+    // La hoja se desplaza: las copas pueden quedar debajo.
     final tile = find.widgetWithText(ListTile, competition.name);
-    await tester.ensureVisible(tile);
+    await tester.scrollUntilVisible(
+      tile,
+      100,
+      scrollable: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(tile);
     await tester.pumpAndSettle();

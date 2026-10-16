@@ -84,6 +84,9 @@ class WatchStageMatches {
         competitionId: definition.id,
         season: stage.season.apiValue,
         apiRound: stage.apiRound,
-        expectedMinimum: definition.expectedMinimumMatches(stage.apiRound),
+        expectedMinimum: definition.expectedMinimumMatches(
+          stage.season,
+          stage.apiRound,
+        ),
       );
 }

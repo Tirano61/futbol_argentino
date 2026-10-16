@@ -1,3 +1,4 @@
+import '../../../../core/time/calendar_day.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/phase.dart';
@@ -46,6 +47,10 @@ abstract final class RoundNavigator {
         for (final round in rules.rounds) {
           entries.add((round.code, StageKind.knockout));
         }
+      case final ContinentalCupRules rules:
+        for (final s in rules.stagesOf(season)) {
+          if (s.phase == phase) entries.add((s.apiRound, s.kind));
+        }
     }
 
     return [
@@ -56,7 +61,7 @@ abstract final class RoundNavigator {
           phase: phase,
           apiRound: apiRound,
           kind: kind,
-          label: StageLabeler.label(definition, apiRound, kind),
+          label: StageLabeler.label(definition, season, phase, apiRound, kind),
           order: index,
         ),
     ];
@@ -88,6 +93,30 @@ abstract final class RoundNavigator {
           stage.kind == assignment.stageKind) {
         return (stage: stage, stages: stages);
       }
+    }
+    return null;
+  }
+
+  /// Etapa vigente el [day] según las ventanas del catálogo: la que lo
+  /// contiene o, si cae entre dos, la última que empezó. `null` si la
+  /// competición no tiene ventanas por etapa (solo las copas
+  /// internacionales las tienen) o ninguna etapa empezó.
+  static Stage? stageOnDay(
+    CompetitionDefinition definition,
+    Season season,
+    CalendarDay day,
+  ) {
+    if (definition.rules case final ContinentalCupRules rules) {
+      final stages = rules.stagesOf(season);
+      final current =
+          stages.where((s) => s.contains(day)).firstOrNull ??
+          stages.where((s) => s.from?.isAfter(day) == false).lastOrNull;
+      if (current == null) return null;
+      return stagesFor(definition, season, current.phase)
+          .where(
+            (s) => s.apiRound == current.apiRound && s.kind == current.kind,
+          )
+          .firstOrNull;
     }
     return null;
   }

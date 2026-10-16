@@ -68,6 +68,7 @@ final class StoredMatchLabeler {
     }
     final labels = StageLabeler.describe(
       definition,
+      season,
       m.apiRound,
       assigned[m.id]!,
     );

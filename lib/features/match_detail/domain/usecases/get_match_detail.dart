@@ -49,7 +49,13 @@ class GetMatchDetail {
         competitionName: definition.name,
         phase: phase,
         stageLabel: phase.isDetermined
-            ? StageLabeler.label(definition, m.apiRound, phase.stageKind)
+            ? StageLabeler.label(
+                definition,
+                season,
+                phase.phase,
+                m.apiRound,
+                phase.stageKind,
+              )
             : 'Ronda ${m.apiRound}',
         advancement: advancement,
       ),

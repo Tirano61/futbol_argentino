@@ -2,7 +2,7 @@
 
 > **Aprobado por el usuario el 14/10/2026, con ajustes** (corte temprano solo con evidencia, D7 sin depender de las finales 2026, reglamentos oficiales). Se trabaja por fases: tarea por tarea dentro de cada fase y aprobación antes de la siguiente. Sin commits ni PR (los hace el usuario).
 >
-> **Estado:** Fase D1 terminada y aprobada (14/10/2026). Fase D2 terminada (15/10/2026), esperando aprobación para D3. Resultados en «Resultado de la Fase D1» y «Resultado de la Fase D2» (§10).
+> **Estado:** Fases D1 y D2 terminadas y aprobadas (14 y 15/10/2026). Fase D3 terminada (15/10/2026), esperando aprobación para D4. Resultados en «Resultado de la Fase D1», «… D2» y «… D3» (§10).
 
 ## Contexto
 La app cubre el fútbol argentino (Primera, Nacional, B Metro, C, Copa Argentina) con fixture, tablas, calendario, llaves, fichas y favoritos sobre la API gratuita de TheSportsDB. El usuario quiere sumar **Copa Libertadores y Copa Sudamericana completas** (no solo los partidos de equipos argentinos) y ordenar el selector de competiciones en **cuatro categorías**. Hoy la Sudamericana solo aparece como «Otras competiciones» en la ficha de un equipo.
@@ -369,6 +369,34 @@ Orden: D1 → D2 → D3 → D4 → D5 → D6 → D7. Al terminar cada fase: `flu
 - **Aceptación**: Lib 2026 `r=1` muestra 6 partidos en «Fases previas · Fase 1» y 16 en «Fase de grupos · Fecha 1»; series de previas visibles como partidos; Inicio sin cambios; Boca conserva su puntero a la Sudamericana.
 - **Pruebas**: `competition_catalog_test` (invariantes de etapas, cada partido grabado en una sola etapa, conteos), `phase_resolver_test`, `round_navigator_test`, `competition_fixture_bloc_test`, `fixture_route_test`, `complete_rounds_test` (10/11/11/12, 0 en caliente), `watch_competition_calendar_test`, `match_detail_test`, `team_detail_sync_test`, nuevo `test/app/continental_budget_test.dart`, `home_request_budget_test` (7 competiciones, mismas peticiones), toda la suite argentina.
 - **Resultado**: ambas copas navegables (fixture, calendario, detalle) desde «Copas internacionales».
+
+#### Resultado de la Fase D3 (15/10/2026)
+1. ✅ Refactor sin cambio de comportamiento: `expectedMinimumMatches(Season, int)`, `StageLabeler.label(definition, season, phase, apiRound, kind)` y `describe(definition, season, …)` (11 llamadas); `FixtureRoute.phaseName`/`parsePhase` con `switch` exhaustivo.
+2. ✅ `PhaseKey.qualifying/groups/knockoutStage` (URL `previa/grupos/eliminatorias`); `FixtureOpened.kind` nulo sin `etapa` (`fase=previa&ronda=1` abre la Fase 1).
+3. ✅ `ContinentalCupRules`/`ContinentalSeason`/`ContinentalStage` y sus casos en `PhaseResolver`, `RoundNavigator`, `StageLabeler`, `bracketRounds` (vacío), `phases` y `expectedMinimumMatches`.
+4. ✅ Entradas 4501 («Libertadores») y 4724 («Sudamericana»): `internationalCup`, fuera del Inicio y del índice, sin tabla ni cuadro; temporadas 2025 y 2026 con las etapas y ventanas de D1. **Los 622 partidos grabados de las cuatro temporadas caen cada uno en exactamente una etapa**, con la cantidad esperada por etapa.
+5. ✅ «Otras competiciones» de la ficha por partido no guardado: Boca conserva su puntero a la Sudamericana; `match_detail_test` usa un partido real del Federal A (5523) como «fuera del catálogo».
+6. ✅ `ResolveCurrentStage(…, today:)` + `RoundNavigator.stageOnDay`: sin puntero, la etapa vigente o la última que empezó (el 11/10/2026, Cuartos; no la Fase 1 de febrero).
+7. ✅ Textos «Fases previas · Fase 1», «Fase de grupos · Fecha 3», «Eliminatorias · Octavos de final» en detalle, compartir, calendario y ficha (vía `StageLabeler.describe`, sin código nuevo de pantalla).
+8. ✅ `pumpApp(now:)` + `continentalRecordingTime` (`RecordedApi` ya recibe su reloj).
+
+**Ajustes respecto del plan** (detalle en `DECISIONS.md`, registro del 15/10/2026): `StageLabeler` recibe también la fase; las fechas de grupos usan la ventana de toda la fase; la final 2026 va sin ventana (`verified: false`, «inferida») y las semifinales 2026 «en curso»; «Otras competiciones» se limita a las competiciones que la ficha no sincroniza (fuera del catálogo o copas); la ficha no sincroniza las copas hasta D6; el respaldo por fecha solo actúa en las copas.
+
+**Ajustes pedidos en la revisión** (15/10/2026):
+1. **Selector en horizontal**: a 1280 px con el panel de detalle «Copas internacionales» quedaba cortado. Los chips de categoría se usan solo si entran en una línea; si no, el botón con la hoja (un renglón, áreas de 48 px). La hoja toma el alto de su contenido y abre con la competición actual a la vista (en horizontal, a 9/16 de la pantalla, las copas quedaban afuera). Encontrado en la misma prueba: en teléfonos con texto al 200 % las tres fases de las copas ocupaban un renglón cada una → una fila con desplazamiento (solo < 600 px).
+2. **Inicio en teléfonos**: con texto al 200 % «Tus equipos» queda debajo de la primera pantalla; se llega desplazando, sin desbordes y con las pautas (`accessibility_test`; visto en la tablet a 400 px).
+3. **Caída de TheSportsDB** (HTTP 522 de Cloudflare y ~20 s por consulta el 15/10/2026): sin cambios en el timeout (15 s), los reintentos ni la sincronización.
+4. **Pruebas sin red**: herramienta `tool/recorded_app/` (respuestas grabadas, base en memoria, reloj de la grabación, banda «DATOS GRABADOS»).
+
+**Validación**: `flutter analyze` sin issues; `flutter test` **744 verdes** (694 + 50 nuevos). Presupuestos: Fixture de una copa en frío = liga + 2 punteros + ronda + siguiente = **5**, en caliente **0**; «Completar» Lib/Sud 2026 = **10/11**, 2025 = **11/12**, en caliente 0; Inicio sin cambios (12 en frío, solo 4406/4616/4500).
+
+**Dispositivos con datos grabados** (tablet `SOP10X2501001122`, APK release de `tool/recorded_app`; Web release servida en 8080 y abierta en el Chrome de la tablet con `adb reverse`):
+- Android, horizontal 1280: Inicio con «Copas internacionales» (12 consultas, las del presupuesto); Libertadores = exactamente 5 consultas; selector como botón, hoja con las 7 competiciones sin desplazar; Sudamericana 2026: Primera fase (con «Final (penales)»), Fecha 1 sin consultas nuevas (ronda 1 ya guardada), detalle «Fase de grupos · Fecha 1» en el panel; Calendario: 0 consultas al abrir, «Completar» = las 7 rondas que faltaban, «Eliminatorias · Octavos de final» en agosto; temporada 2025 abre en la Final (Lanús 0-0 Atlético Mineiro, sin «Avanza») y Playoffs de octavos en la ronda 160.
+- Android, vertical 800: chips enteros (cuatro categorías + copas), selección conservada al girar.
+- Teléfono (densidad 320 = 400 px) con texto al 200 %: Inicio, hoja que se desplaza y fixture de copa con las fases en una fila.
+- Web: enlace `…/4501?temporada=2026&fase=grupos&ronda=3` → Fecha 3 de grupos; cambiar a «Fases previas» actualiza la URL (`fase=previa&ronda=1&etapa=eliminatoria`) y la recarga la conserva; `4724?vista=tabla` → Fixture con la URL corregida; `4724?fase=previa&ronda=1` sin `etapa` → Primera fase; enlace viejo de Primera `fase=apertura&ronda=16` → Fecha 16 (no los octavos).
+
+**Pendiente con la API real** (cuando TheSportsDB vuelva a responder en menos de 15 s): tablet y Chrome contra la red — recarga de URLs, navegación entre competiciones y caché entre sesiones (cerrar y reabrir: 0 consultas en caliente).
 
 ### D4 — Fase de grupos y tablas
 - **Objetivo**: tablas de los grupos A–H con desempates CONMEBOL por temporada y cobertura.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../shared/presentation/layout/breakpoints.dart';
 import '../../domain/entities/phase.dart';
 import '../../domain/entities/season.dart';
 import '../../domain/entities/stage.dart';
@@ -30,6 +31,16 @@ class FixtureSelectors extends StatelessWidget {
     final season = state.season;
     final phase = state.phase;
     final showPhases = showPhaseSelector && state.phases.length > 1;
+    final phaseChips = [
+      for (final p in state.phases)
+        ChoiceChip(
+          label: Text(p.label),
+          selected: p == phase,
+          onSelected: (_) {
+            if (p != phase) bloc.add(FixturePhaseChanged(p));
+          },
+        ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -70,14 +81,16 @@ class FixtureSelectors extends StatelessWidget {
                 ),
               ),
             if (showPhases)
-              for (final p in state.phases)
-                ChoiceChip(
-                  label: Text(p.label),
-                  selected: p == phase,
-                  onSelected: (_) {
-                    if (p != phase) bloc.add(FixturePhaseChanged(p));
-                  },
-                ),
+              // En un teléfono, una sola fila con desplazamiento: con texto
+              // grande las tres fases de las copas ocupaban un renglón cada
+              // una y le quitaban el alto a la lista.
+              if (Breakpoints.isCompact(context))
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(spacing: 8, children: phaseChips),
+                )
+              else
+                ...phaseChips,
           ],
         ),
         if (showPhaseSelector &&

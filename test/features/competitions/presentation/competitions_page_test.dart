@@ -146,12 +146,8 @@ void main() {
 
     expect(find.text('Cuartos de final'), findsOneWidget);
     expect(find.byType(MatchCard), findsNWidgets(4));
-    // Solo los chips de categoría (la Copa es la única de la suya): sin
-    // selector de fase.
-    expect(
-      find.byType(ChoiceChip),
-      findsNWidgets(CompetitionCatalog.byCategory().length),
-    );
+    // Una sola fase: sin selector de fase.
+    expect(find.widgetWithText(ChoiceChip, PhaseKey.unica.label), findsNothing);
   });
 
   testWidgets('etapa sin partidos: mensaje informativo', (tester) async {
@@ -308,7 +304,8 @@ void main() {
       expect(event.season, const Season(2026));
       expect(event.phase, PhaseKey.clausura);
       expect(event.apiRound, 12);
-      expect(event.kind, StageKind.regular);
+      // Sin `etapa`: la primera etapa de la ronda en la fase.
+      expect(event.kind, isNull);
     });
 
     test('URL de una etapa de eliminación', () {
@@ -472,6 +469,9 @@ void main() {
           4500: 'fixture,calendar,bracket',
           5215: 'fixture,calendar',
           5524: 'fixture,calendar',
+          // Tabla en la Fase D4; Llaves en la D5.
+          4501: 'fixture,calendar',
+          4724: 'fixture,calendar',
         },
       );
     });

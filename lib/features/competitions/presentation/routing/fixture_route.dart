@@ -23,7 +23,8 @@ enum CompetitionsView {
 }
 
 /// URL del fixture: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12`
-/// (`&etapa=eliminatoria` en etapas de eliminación). Tablas:
+/// (`&etapa=eliminatoria` en etapas de eliminación; copas internacionales:
+/// `fase=previa`, `grupos` o `eliminatorias`). Tablas:
 /// `/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a`
 /// (Nacional: `tabla=zona-a`). Calendario:
 /// `/competiciones/4406?temporada=2026&vista=calendario&mes=2026-10`.
@@ -32,13 +33,21 @@ enum CompetitionsView {
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
-  static const _phaseNames = {
-    PhaseKey.apertura: 'apertura',
-    PhaseKey.clausura: 'clausura',
-    PhaseKey.regular: 'regular',
-    PhaseKey.unica: 'copa',
-    PhaseKey.undetermined: 'sin-fase',
+  /// Nombre de [phase] en la URL (`fase=` y `llave=`).
+  static String phaseName(PhaseKey phase) => switch (phase) {
+    PhaseKey.apertura => 'apertura',
+    PhaseKey.clausura => 'clausura',
+    PhaseKey.regular => 'regular',
+    PhaseKey.unica => 'copa',
+    PhaseKey.qualifying => 'previa',
+    PhaseKey.groups => 'grupos',
+    PhaseKey.knockoutStage => 'eliminatorias',
+    PhaseKey.undetermined => 'sin-fase',
   };
+
+  /// Fase de un nombre de la URL, o `null` si no es ninguna.
+  static PhaseKey? parsePhase(String? name) =>
+      PhaseKey.values.where((p) => phaseName(p) == name).firstOrNull;
 
   /// Evento inicial a partir de la URL. Lo que no se entiende se ignora.
   static FixtureOpened parse({
@@ -46,20 +55,16 @@ abstract final class FixtureRoute {
     Map<String, String> query = const {},
   }) {
     final id = int.tryParse(leagueId ?? '');
-    final phaseName = query['fase'];
     return FixtureOpened(
       competitionId: id != null && CompetitionCatalog.byId(id) != null
           ? id
           : CompetitionCatalog.primeraDivision.id,
       season: Season.tryParse(query['temporada']),
-      phase: _phaseNames.entries
-          .where((e) => e.value == phaseName)
-          .firstOrNull
-          ?.key,
+      phase: parsePhase(query['fase']),
       apiRound: int.tryParse(query['ronda'] ?? ''),
-      kind: query['etapa'] == 'eliminatoria'
-          ? StageKind.knockout
-          : StageKind.regular,
+      // Sin `etapa`, la primera etapa de esa ronda en la fase
+      // (`fase=previa&ronda=1`).
+      kind: query['etapa'] == 'eliminatoria' ? StageKind.knockout : null,
     );
   }
 
@@ -75,11 +80,8 @@ abstract final class FixtureRoute {
   static String? parseTable(Map<String, String> query) => query['tabla'];
 
   /// Torneo del cuadro de llaves (`apertura`), si viene en la URL.
-  static PhaseKey? parseBracketPhase(Map<String, String> query) => _phaseNames
-      .entries
-      .where((e) => e.value == query['llave'])
-      .firstOrNull
-      ?.key;
+  static PhaseKey? parseBracketPhase(Map<String, String> query) =>
+      parsePhase(query['llave']);
 
   /// Mes del calendario (`2026-10`), si viene en la URL y es válido.
   static CalendarMonth? parseMonth(Map<String, String> query) =>
@@ -132,7 +134,7 @@ abstract final class FixtureRoute {
           'temporada': season.apiValue,
           'vista': 'llaves',
           if (phase != null && phase != PhaseKey.unica)
-            'llave': _phaseNames[phase]!,
+            'llave': phaseName(phase),
         },
       );
 
@@ -141,7 +143,7 @@ abstract final class FixtureRoute {
     path: '$basePath/${stage.competitionId}',
     queryParameters: {
       'temporada': stage.season.apiValue,
-      'fase': _phaseNames[stage.phase]!,
+      'fase': phaseName(stage.phase),
       'ronda': '${stage.apiRound}',
       if (stage.kind == StageKind.knockout) 'etapa': 'eliminatoria',
     },
