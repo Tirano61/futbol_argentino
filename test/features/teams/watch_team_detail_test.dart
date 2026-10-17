@@ -145,8 +145,8 @@ void main() {
     );
   });
 
-  test('Fase D3: el puntero a la Sudamericana sigue en «otras» hasta que se '
-      'guarda su ronda; la ficha no sincroniza la copa', () async {
+  test('Fase D6: el puntero a la Sudamericana sigue en «otras» hasta que se '
+      'guarda su ronda; la ficha la pide primero (P1)', () async {
     final next = fixtureMatches('eventsnext_135156').single;
     final last = recordedLastMatch('eventslast_135156');
     final pointers = FakeTeamRepository(
@@ -164,12 +164,21 @@ void main() {
           cancelToken: CancelToken(),
         ).last;
 
-    // La copa está en el catálogo y su ronda no está guardada.
+    // La copa está en el catálogo y su ronda no está guardada (el falso no
+    // guarda lo que sincroniza).
     final before = await detail(matches);
     expect(before.otherCompetitions.map((m) => m.match.id), [2606044]);
     expect(
       before.otherCompetitions.single.competitionName,
       'Copa Sudamericana',
+    );
+    // La primera ronda de la copa que pide la ficha es la del puntero, P1.
+    final first = matches.synced.firstWhere(
+      (s) => s.query.competitionId == 4724,
+    );
+    expect(
+      (first.query.apiRound, first.query.season, first.priority),
+      (150, '2026', SyncPriority.context),
     );
 
     // Con las semifinales guardadas (al abrir el fixture de la copa; la
@@ -190,7 +199,5 @@ void main() {
       [cup.competitionName, cup.phaseLabel, cup.stageLabel],
       ['Copa Sudamericana', 'Eliminatorias', 'Semifinales'],
     );
-    // Hasta la Fase D6 la ficha no pide rondas de las copas.
-    expect(withCup.synced.where((s) => s.query.competitionId == 4724), isEmpty);
   });
 }

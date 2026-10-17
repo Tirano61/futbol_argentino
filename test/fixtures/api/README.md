@@ -252,3 +252,14 @@ Grabadas con `curl` a ~17 consultas por minuto. Temporadas 2025 (completa) y 202
 | `lookupevent_2453080.json` | `lookupevent.php?id=2453080` | 200 | `events` = 1 | 2026-04: 1 | 15/10/2026 00:41 UTC | `8f65f5cd9fe4` |
 | `lookupevent_2239192.json` | `lookupevent.php?id=2239192` | 200 | `events` = 1 | 2025-04: 1 | 15/10/2026 00:41 UTC | `3ebc4b1e8045` |
 | `lookupevent_2453109.json` | `lookupevent.php?id=2453109` | 200 | `events` = 1 | 2026-05: 1 | 15/10/2026 00:42 UTC | `9f521455fd34` |
+
+## Hito D · Fase D6 (17/10/2026, ~12:51 ART) — equipo extranjero (Flamengo, 134287)
+
+Grabadas con `curl`, una cada 3 s. Para la búsqueda en línea de equipos de las copas internacionales y la ficha de un equipo extranjero. `searchteams` y `lookupteam` traen el mismo cuerpo (un solo equipo: Brasil, ligas 4351, 4501, 4725, 4503, 5688, 5665). Los dos punteros son del Brasileirão (4351, fuera del catálogo): `eventslast` todavía da el partido del 11/10, no la ida de semifinales de la Libertadores del 16/10.
+
+| Archivo | Consulta | HTTP | Registros | Meses (dateEvent) | Grabado | SHA-256 (12) |
+|---|---|---|---|---|---|---|
+| `searchteams_Flamengo.json` | `searchteams.php?t=Flamengo` | 200 | `teams` = 1 |  | 17/10/2026 15:51 UTC | `339a522e267e` |
+| `lookupteam_134287.json` | `lookupteam.php?id=134287` | 200 | `teams` = 1 |  | 17/10/2026 15:51 UTC | `339a522e267e` |
+| `eventsnext_134287.json` | `eventsnext.php?id=134287` | 200 | `events` = 1 | 2026-10: 1 | 17/10/2026 15:51 UTC | `82f7ac567c71` |
+| `eventslast_134287.json` | `eventslast.php?id=134287` | 200 | `results` = 1 | 2026-10: 1 | 17/10/2026 15:51 UTC | `02f3e76c3b81` |

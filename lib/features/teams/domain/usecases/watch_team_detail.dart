@@ -7,6 +7,7 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/calendar_day.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../competitions/domain/entities/season.dart';
+import '../../../competitions/domain/services/continental_exit_evidence.dart';
 import '../../../competitions/domain/services/round_navigator.dart';
 import '../../../competitions/domain/services/stored_match_labeler.dart';
 import '../../../matches/domain/entities/match.dart';
@@ -29,6 +30,15 @@ import 'ensure_team_index.dart';
 /// 3. Todas las rondas de la temporada de esas competiciones, de a una
 ///    (P2, con cupo propio): primero las más recientes y alternando
 ///    competiciones. Las vigentes no generan peticiones.
+///
+/// Copas internacionales (Fase D6): entran si el equipo tiene partidos
+/// guardados en la copa o un puntero es de ella. Primero la ronda del
+/// puntero (P1); después, en orden cronológico (P2), las etapas que ya
+/// empezaron y, si el puntero es posterior, hasta su etapa: las futuras se
+/// piden cuando empiezan. Se dejan de pedir solo con evidencia de que el
+/// equipo ya no juega ([ContinentalExitEvidence], sobre lo guardado, antes
+/// de empezar y después de cada ronda); que no aparezca en una ronda nunca
+/// corta.
 ///
 /// Cancelar [cancelToken] (al salir de la ficha) descarta las rondas que
 /// faltan. Un error detiene la descarga: las siguientes fallarían igual.
@@ -116,17 +126,25 @@ class WatchTeamDetail {
 
     final stored = await _matches.storedTeamMatches(teamId);
     final plan = failure != null
-        ? const <({RoundQuery query, bool force})>[]
-        : _plan(stored, _seasonOf(stored, today), today, forceRefresh);
+        ? <_Step>[]
+        : await _plan(
+            teamId,
+            stored,
+            _seasonOf(stored, today),
+            today,
+            forceRefresh,
+            pointers,
+          );
     var done = 0;
     var fetched = (infoFetched ? 1 : 0) + (pointersFetched ? 1 : 0);
     yield await build(SyncProgress(total: plan.length, fetched: fetched));
 
-    for (final step in plan) {
+    while (done < plan.length) {
+      final step = plan[done];
       try {
         final queried = await _matches.syncRound(
           step.query,
-          priority: step.force ? SyncPriority.visible : SyncPriority.team,
+          priority: step.priority,
           forceRefresh: step.force,
           cancelToken: cancelToken,
         );
@@ -140,6 +158,7 @@ class WatchTeamDetail {
       if (cancelToken.isCancelled) return;
       done++;
       labeler.invalidate(step.query);
+      if (step.cup case final cup?) await _cut(teamId, cup, plan, done);
       yield await build(
         SyncProgress(done: done, total: plan.length, fetched: fetched),
       );
@@ -213,12 +232,12 @@ class WatchTeamDetail {
     }
   }
 
-  /// Los punteros de las competiciones que la ficha no sincroniza (fuera
-  /// del catálogo, o copas internacionales) mientras su partido no esté
-  /// guardado: las demás ya están en próximos y disputados, con su
-  /// fixture. Así el próximo de Boca en la Sudamericana no desaparece al
-  /// entrar la copa al catálogo; deja de listarse cuando se guarda su
-  /// ronda (p. ej. al abrir el fixture de la copa).
+  /// Los punteros de competiciones fuera del catálogo y de copas
+  /// internacionales mientras su partido no esté guardado: los de las
+  /// ligas y copas argentinas ya están en próximos y disputados, con su
+  /// fixture. El de una copa internacional deja de listarse cuando llega
+  /// su ronda (la primera que pide la ficha, o al abrir el fixture de la
+  /// copa); sigue si la temporada no tiene formato verificado.
   List<TeamMatch> _otherCompetitions(
     TeamPointers? pointers,
     List<Match> stored,
@@ -230,7 +249,7 @@ class WatchTeamDetail {
         (pointers?.last, 'Último partido'),
       ])
         if (match != null &&
-            !_syncedHere(_definition(match.competitionId)) &&
+            _listedAsOther(_definition(match.competitionId)) &&
             seen.add(match.id))
           TeamMatch(
             match: match,
@@ -244,11 +263,8 @@ class WatchTeamDetail {
     ];
   }
 
-  /// La ficha sincroniza las rondas de la temporada de [d]. Las copas
-  /// internacionales todavía no (Fase D6: límite superior y corte por
-  /// evidencia).
-  static bool _syncedHere(CompetitionDefinition? d) =>
-      d != null && d.rules is! ContinentalCupRules;
+  static bool _listedAsOther(CompetitionDefinition? d) =>
+      d == null || d.rules is ContinentalCupRules;
 
   /// La temporada del año argentino si el equipo tiene partidos guardados
   /// en ella; si no (p. ej. en enero), la más reciente que tenga.
@@ -266,22 +282,68 @@ class WatchTeamDetail {
     return latest ?? current;
   }
 
-  /// Rondas a sincronizar: primero las forzadas por un refresco manual;
-  /// después las de la temporada, de la última a la primera, alternando
-  /// competiciones.
-  List<({RoundQuery query, bool force})> _plan(
+  /// Rondas a sincronizar: primero las forzadas por un refresco manual
+  /// (P0) y las de los punteros en copas internacionales (P1); después las
+  /// de la temporada alternando competiciones: las ligas y copas
+  /// argentinas de la última a la primera; las internacionales en orden
+  /// cronológico, para cortar con evidencia.
+  Future<List<_Step>> _plan(
+    int teamId,
     List<Match> stored,
     Season season,
     CalendarDay today,
     bool forceRefresh,
-  ) {
-    final byCompetition = <List<RoundQuery>>[];
+    TeamPointers? pointers,
+  ) async {
+    final byCompetition = <List<_Step>>[];
+    final pointerSteps = <_Step>[];
+    final cups = <_Cup>[];
     for (final d in _catalog) {
-      if (!_syncedHere(d)) continue;
       final mine = [
         for (final m in stored)
           if (m.competitionId == d.id && m.season == season.apiValue) m,
       ];
+      if (d.rules case final ContinentalCupRules rules) {
+        final cupPointers = [
+          for (final p in [pointers?.next, pointers?.last])
+            if (p != null &&
+                p.competitionId == d.id &&
+                p.season == season.apiValue)
+              p,
+        ];
+        final stages = rules.stagesOf(season);
+        if (stages.isEmpty || (mine.isEmpty && cupPointers.isEmpty)) continue;
+        // Etapas en las que se sabe que juega: el corte nunca las saltea.
+        final known = ContinentalStageIndex.of(d, season, [
+          ...mine,
+          ...cupPointers,
+        ]).values;
+        final cup = _Cup(d, season, floor: known.fold(-1, _max));
+        cups.add(cup);
+        final started = stages.lastIndexWhere(
+          (s) => s.from?.isAfter(today) == false,
+        );
+        final pointerRounds = {
+          for (final p in cupPointers)
+            if (stages.any((s) => s.apiRound == p.apiRound)) p.apiRound,
+        };
+        for (final r in pointerRounds) {
+          pointerSteps.add(
+            _Step(
+              _query(d, season.apiValue, r),
+              priority: SyncPriority.context,
+              cup: cup,
+            ),
+          );
+        }
+        final seen = {...pointerRounds};
+        byCompetition.add([
+          for (final (i, s) in stages.indexed)
+            if (i <= _max(started, cup.floor) && seen.add(s.apiRound))
+              _Step(_query(d, season.apiValue, s.apiRound), cup: cup, stage: i),
+        ]);
+        continue;
+      }
       if (mine.isEmpty) continue;
       // Sin cantidad de fechas en el catálogo: hasta la última guardada.
       final lastKnown = mine.map((m) => m.apiRound).reduce(_max);
@@ -296,25 +358,65 @@ class WatchTeamDetail {
             s.apiRound,
       };
       byCompetition.add([
-        for (final r in rounds.toList().reversed) _query(d, season.apiValue, r),
+        for (final r in rounds.toList().reversed)
+          _Step(_query(d, season.apiValue, r)),
       ]);
     }
 
-    final forced = <RoundQuery>{
-      if (forceRefresh)
-        for (final m in stored)
-          if (!m.status.isFinished && _inRefreshWindow(m, today))
-            if (_definition(m.competitionId) case final d?)
-              _query(d, m.season, m.apiRound),
-    };
-    final ordered = <RoundQuery>{...forced};
-    final longest = byCompetition.map((l) => l.length).fold(0, _max);
-    for (var i = 0; i < longest; i++) {
-      for (final rounds in byCompetition) {
-        if (i < rounds.length) ordered.add(rounds[i]);
+    final ordered = <RoundQuery, _Step>{};
+    if (forceRefresh) {
+      for (final m in stored) {
+        if (m.status.isFinished || !_inRefreshWindow(m, today)) continue;
+        if (_definition(m.competitionId) case final d?) {
+          final query = _query(d, m.season, m.apiRound);
+          ordered[query] = _Step(
+            query,
+            priority: SyncPriority.visible,
+            force: true,
+          );
+        }
       }
     }
-    return [for (final q in ordered) (query: q, force: forced.contains(q))];
+    for (final step in pointerSteps) {
+      ordered.putIfAbsent(step.query, () => step);
+    }
+    final longest = byCompetition.map((l) => l.length).fold(0, _max);
+    for (var i = 0; i < longest; i++) {
+      for (final steps in byCompetition) {
+        if (i < steps.length) {
+          ordered.putIfAbsent(steps[i].query, () => steps[i]);
+        }
+      }
+    }
+    final plan = ordered.values.toList();
+    for (final cup in cups) {
+      await _cut(teamId, cup, plan, 0);
+    }
+    return plan;
+  }
+
+  /// Saca de [plan], desde [from], las rondas de [cup] posteriores a la
+  /// etapa en la que el equipo quedó afuera según lo guardado. Sin
+  /// evidencia no saca nada.
+  Future<void> _cut(int teamId, _Cup cup, List<_Step> plan, int from) async {
+    final exit = ContinentalExitEvidence.of(
+      definition: cup.definition,
+      season: cup.season,
+      teamId: teamId,
+      matches: await _matches.storedSeason(
+        cup.definition.id,
+        cup.season.apiValue,
+      ),
+    );
+    if (exit == null) return;
+    final last = _max(exit.stageIndex, cup.floor);
+    final kept = [
+      for (final step in plan.skip(from))
+        if (step.cup != cup || (step.stage ?? 0) <= last) step,
+    ];
+    plan
+      ..removeRange(from, plan.length)
+      ..addAll(kept);
   }
 
   static bool _inRefreshWindow(Match m, CalendarDay today) {
@@ -339,4 +441,41 @@ class WatchTeamDetail {
   );
 
   static int _max(int a, int b) => a > b ? a : b;
+}
+
+/// Copa internacional del plan de la ficha.
+final class _Cup {
+  _Cup(this.definition, this.season, {required this.floor});
+
+  final CompetitionDefinition definition;
+  final Season season;
+
+  /// Última etapa con partidos conocidos del equipo (guardados o del
+  /// puntero; -1 si no hay): el corte nunca la saltea.
+  final int floor;
+}
+
+/// Ronda a sincronizar en la ficha.
+final class _Step {
+  const _Step(
+    this.query, {
+    this.priority = SyncPriority.team,
+    this.force = false,
+    this.cup,
+    this.stage,
+  });
+
+  final RoundQuery query;
+  final SyncPriority priority;
+
+  /// Refresco manual: se pide aunque esté vigente.
+  final bool force;
+
+  /// Ronda de una copa internacional: después de pedirla se revisa el
+  /// corte.
+  final _Cup? cup;
+
+  /// Primera etapa de [cup] que usa la ronda; `null` en las que nunca se
+  /// cortan (las de los punteros).
+  final int? stage;
 }

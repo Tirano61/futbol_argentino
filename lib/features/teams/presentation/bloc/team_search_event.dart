@@ -12,6 +12,12 @@ final class TeamSearchStarted extends TeamSearchEvent {
   final String initialQuery;
 }
 
+/// «Buscar también en copas internacionales»: suma al índice los equipos
+/// de la Fecha 1 de grupos de cada copa (2 peticiones, una sola vez).
+final class TeamSearchContinentalRequested extends TeamSearchEvent {
+  const TeamSearchContinentalRequested();
+}
+
 /// Eventos que cambian la búsqueda: comparten un handler `restartable`.
 sealed class TeamSearchQueryEvent extends TeamSearchEvent {
   const TeamSearchQueryEvent();

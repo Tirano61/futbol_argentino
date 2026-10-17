@@ -262,6 +262,6 @@ Relevamiento con datos reales (`docs/API.md`, V16–V21): las reglas y los presu
 | Tabla de grupos (`r=1–6`) — verificado en D4 (`standings_budget_test`) | 6 | 0 |
 | Llaves: Libertadores (`16`, `125`, `150`, `200`) / Sudamericana (+ playoffs) — verificado en D5 (`watch_knockout_bracket_test`, `bracket_budget_test`) | 4 / 5 | 0 |
 | Calendario «Completar» Libertadores / Sudamericana 2026 (2025) | 10 / 11 (11 / 12) | 0 |
-| Ficha de un equipo, por copa (solo etapas ya empezadas; corte solo con evidencia) | ≤ 10–12 (P2) | 0 |
-| Arranque de búsqueda de equipos extranjeros (bajo demanda) | 2 | 0 |
+| Ficha de un equipo, por copa (solo etapas ya empezadas; corte solo con evidencia) — verificado en D6 (`team_detail_sync_test`, `team_detail_continental_test`): Boca 27 → **37** (+10 de la Sudamericana), Rosario Central 6, Racing 5 | ≤ 10–12 (1 P1 + P2) | 0 |
+| Arranque de búsqueda de equipos extranjeros (bajo demanda) — verificado en D6 (`team_search_continental_test`) | 2 | 0 |
 | Inicio y «Tus equipos» | +0 | 0 |

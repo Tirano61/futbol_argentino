@@ -7,6 +7,7 @@ import '../../../../core/time/clock.dart';
 import '../../domain/entities/team_summary.dart';
 import '../../domain/repositories/team_repository.dart';
 import '../../domain/services/team_index.dart';
+import '../../domain/usecases/ensure_continental_team_index.dart';
 import '../../domain/usecases/ensure_team_index.dart';
 import '../../domain/usecases/search_teams_online.dart';
 
@@ -14,7 +15,8 @@ part 'team_search_event.dart';
 part 'team_search_state.dart';
 
 /// Buscador de equipos: índice local (sin red) y, si no encuentra nada,
-/// búsqueda en línea.
+/// búsqueda en línea y, a pedido, los equipos de las copas internacionales
+/// ([TeamSearchContinentalRequested], Fase D6).
 ///
 /// Los cambios de búsqueda comparten un handler `restartable` con espera
 /// ([debounce]): cada tecla cancela la búsqueda anterior, así una respuesta
@@ -24,20 +26,27 @@ class TeamSearchBloc extends Bloc<TeamSearchEvent, TeamSearchState> {
   TeamSearchBloc({
     required TeamRepository teams,
     required EnsureTeamIndex ensureIndex,
+    required EnsureContinentalTeamIndex ensureContinentalIndex,
     required SearchTeamsOnline searchOnline,
     required Clock clock,
     this.debounce = const Duration(milliseconds: 350),
   }) : _teams = teams,
        _ensureIndex = ensureIndex,
+       _ensureContinentalIndex = ensureContinentalIndex,
        _searchOnline = searchOnline,
        _clock = clock,
        super(const TeamSearchState()) {
     on<TeamSearchStarted>(_onStarted, transformer: droppable());
+    on<TeamSearchContinentalRequested>(
+      _onContinentalRequested,
+      transformer: droppable(),
+    );
     on<TeamSearchQueryEvent>(_onQuery, transformer: restartable());
   }
 
   final TeamRepository _teams;
   final EnsureTeamIndex _ensureIndex;
+  final EnsureContinentalTeamIndex _ensureContinentalIndex;
   final SearchTeamsOnline _searchOnline;
   final Clock _clock;
   final Duration debounce;
@@ -60,6 +69,10 @@ class TeamSearchBloc extends Bloc<TeamSearchEvent, TeamSearchState> {
       ),
     );
     if (state.query.trim().isNotEmpty) add(const _TeamIndexChanged());
+    final continentalDone = await _ensureContinentalIndex.isDone(
+      now: _clock.now(),
+    );
+    emit(state.copyWith(offersContinental: !continentalDone));
 
     final failure = await _ensureIndex(now: _clock.now());
     _index = TeamIndex(await _teams.storedTeams());
@@ -76,6 +89,37 @@ class TeamSearchBloc extends Bloc<TeamSearchEvent, TeamSearchState> {
     if (!isClosed &&
         query.trim().isNotEmpty &&
         (_waitingForIndex || _index.search(query).isNotEmpty)) {
+      add(const _TeamIndexChanged());
+    }
+  }
+
+  /// Baja la Fecha 1 de grupos de cada copa internacional y repite la
+  /// búsqueda si ahora hay coincidencias guardadas (si no, deja el
+  /// resultado actual: no repite la búsqueda en línea).
+  Future<void> _onContinentalRequested(
+    TeamSearchContinentalRequested event,
+    Emitter<TeamSearchState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        isIndexingContinental: true,
+        continentalFailure: () => null,
+      ),
+    );
+    final failure = await _ensureContinentalIndex(now: _clock.now());
+    _index = TeamIndex(await _teams.storedTeams());
+    emit(
+      state.copyWith(
+        indexSize: _index.length,
+        isIndexingContinental: false,
+        offersContinental: failure != null,
+        continentalFailure: () => failure,
+      ),
+    );
+    final query = state.query;
+    if (!isClosed &&
+        query.trim().isNotEmpty &&
+        _index.search(query).isNotEmpty) {
       add(const _TeamIndexChanged());
     }
   }

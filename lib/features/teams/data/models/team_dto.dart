@@ -42,8 +42,12 @@ class TeamDto {
   final String? strSport;
   final List<int> leagueIds;
 
-  bool get isArgentineFootball =>
-      strCountry == 'Argentina' && strSport == 'Soccer';
+  bool get isFootball => strSport == 'Soccer';
+
+  bool get isArgentineFootball => strCountry == 'Argentina' && isFootball;
+
+  /// Juega alguna de [leagues] según `idLeague…idLeague7`.
+  bool playsAnyOf(Set<int> leagues) => leagueIds.any(leagues.contains);
 
   /// `null` si falta el id o el nombre.
   Team? toEntity() {
