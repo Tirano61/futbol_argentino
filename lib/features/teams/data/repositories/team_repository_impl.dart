@@ -8,6 +8,7 @@ import '../../../../core/result/data_result.dart';
 import '../../../../core/storage/local_database.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/clock.dart';
+import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../matches/data/datasources/match_local_data_source.dart';
 import '../../../matches/data/mappers/event_mapper.dart';
 import '../../../matches/data/models/event_dto.dart';
@@ -55,6 +56,13 @@ class TeamRepositoryImpl implements TeamRepository {
     return [for (final s in byTeam.values) s.summary];
   }
 
+  /// Copas internacionales del catálogo: sus equipos extranjeros también
+  /// se aceptan en la búsqueda en línea (Fase D6).
+  static final _continentalCups = {
+    for (final c in CompetitionCatalog.all)
+      if (c.rules is ContinentalCupRules) c.id,
+  };
+
   @override
   Future<List<Team>> searchOnline(String query) async {
     final name = query.trim();
@@ -66,7 +74,9 @@ class TeamRepositoryImpl implements TeamRepository {
         final dtos = await remoteCall(() => _remote.search(name));
         found = [
           for (final dto in dtos)
-            if (dto.isArgentineFootball) ?dto.toEntity(),
+            if (dto.isArgentineFootball ||
+                (dto.isFootball && dto.playsAnyOf(_continentalCups)))
+              ?dto.toEntity(),
         ];
       },
     );

@@ -18,7 +18,11 @@ const bocaId = 135156;
 /// Aceptación de la Fase 7 (T7.3/T7.4) con repositorios reales y
 /// respuestas grabadas: presupuesto y cupo P2, «Primera + Copa» y
 /// cancelación al salir de la ficha. Fase 15 (D8): próximo y último
-/// partido del equipo, y la Copa Sudamericana como otra competición.
+/// partido del equipo. Fase D6: la Copa Sudamericana con su fixture (la
+/// ronda del puntero primero, después en orden cronológico).
+///
+/// Las rondas de la Sudamericana se grabaron el 14/10 (D1), después de la
+/// hora de estos tests: la ida de semifinales ya figura terminada.
 void main() {
   late FakeClock clock;
   late DateTime start;
@@ -44,17 +48,39 @@ void main() {
 
     setUp(() async => detail = await load());
 
-    test('reúne Primera División y Copa Argentina', () {
+    test('reúne Primera División, Copa Argentina y Copa Sudamericana', () {
       expect(detail.team!.name, 'Boca Juniors');
       expect(detail.info!.stadium, 'Estadio Alberto José Armando');
-      expect(detail.competitionIds, [4406, 4500]);
+      expect(detail.competitionIds, [4406, 4500, 4724]);
 
       final all = [...detail.upcoming, ...detail.played];
-      expect(all.map((m) => m.match.competitionId).toSet(), {4406, 4500});
+      expect(all.map((m) => m.match.competitionId).toSet(), {4406, 4500, 4724});
       expect(all.every((m) => m.match.involvesTeam(bocaId)), isTrue);
       // Toda la temporada 2026: 32 fechas regulares de Primera (Apertura +
-      // Clausura) + eliminatorias del Apertura + 5 rondas de Copa.
+      // Clausura) + eliminatorias del Apertura + 5 rondas de Copa + 4
+      // series de la Sudamericana (Playoffs a semifinales).
       expect(all.where((m) => m.match.competitionId == 4500), hasLength(5));
+      expect(all.where((m) => m.match.competitionId == 4724), hasLength(8));
+    });
+
+    test('la Sudamericana con su etapa y su fase', () {
+      final sud = [
+        ...detail.upcoming,
+        ...detail.played,
+      ].where((m) => m.match.competitionId == 4724).toList();
+      expect(sud.map((m) => m.stageLabel).toSet(), {
+        'Playoffs de octavos',
+        'Octavos de final',
+        'Cuartos de final',
+        'Semifinales',
+      });
+      expect(sud.map((m) => m.phaseLabel).toSet(), {'Eliminatorias'});
+      expect(sud.first.competitionName, 'Copa Sudamericana');
+      // La vuelta de semifinales (21/10) está entre los próximos.
+      expect(
+        detail.upcoming.map((m) => m.match.id),
+        contains(2606045), // Vasco da Gama–Boca.
+      );
     });
 
     test('próximos en orden; disputados del más reciente', () {
@@ -63,7 +89,9 @@ void main() {
       expect(next.phaseLabel, 'Clausura');
       expect(next.stageLabel, 'Fecha 13');
 
-      final last = detail.played.first;
+      final last = detail.played.firstWhere(
+        (m) => m.match.competitionId == 4406,
+      );
       expect(last.stageLabel, 'Fecha 12');
       expect(last.match.status.isFinished, isTrue);
 
@@ -82,25 +110,28 @@ void main() {
     });
 
     test('Copa con el nombre de su etapa, sin fase', () {
-      final semis = [
-        ...detail.upcoming,
-        ...detail.played,
-      ].where((m) => m.stageLabel == 'Semifinales').single;
+      final semis = [...detail.upcoming, ...detail.played]
+          .where(
+            (m) =>
+                m.match.competitionId == 4500 && m.stageLabel == 'Semifinales',
+          )
+          .single;
       expect(semis.competitionName, 'Copa Argentina');
       expect(semis.phaseLabel, isNull);
     });
 
-    test('progreso completo: 23 rondas (17 de Primera + 6 de Copa)', () {
+    test('progreso completo: 33 rondas (17 de Primera, 6 de Copa y 10 de la '
+        'Sudamericana)', () {
       expect(
         detail.progress,
-        // Consultas: `lookupteam`, los punteros del equipo y 21 rondas (2
+        // Consultas: `lookupteam`, los punteros del equipo y 31 rondas (2
         // ya estaban por el índice).
-        const SyncProgress(done: 23, total: 23, isRunning: false, fetched: 23),
+        const SyncProgress(done: 33, total: 33, isRunning: false, fetched: 33),
       );
     });
 
-    test('presupuesto: 27 peticiones; P2 como mucho 10 por minuto', () {
-      expect(api.requests, hasLength(27));
+    test('presupuesto: 37 peticiones; P2 como mucho 10 por minuto', () {
+      expect(api.requests, hasLength(37));
       expect(api.requestLabels.first, 'lookupteam:135156');
       // Punteros del equipo (P1, D8): 2 peticiones.
       expect(api.requestLabels.sublist(1, 3), [
@@ -112,53 +143,77 @@ void main() {
         api.requestLabels.sublist(3, 6),
         unorderedEquals(['4406:r1:s2026', '4616:r1:s2026', '4500:r64:s2026']),
       );
-      // 21 rondas P2 (las de la fecha 1 y los 32avos ya estaban): 10, 10, 1.
+      // La ronda del puntero de la Sudamericana (P1, D6): semifinales.
+      expect(api.requestLabels[6], '4724:r150:s2026');
+      // 30 rondas P2 (las de la fecha 1 y los 32avos ya estaban): 10, 10,
+      // 10.
       final p2 = [
-        for (final t in api.requestTimes.skip(6)) t.difference(start),
+        for (final t in api.requestTimes.skip(7)) t.difference(start),
       ];
-      expect(p2, hasLength(21));
-      expect(p2.where((d) => d < const Duration(minutes: 1)), hasLength(10));
-      expect(
-        p2.where(
-          (d) =>
-              d >= const Duration(minutes: 1) && d < const Duration(minutes: 2),
-        ),
-        hasLength(10),
-      );
+      expect(p2, hasLength(30));
+      for (var minute = 0; minute < 3; minute++) {
+        expect(
+          p2.where((d) => d.inMinutes == minute),
+          hasLength(10),
+          reason: 'minuto $minute',
+        );
+      }
     });
 
-    test('alterna competiciones: la Copa no espera a toda la Primera', () {
-      final rounds = api.requestLabels.skip(6).take(6).toList();
+    test('Sudamericana: las etapas ya empezadas y hasta la del puntero', () {
+      // A las 20:35 del 11/10 las semifinales (desde el 13/10) no
+      // empezaron, pero el próximo partido de Boca es de esa etapa; la
+      // final (sin datos) no se pide. Boca no jugó la Primera fase ni los
+      // grupos (vino de la Libertadores): su ausencia no corta.
+      expect(api.requestLabels.where((l) => l.startsWith('4724:')), [
+        '4724:r150:s2026',
+        '4724:r1:s2026',
+        '4724:r2:s2026',
+        '4724:r3:s2026',
+        '4724:r4:s2026',
+        '4724:r5:s2026',
+        '4724:r6:s2026',
+        '4724:r32:s2026',
+        '4724:r16:s2026',
+        '4724:r125:s2026',
+      ]);
+      // La Libertadores no entra: ningún puntero ni partido guardado de
+      // Boca en ella (la continuidad entre copas no se infiere).
+      expect(api.requestLabels.where((l) => l.startsWith('4501:')), isEmpty);
+    });
+
+    test('alterna competiciones: las copas no esperan a toda la Primera', () {
+      // Primera y Copa Argentina de la última a la primera; la
+      // Sudamericana en orden cronológico (para cortar con evidencia).
+      final rounds = api.requestLabels.skip(7).take(9).toList();
       expect(rounds, [
         '4406:r0:s2026',
         '4500:r200:s2026',
+        '4724:r1:s2026',
         '4406:r16:s2026',
         '4500:r150:s2026',
+        '4724:r2:s2026',
         '4406:r15:s2026',
         '4500:r125:s2026',
+        '4724:r3:s2026',
       ]);
     });
 
-    test('otras competiciones: el próximo partido, de la Sudamericana', () {
-      // `eventsnext`: Boca–Vasco da Gama (Copa Sudamericana, 4724).
-      // `eventslast`: Boca–Unión, de Primera: ya está en disputados.
-      final other = detail.otherCompetitions.single;
-      expect(other.match.id, 2606044);
-      expect(other.match.competitionId, 4724);
-      expect(other.competitionName, 'Copa Sudamericana');
-      expect(other.stageLabel, 'Próximo partido');
-      expect(other.phaseLabel, isNull);
-      expect(other.match.away.name, 'Vasco da Gama');
-      // No se guarda con los partidos: no entra en fixtures ni en la ficha.
-      expect(
-        [...detail.upcoming, ...detail.played].map((m) => m.match.id),
-        isNot(contains(2606044)),
-      );
-      expect(
-        detail.played.map((m) => m.match.id),
-        contains(2398104), // Boca–Unión, el `eventslast`.
-      );
-    });
+    test(
+      'otras competiciones: el puntero de la Sudamericana pasa al fixture',
+      () {
+        // `eventsnext`: Boca–Vasco da Gama (Copa Sudamericana, 4724), ya
+        // guardado con su ronda. `eventslast`: Boca–Unión, de Primera.
+        expect(detail.otherCompetitions, isEmpty);
+        final semis = detail.played.firstWhere((m) => m.match.id == 2606044);
+        expect(semis.competitionName, 'Copa Sudamericana');
+        expect(semis.stageLabel, 'Semifinales');
+        expect(
+          detail.played.map((m) => m.match.id),
+          contains(2398104), // Boca–Unión, el `eventslast`.
+        );
+      },
+    );
 
     test('en caliente: ninguna petición', () async {
       api.requests.clear();
@@ -185,6 +240,31 @@ void main() {
       expect(api.requestLabels, isNot(contains('lookupteam:135156')));
     });
   });
+
+  test(
+    'el puntero de la Sudamericana se ve antes de que llegue su ronda',
+    () async {
+      final emissions = await watch()(
+        bocaId,
+        now: clock.now(),
+        cancelToken: CancelToken(),
+      ).toList();
+
+      // Con los punteros y sin rondas todavía: «Otras competiciones».
+      final beforeRounds = emissions.firstWhere(
+        (d) => d.progress.total > 0 && d.progress.done == 0,
+      );
+      final other = beforeRounds.otherCompetitions.single;
+      expect(other.match.id, 2606044);
+      expect(other.competitionName, 'Copa Sudamericana');
+      expect(other.stageLabel, 'Próximo partido');
+      expect(other.phaseLabel, isNull);
+      // Después de la primera ronda (la del puntero) ya está con su etapa.
+      final afterPointer = emissions.firstWhere((d) => d.progress.done == 1);
+      expect(afterPointer.otherCompetitions, isEmpty);
+      expect(afterPointer.played.map((m) => m.match.id), contains(2606044));
+    },
+  );
 
   test('emite lo guardado antes de terminar', () async {
     await load();
@@ -218,7 +298,7 @@ void main() {
 
     // Como mucho termina la ronda que ya estaba en curso.
     expect(api.requests.length, lessThanOrEqualTo(atCancel + 1));
-    expect(api.requests.length, lessThan(27));
+    expect(api.requests.length, lessThan(37));
     expect(api.scheduler.pending, 0);
   });
 
@@ -236,7 +316,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(api.requests.length, lessThanOrEqualTo(atClose + 1));
-    expect(api.requests.length, lessThan(27));
+    expect(api.requests.length, lessThan(37));
   });
 
   test(
@@ -255,7 +335,7 @@ void main() {
       final atPause = api.requests.length;
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(api.requests.length, atPause, reason: 'en pausa no pide nada');
-      expect(api.requests.length, lessThan(27));
+      expect(api.requests.length, lessThan(37));
 
       bloc.add(const TeamDetailResumed());
       final done =
@@ -264,9 +344,9 @@ void main() {
               )
               as TeamDetailLoaded;
 
-      expect(done.detail.progress.done, 23);
-      // Las mismas 27 peticiones que sin pausa: nada se repite.
-      expect(api.requests, hasLength(27));
+      expect(done.detail.progress.done, 33);
+      // Las mismas 37 peticiones que sin pausa: nada se repite.
+      expect(api.requests, hasLength(37));
       await bloc.close();
     },
   );
@@ -301,7 +381,7 @@ void main() {
     await bloc.stream.firstWhere(
       (s) => s is TeamDetailLoaded && !s.detail.progress.isRunning,
     );
-    expect(api.requests, hasLength(27));
+    expect(api.requests, hasLength(37));
     api.requests.clear();
 
     // La fecha 12 de Primera tiene partidos en juego (vigencia de 2 min).

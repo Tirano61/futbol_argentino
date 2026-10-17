@@ -126,6 +126,7 @@ final class GroupStage extends ZonedStandingsFormat {
     required this.tieBreakArticle,
     required this.qualificationNote,
     required this.regulation,
+    this.advancingPlaces,
   });
 
   /// Grupo → `idTeam`.
@@ -142,6 +143,13 @@ final class GroupStage extends ZonedStandingsFormat {
 
   /// Quiénes pasan a la etapa siguiente (la app no lo marca en la tabla).
   final String qualificationNote;
+
+  /// Puestos de cada grupo que siguen en alguna copa según el reglamento
+  /// (Libertadores: 3, el tercero va a la Sudamericana; Sudamericana: 2).
+  /// Más abajo, con la tabla completa y sin posición compartida, el equipo
+  /// quedó eliminado (corte de la ficha de equipo, Fase D6). `null`: sin
+  /// dato, nunca se da por eliminado a nadie.
+  final int? advancingPlaces;
   @override
   final RegulationSource regulation;
 

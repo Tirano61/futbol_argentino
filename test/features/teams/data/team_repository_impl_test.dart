@@ -242,16 +242,24 @@ void main() {
   });
 
   group('búsqueda en línea', () {
-    test('solo equipos de fútbol de Argentina', () async {
-      // «River» devuelve River-PI (Brasil).
-      expect(await api.teams.searchOnline('River'), isEmpty);
+    test(
+      'equipos de fútbol de Argentina o de las copas internacionales',
+      () async {
+        // «River» devuelve River-PI (Brasil, sin copas del catálogo).
+        expect(await api.teams.searchOnline('River'), isEmpty);
 
-      final river = await api.teams.searchOnline('River Plate');
-      expect(river.single.id, riverId);
+        // Flamengo (Brasil) juega la Libertadores (4501).
+        final flamengo = await api.teams.searchOnline('Flamengo');
+        expect(flamengo.single.id, 134287);
+        expect(flamengo.single.leagueIds, contains(4501));
 
-      final boca = await api.teams.searchOnline('Boca');
-      expect(boca.single.name, 'Boca Unidos');
-    });
+        final river = await api.teams.searchOnline('River Plate');
+        expect(river.single.id, riverId);
+
+        final boca = await api.teams.searchOnline('Boca');
+        expect(boca.single.name, 'Boca Unidos');
+      },
+    );
 
     test('sin red: lanza el error', () async {
       api.offline = true;

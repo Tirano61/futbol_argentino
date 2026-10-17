@@ -9,8 +9,9 @@ abstract interface class TeamRepository {
   /// competiciones de su temporada más reciente.
   Future<List<TeamSummary>> storedTeams();
 
-  /// Búsqueda en línea (`searchteams`), solo equipos de fútbol de
-  /// Argentina. Lanza `Failure` si la consulta falla.
+  /// Búsqueda en línea (`searchteams`): equipos de fútbol de Argentina y
+  /// los extranjeros que juegan alguna copa internacional del catálogo.
+  /// Lanza `Failure` si la consulta falla.
   Future<List<Team>> searchOnline(String query);
 
   /// Datos del equipo (`lookupteam`), guardados 7 días.

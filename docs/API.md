@@ -206,3 +206,8 @@ Grabadas en `test/fixtures/api/` (sección «Hito D · Fase D1» del README). De
 - **Semifinales 2026 en curso** al grabar (Libertadores: 3 `NS` y 1 en juego; Sudamericana: 2 `FT` y 2 `NS`) y finales sin cargar (`r=200` vacía): los tests de cuadro completo usan 2025; las finales 2026 se graban en la tarea posterior D-F.
 - Colo-Colo–Fortaleza (2025) tiene `strTimestamp` `00:00:00` UTC: regla D5 («Horario por confirmar»).
 - La ficha de un equipo no puede usar la ausencia en una fecha como eliminación: 1.º de grupo de la Sudamericana no juega los playoffs; los 3.º de Libertadores entran a los playoffs de la Sudamericana y los perdedores de la Fase 3 a sus grupos.
+
+### Hallazgos de la Fase D6 (17/10/2026, 4 respuestas reales más)
+- `searchteams.php?t=Flamengo` y `lookupteam.php?id=134287` traen el mismo equipo (Brasil, `idLeague` 4351, `idLeague2` 4501, …): las copas del catálogo sirven para aceptar extranjeros en la búsqueda en línea; `strCountry` no alcanza.
+- `eventslast` de Flamengo (17/10, 15:51 UTC) todavía devolvía el partido del Brasileirão del 11/10, no la ida de semifinales de la Libertadores del 16/10: el puntero puede atrasarse; por eso la copa entra a la ficha también por los partidos guardados.
+- Con la clave gratuita, TheSportsDB respondió 429 con pocas consultas seguidas durante la prueba en la tablet (17/10): la app pausa, y si el reintento vuelve a dar 429, detiene la descarga de la ficha con «Reintentar».

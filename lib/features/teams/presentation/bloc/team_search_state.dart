@@ -46,6 +46,9 @@ final class TeamSearchState extends Equatable {
     this.isIndexing = false,
     this.indexSize = 0,
     this.indexFailure,
+    this.offersContinental = false,
+    this.isIndexingContinental = false,
+    this.continentalFailure,
     this.results = const TeamSearchIdle(),
   });
 
@@ -59,6 +62,14 @@ final class TeamSearchState extends Equatable {
 
   /// No se pudieron descargar los equipos (se busca con lo guardado).
   final Failure? indexFailure;
+
+  /// Falta bajar los equipos de las copas internacionales: se ofrece si la
+  /// búsqueda no encuentra nada guardado.
+  final bool offersContinental;
+  final bool isIndexingContinental;
+
+  /// No se pudieron bajar los equipos de las copas internacionales.
+  final Failure? continentalFailure;
   final TeamSearchResults results;
 
   TeamSearchState copyWith({
@@ -66,12 +77,20 @@ final class TeamSearchState extends Equatable {
     bool? isIndexing,
     int? indexSize,
     Failure? Function()? indexFailure,
+    bool? offersContinental,
+    bool? isIndexingContinental,
+    Failure? Function()? continentalFailure,
     TeamSearchResults? results,
   }) => TeamSearchState(
     query: query ?? this.query,
     isIndexing: isIndexing ?? this.isIndexing,
     indexSize: indexSize ?? this.indexSize,
     indexFailure: indexFailure == null ? this.indexFailure : indexFailure(),
+    offersContinental: offersContinental ?? this.offersContinental,
+    isIndexingContinental: isIndexingContinental ?? this.isIndexingContinental,
+    continentalFailure: continentalFailure == null
+        ? this.continentalFailure
+        : continentalFailure(),
     results: results ?? this.results,
   );
 
@@ -81,6 +100,9 @@ final class TeamSearchState extends Equatable {
     isIndexing,
     indexSize,
     indexFailure,
+    offersContinental,
+    isIndexingContinental,
+    continentalFailure,
     results,
   ];
 }

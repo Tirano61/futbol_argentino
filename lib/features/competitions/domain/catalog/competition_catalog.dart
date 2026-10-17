@@ -1286,6 +1286,7 @@ abstract final class CompetitionCatalog {
     pointsArticle: '2.4.1',
     tieBreakArticle: '2.4.2',
     qualificationNote: _libertadoresQualification,
+    advancingPlaces: 3,
     regulation: RegulationSource(
       name: 'Manual de Clubes CONMEBOL Libertadores 2025',
       url:
@@ -1299,6 +1300,7 @@ abstract final class CompetitionCatalog {
     pointsArticle: '2.4.1',
     tieBreakArticle: '2.4.2',
     qualificationNote: _libertadoresQualification,
+    advancingPlaces: 3,
     regulation: RegulationSource(
       name: 'Manual de Clubes CONMEBOL Libertadores 2026',
       url:
@@ -1312,6 +1314,7 @@ abstract final class CompetitionCatalog {
     pointsArticle: '2.4.1',
     tieBreakArticle: '2.4.3',
     qualificationNote: _sudamericanaQualification,
+    advancingPlaces: 2,
     regulation: RegulationSource(
       name: 'Manual de Clubes CONMEBOL Sudamericana 2025',
       url:
@@ -1325,6 +1328,7 @@ abstract final class CompetitionCatalog {
     pointsArticle: '2.4.1',
     tieBreakArticle: '2.4.3',
     qualificationNote: _sudamericanaQualification,
+    advancingPlaces: 2,
     regulation: RegulationSource(
       name: 'Manual de Clubes CONMEBOL Sudamericana 2026',
       url:

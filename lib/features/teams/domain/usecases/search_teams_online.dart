@@ -4,8 +4,9 @@ import '../repositories/team_repository.dart';
 import '../services/team_index.dart';
 
 /// Respaldo cuando el índice local no encuentra nada: `searchteams`
-/// (equipos de fútbol de Argentina). Las competiciones son las que informa
-/// la API dentro del catálogo.
+/// (equipos de fútbol de Argentina y de las copas internacionales del
+/// catálogo). Las competiciones son las que informa la API dentro del
+/// catálogo.
 class SearchTeamsOnline {
   const SearchTeamsOnline(this._teams);
 

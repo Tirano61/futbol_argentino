@@ -4,6 +4,7 @@ import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
+import 'package:futbol_argentino/features/teams/domain/usecases/ensure_continental_team_index.dart';
 import 'package:futbol_argentino/features/teams/domain/usecases/ensure_team_index.dart';
 import 'package:futbol_argentino/features/teams/domain/usecases/search_teams_online.dart';
 import 'package:futbol_argentino/features/teams/presentation/bloc/team_search_bloc.dart';
@@ -34,6 +35,7 @@ void main() {
   TeamSearchBloc build() => TeamSearchBloc(
     teams: teams,
     ensureIndex: EnsureTeamIndex(matches),
+    ensureContinentalIndex: EnsureContinentalTeamIndex(matches),
     searchOnline: SearchTeamsOnline(teams),
     clock: FixedClock(DateTime.utc(2026, 10, 11, 20, 35)),
     debounce: debounce,

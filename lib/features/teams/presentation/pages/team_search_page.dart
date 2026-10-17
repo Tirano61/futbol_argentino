@@ -15,6 +15,7 @@ import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../domain/entities/team_summary.dart';
 import '../../domain/repositories/team_repository.dart';
+import '../../domain/usecases/ensure_continental_team_index.dart';
 import '../../domain/usecases/ensure_team_index.dart';
 import '../../domain/usecases/search_teams_online.dart';
 import '../bloc/team_search_bloc.dart';
@@ -28,10 +29,12 @@ class TeamSearchPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final teams = context.read<TeamRepository>();
+    final matches = context.read<MatchRepository>();
     return BlocProvider(
       create: (context) => TeamSearchBloc(
         teams: teams,
-        ensureIndex: EnsureTeamIndex(context.read<MatchRepository>()),
+        ensureIndex: EnsureTeamIndex(matches),
+        ensureContinentalIndex: EnsureContinentalTeamIndex(matches),
         searchOnline: SearchTeamsOnline(teams),
         clock: context.read<Clock>(),
       )..add(TeamSearchStarted(initialQuery: initialQuery)),
@@ -176,10 +179,18 @@ class _Results extends StatelessWidget {
             ? 'Probá con otra parte del nombre.'
             : 'No hay coincidencias en los equipos guardados y la búsqueda '
                   'en línea falló: ${failureMessage(onlineFailure).title}.',
+        action: _offersContinental(state)
+            ? _ContinentalSearch(state: state)
+            : null,
       ),
       TeamSearchFound(:final teams, :final isOnline) => ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
         children: [
+          if (isOnline && _offersContinental(state))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+              child: _ContinentalSearch(state: state),
+            ),
           if (isOnline)
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
@@ -197,6 +208,60 @@ class _Results extends StatelessWidget {
   }
 }
 
+bool _offersContinental(TeamSearchState state) =>
+    state.offersContinental || state.isIndexingContinental;
+
+/// «Buscar también en copas internacionales»: los equipos de la Fecha 1 de
+/// grupos de cada copa (Fase D6), a pedido y una sola vez.
+class _ContinentalSearch extends StatelessWidget {
+  const _ContinentalSearch({required this.state});
+
+  final TeamSearchState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isIndexingContinental) {
+      return Semantics(
+        liveRegion: true,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Flexible(child: Text('Buscando en las copas internacionales…')),
+          ],
+        ),
+      );
+    }
+    final failure = state.continentalFailure;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => context.read<TeamSearchBloc>().add(
+            const TeamSearchContinentalRequested(),
+          ),
+          icon: const Icon(Icons.public),
+          label: const Text('Buscar también en copas internacionales'),
+        ),
+        if (failure != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'No se pudieron consultar las copas: '
+              '${failureMessage(failure).title}.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _TeamTile extends StatelessWidget {
   const _TeamTile({super.key, required this.team});
 
@@ -204,7 +269,8 @@ class _TeamTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // En el orden del catálogo: Primera, Nacional, Copa, B Metro, C.
+    // En el orden del catálogo: Primera, Nacional, Copa, B Metro, C y las
+    // copas internacionales.
     final competitions = [
       for (final c in CompetitionCatalog.all)
         if (team.competitionIds.contains(c.id)) c.name,
