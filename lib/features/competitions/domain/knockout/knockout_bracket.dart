@@ -1,42 +1,48 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../matches/domain/entities/knockout_tie.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/team_ref.dart';
 import '../../../matches/domain/services/match_grouping.dart';
 import '../../../matches/domain/services/tie_outcome.dart';
+import '../../../matches/domain/services/tie_pairing.dart';
 import '../catalog/competition_catalog.dart';
 import '../entities/phase.dart';
 import '../entities/season.dart';
 import '../services/phase_resolver.dart';
 
-/// Lugar de un partido en el cuadro.
+/// Lugar de una llave en el cuadro.
 final class BracketSlot extends Equatable {
   const BracketSlot({
-    this.match,
+    this.tie,
     this.outcome,
     this.qualified = const [],
     this.linkedToNext = false,
   });
 
   /// `null`: la API todavía no tiene el partido (o no lo tiene nunca, como
-  /// algunas rondas de la Copa 2025).
-  final Match? match;
+  /// algunas rondas de la Copa 2025). Con ida y vuelta, las piernas que
+  /// hay.
+  final KnockoutTie? tie;
 
-  /// Quién avanzó, si se sabe (ver [TieOutcome.of]).
+  /// El partido de una llave a un partido (en una serie, la ida).
+  Match? get match => tie?.legs.first;
+
+  /// Quién avanzó, si se sabe (ver [TieOutcome.ofTie]).
   final TieOutcome? outcome;
 
-  /// Sin [match]: los equipos que se sabe que juegan acá (los ganadores de
-  /// los partidos anteriores, o el equipo que llegó desde acá a la ronda
+  /// Sin [tie]: los equipos que se sabe que juegan acá (los ganadores de
+  /// las llaves anteriores, o el equipo que llegó desde acá a la ronda
   /// siguiente).
   final List<TeamRef> qualified;
 
-  /// Hay evidencia de que el ganador juega el partido de la ronda siguiente
+  /// Hay evidencia de que el ganador juega la llave de la ronda siguiente
   /// que tiene al lado: comparten un equipo, o la siguiente es la final.
   final bool linkedToNext;
 
   @override
   List<Object?> get props => [
-    match,
+    tie,
     outcome?.winner,
     outcome?.source,
     qualified,
@@ -44,32 +50,41 @@ final class BracketSlot extends Equatable {
   ];
 }
 
-/// Una ronda del cuadro, con sus partidos en el orden de las llaves.
+/// Una ronda del cuadro, con sus llaves en el orden del cuadro.
 final class BracketRoundView extends Equatable {
   const BracketRoundView({
     required this.label,
     required this.slots,
+    this.legs = 1,
     this.pairingUnknown = false,
   });
 
   final String label;
   final List<BracketSlot> slots;
 
-  /// La ronda siguiente no tiene partidos que digan cómo se cruzan: los de
-  /// esta ronda van por fecha y sin unir.
+  /// 1: a un partido; 2: ida y vuelta.
+  final int legs;
+
+  /// La ronda siguiente no tiene partidos que digan cómo se cruzan: las
+  /// llaves de esta ronda van por fecha y sin unir.
   final bool pairingUnknown;
 
-  bool get hasMatches => slots.any((s) => s.match != null);
+  bool get hasMatches => slots.any((s) => s.tie != null);
 
   @override
-  List<Object?> get props => [label, slots, pairingUnknown];
+  List<Object?> get props => [label, slots, legs, pairingUnknown];
 }
+
+/// Ronda de series previa al cuadro (Playoffs de la Sudamericana), para
+/// [KnockoutBracketBuilder.build].
+typedef PreliminaryRound = ({String label, int legs, List<Match> matches});
 
 /// Cuadro de eliminación directa de una fase (Apertura, Copa…).
 final class KnockoutBracket extends Equatable {
   const KnockoutBracket({
     required this.phase,
     required this.rounds,
+    this.preliminary = const [],
     this.unplaced = const [],
   });
 
@@ -78,14 +93,21 @@ final class KnockoutBracket extends Equatable {
   /// En orden del torneo; la última es la final.
   final List<BracketRoundView> rounds;
 
+  /// Series previas al cuadro, por fecha y sin unir (Sudamericana: Playoffs
+  /// de octavos; sus ganadores juegan los octavos).
+  final List<BracketRoundView> preliminary;
+
   /// Partidos de la eliminatoria que no se pudieron ubicar (datos
   /// inconsistentes): se muestran aparte, nunca en un lugar inventado.
   final List<Match> unplaced;
 
-  bool get hasMatches => unplaced.isNotEmpty || rounds.any((r) => r.hasMatches);
+  bool get hasMatches =>
+      unplaced.isNotEmpty ||
+      rounds.any((r) => r.hasMatches) ||
+      preliminary.any((r) => r.hasMatches);
 
   @override
-  List<Object?> get props => [phase, rounds, unplaced];
+  List<Object?> get props => [phase, rounds, preliminary, unplaced];
 }
 
 /// Arma el cuadro con los partidos guardados.
@@ -93,16 +115,21 @@ final class KnockoutBracket extends Equatable {
 /// - Una ronda de la API con varias rondas del cuadro (la 0 de Primera) se
 ///   reparte por equipo: el primer partido de un equipo en esa ronda es de
 ///   cuartos, el segundo de semifinales…
-/// - El orden de las llaves sale de los equipos: el partido de la ronda
-///   anterior que alimenta a uno es el que tiene a alguno de sus equipos.
+/// - Con ida y vuelta, las piernas de cada ronda se emparejan en llaves por
+///   los dos equipos ([TiePairing]) antes de ordenar.
+/// - El orden de las llaves sale de los equipos: la llave de la ronda
+///   anterior que alimenta a una es la que tiene a alguno de sus equipos.
 ///   Se arma de la final hacia atrás.
-/// - Sin datos de la ronda siguiente, los partidos van por fecha y sin unir
-///   (salvo antes de la final: los dos de semifinales la alimentan).
+/// - Sin datos de la ronda siguiente, las llaves van por fecha y sin unir
+///   (salvo antes de la final: las dos de semifinales la alimentan).
 abstract final class KnockoutBracketBuilder {
+  /// [preliminary]: series previas al cuadro (Playoffs de la
+  /// Sudamericana), que se muestran como lista.
   static KnockoutBracket build({
     required PhaseKey phase,
     required List<BracketRound> rounds,
     required Iterable<Match> matches,
+    List<PreliminaryRound> preliminary = const [],
   }) {
     final unplaced = <Match>[];
     final byRound = [for (final _ in rounds) <Match>[]];
@@ -124,18 +151,32 @@ abstract final class KnockoutBracketBuilder {
         _splitByTeam(inRound, indices, byRound, unplaced);
       }
     }
+    final tiesByRound = <List<KnockoutTie>>[];
     for (final (k, inRound) in byRound.indexed) {
-      inRound.sort(_byKickoff);
+      final (:ties, :unpaired) = TiePairing.pair(inRound, legs: rounds[k].legs);
+      unplaced.addAll(unpaired);
       final expected = rounds[k].matches;
-      if (inRound.length > expected) {
-        unplaced.addAll(inRound.sublist(expected));
-        inRound.removeRange(expected, inRound.length);
+      if (ties.length > expected) {
+        for (final extra in ties.sublist(expected)) {
+          unplaced.addAll(extra.legs);
+        }
+        ties.removeRange(expected, ties.length);
       }
+      tiesByRound.add(ties);
     }
 
-    final ordered = _order(rounds, byRound, unplaced);
-    final slots = _withOutcomes(ordered, byRound);
-    unplaced.sort(_byKickoff);
+    final ordered = _order(rounds, tiesByRound, unplaced);
+    final slots = _withOutcomes(ordered, tiesByRound);
+    final all = [
+      for (final ties in tiesByRound)
+        for (final t in ties) ...t.legs,
+      for (final p in preliminary) ...p.matches,
+    ];
+    final preliminaryViews = [
+      for (final p in preliminary)
+        _seriesList(p, laterMatches: all, unplaced: unplaced),
+    ];
+    unplaced.sort(TiePairing.byKickoff);
     return KnockoutBracket(
       phase: phase,
       rounds: [
@@ -143,18 +184,21 @@ abstract final class KnockoutBracketBuilder {
           BracketRoundView(
             label: r.label,
             slots: slots[k],
+            legs: r.legs,
             pairingUnknown:
                 k < rounds.length - 1 &&
-                slots[k].any((s) => s.match != null && !s.linkedToNext),
+                slots[k].any((s) => s.tie != null && !s.linkedToNext),
           ),
       ],
+      preliminary: preliminaryViews,
       unplaced: unplaced,
     );
   }
 
   /// Cuadros de cada fase de [definition] con los partidos guardados de
   /// [season] (la fase se resuelve ronda por ronda, como en el fixture).
-  /// Solo las fases con cuadro y partidos de eliminatoria.
+  /// Solo las fases con cuadro y partidos de eliminatoria. En las copas
+  /// internacionales, con las series previas (Playoffs de la Sudamericana).
   static Map<PhaseKey, KnockoutBracket> forSeason({
     required CompetitionDefinition definition,
     required Season season,
@@ -162,7 +206,11 @@ abstract final class KnockoutBracketBuilder {
   }) {
     final rounds = definition.bracketRounds;
     if (rounds.isEmpty) return const {};
-    final apiRounds = {for (final r in rounds) r.apiRound};
+    final apiRounds = definition.bracketApiRounds(season);
+    final preliminaryStages = switch (definition.rules) {
+      final ContinentalCupRules r => r.preliminarySeries(season),
+      _ => const <ContinentalStage>[],
+    };
     final unique = MatchGrouping.dedupe(
       matches.where(
         (m) => m.season == season.apiValue && apiRounds.contains(m.apiRound),
@@ -170,6 +218,7 @@ abstract final class KnockoutBracketBuilder {
     );
     final resolver = PhaseResolver(definition);
     final byPhase = <PhaseKey, List<Match>>{};
+    final preliminary = <ContinentalStage, List<Match>>{};
     for (final apiRound in apiRounds) {
       final inRound = [
         for (final m in unique)
@@ -183,16 +232,57 @@ abstract final class KnockoutBracketBuilder {
       );
       for (final m in inRound) {
         final a = assigned[m.id]!;
-        if (a.isDetermined && a.stageKind == StageKind.knockout) {
+        if (!a.isDetermined || a.stageKind != StageKind.knockout) continue;
+        final stage = preliminaryStages
+            .where((s) => s.phase == a.phase && s.apiRound == apiRound)
+            .firstOrNull;
+        if (stage != null) {
+          (preliminary[stage] ??= []).add(m);
+        } else {
           (byPhase[a.phase] ??= []).add(m);
         }
       }
     }
+    final preliminaryRounds = [
+      for (final s in preliminaryStages)
+        if (preliminary[s] case final stageMatches?)
+          (label: s.label, legs: s.legs, matches: stageMatches),
+    ];
     return {
-      for (final phase in definition.phases)
-        if (byPhase[phase] case final phaseMatches?)
-          phase: build(phase: phase, rounds: rounds, matches: phaseMatches),
+      for (final phase in definition.bracketPhases)
+        if (byPhase.containsKey(phase) ||
+            (phase == PhaseKey.knockoutStage && preliminaryRounds.isNotEmpty))
+          phase: build(
+            phase: phase,
+            rounds: rounds,
+            matches: byPhase[phase] ?? const [],
+            preliminary: phase == PhaseKey.knockoutStage
+                ? preliminaryRounds
+                : const [],
+          ),
     };
+  }
+
+  /// Series de una ronda previa, por fecha y sin unir. Quién avanzó, con
+  /// la evidencia de los partidos posteriores del cuadro.
+  static BracketRoundView _seriesList(
+    PreliminaryRound round, {
+    required List<Match> laterMatches,
+    required List<Match> unplaced,
+  }) {
+    final (:ties, :unpaired) = TiePairing.pair(round.matches, legs: round.legs);
+    unplaced.addAll(unpaired);
+    return BracketRoundView(
+      label: round.label,
+      legs: round.legs,
+      slots: [
+        for (final tie in ties)
+          BracketSlot(
+            tie: tie,
+            outcome: TieOutcome.ofTie(tie, laterMatches: laterMatches),
+          ),
+      ],
+    );
   }
 
   /// Reparte una ronda de la API entre varias rondas del cuadro: la ronda
@@ -204,7 +294,7 @@ abstract final class KnockoutBracketBuilder {
     List<List<Match>> byRound,
     List<Match> unplaced,
   ) {
-    final sorted = [...inRound]..sort(_byKickoff);
+    final sorted = [...inRound]..sort(TiePairing.byKickoff);
     final played = <int, int>{};
     for (final m in sorted) {
       final home = played[m.home.id] ?? 0;
@@ -222,34 +312,34 @@ abstract final class KnockoutBracketBuilder {
   /// Orden de las llaves, de la final hacia atrás.
   static List<List<_Slot>> _order(
     List<BracketRound> rounds,
-    List<List<Match>> byRound,
+    List<List<KnockoutTie>> byRound,
     List<Match> unplaced,
   ) {
     final last = rounds.length - 1;
     final result = List<List<_Slot>>.filled(rounds.length, const []);
     result[last] = [
-      for (final m in byRound[last]) _Slot(m),
+      for (final t in byRound[last]) _Slot(t),
       for (var i = byRound[last].length; i < rounds[last].matches; i++)
         _Slot(null),
     ];
     for (var k = last - 1; k >= 0; k--) {
       final pool = [...byRound[k]];
       final parents = result[k + 1];
-      // Antes de la final, los partidos de la ronda la alimentan sí o sí.
+      // Antes de la final, las llaves de la ronda la alimentan sí o sí.
       final singleParent = parents.length == 1;
       final children = <_Slot>[];
       final open = <int>[];
       for (final parent in parents) {
-        final parentMatch = parent.match;
-        if (parentMatch == null) {
+        final parentTie = parent.tie;
+        if (parentTie == null) {
           for (final _ in [0, 1]) {
             open.add(children.length);
             children.add(_Slot(null, linked: singleParent));
           }
           continue;
         }
-        for (final team in [parentMatch.home, parentMatch.away]) {
-          final feeder = pool.where((m) => m.involvesTeam(team.id)).firstOrNull;
+        for (final team in [parentTie.first, parentTie.second]) {
+          final feeder = pool.where((t) => t.involvesTeam(team.id)).firstOrNull;
           if (feeder != null) pool.remove(feeder);
           children.add(
             _Slot(feeder, linked: true, cameFrom: feeder == null ? team : null),
@@ -260,7 +350,9 @@ abstract final class KnockoutBracketBuilder {
         if (pool.isEmpty) break;
         children[i] = _Slot(pool.removeAt(0), linked: singleParent);
       }
-      unplaced.addAll(pool);
+      for (final t in pool) {
+        unplaced.addAll(t.legs);
+      }
       result[k] = children;
     }
     return result;
@@ -268,16 +360,19 @@ abstract final class KnockoutBracketBuilder {
 
   static List<List<BracketSlot>> _withOutcomes(
     List<List<_Slot>> ordered,
-    List<List<Match>> byRound,
+    List<List<KnockoutTie>> byRound,
   ) {
     final result = <List<BracketSlot>>[];
     for (final (k, round) in ordered.indexed) {
-      final later = [for (final r in byRound.skip(k + 1)) ...r];
+      final later = [
+        for (final ties in byRound.skip(k + 1))
+          for (final t in ties) ...t.legs,
+      ];
       final slots = <BracketSlot>[];
       for (final (i, slot) in round.indexed) {
-        final m = slot.match;
+        final tie = slot.tie;
         final qualified = <TeamRef>[];
-        if (m == null) {
+        if (tie == null) {
           if (slot.cameFrom case final team?) {
             qualified.add(team);
           } else if (k > 0) {
@@ -293,8 +388,10 @@ abstract final class KnockoutBracketBuilder {
         }
         slots.add(
           BracketSlot(
-            match: m,
-            outcome: m == null ? null : TieOutcome.of(m, laterMatches: later),
+            tie: tie,
+            outcome: tie == null
+                ? null
+                : TieOutcome.ofTie(tie, laterMatches: later),
             qualified: qualified,
             linkedToNext: slot.linked,
           ),
@@ -304,23 +401,14 @@ abstract final class KnockoutBracketBuilder {
     }
     return result;
   }
-
-  static int _byKickoff(Match a, Match b) {
-    final x = a.kickoff.utc;
-    final y = b.kickoff.utc;
-    if (x != null && y != null && x != y) return x.compareTo(y);
-    if (x == null && y != null) return 1;
-    if (x != null && y == null) return -1;
-    return a.id.compareTo(b.id);
-  }
 }
 
 final class _Slot {
-  _Slot(this.match, {this.linked = false, this.cameFrom});
+  _Slot(this.tie, {this.linked = false, this.cameFrom});
 
-  final Match? match;
+  final KnockoutTie? tie;
   final bool linked;
 
-  /// Sin partido: el equipo que llegó desde acá a la ronda siguiente.
+  /// Sin llave: el equipo que llegó desde acá a la ronda siguiente.
   final TeamRef? cameFrom;
 }

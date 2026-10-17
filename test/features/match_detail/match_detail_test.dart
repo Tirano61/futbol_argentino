@@ -9,7 +9,9 @@ import 'package:futbol_argentino/features/match_detail/domain/usecases/get_match
 import 'package:futbol_argentino/features/match_detail/presentation/bloc/match_detail_bloc.dart';
 import 'package:futbol_argentino/features/match_detail/presentation/formatters/match_detail_texts.dart';
 import 'package:futbol_argentino/features/match_detail/presentation/pages/match_detail_page.dart';
+import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
+import 'package:futbol_argentino/features/matches/domain/services/tie_outcome.dart';
 import 'package:futbol_argentino/shared/presentation/formatters/match_labels.dart';
 
 import '../../helpers/fakes.dart';
@@ -78,15 +80,116 @@ void main() {
         'Copa Libertadores · Eliminatorias · Octavos de final',
       );
 
-      // Una pierna empatada de una serie no dice quién avanza (las series
-      // llegan en la Fase D5).
+      // Una pierna empatada dice quién avanzó en la serie (Fase D5).
       final drawn = r16.firstWhere(
         (m) =>
             m.status.isFinished &&
             m.penalties == null &&
             m.score!.home == m.score!.away,
       );
-      expect((await getCup(drawn.id)).data.advancement, isNull);
+      final detail = (await getCup(drawn.id)).data;
+      expect(detail.tie!.legs, hasLength(2));
+      expect(detail.advancement, isNotNull);
+    });
+
+    group('Fase D5: series de las copas internacionales', () {
+      GetMatchDetail detailOf(int league, int year, List<int> rounds) =>
+          GetMatchDetail(
+            FakeMatchRepository({
+              for (final r in rounds)
+                r: fixtureMatches('eventsround_${league}_r${r}_s$year'),
+            }),
+          );
+
+      Match leg(int league, int year, int round, String home) => fixtureMatches(
+        'eventsround_${league}_r${round}_s$year',
+      ).singleWhere((m) => m.home.name == home);
+
+      test(
+        'la ida y la vuelta muestran la misma serie, con el global',
+        () async {
+          final get = detailOf(4501, 2025, [16, 125]);
+          final ida = leg(4501, 2025, 16, 'Peñarol');
+          final vuelta = leg(4501, 2025, 16, 'Racing Club');
+          final first = (await get(ida.id)).data;
+          final second = (await get(vuelta.id)).data;
+          expect(first.tie, second.tie);
+          expect(first.tie!.legs.map((m) => m.id), [ida.id, vuelta.id]);
+          expect(
+            MatchLabels.aggregate(first.tie!),
+            'Global Peñarol 2-3 Racing Club',
+          );
+          // La ida la ganó Peñarol, pero la serie es de Racing.
+          expect(first.advancement!.source, TieOutcomeSource.aggregate);
+          expect(
+            MatchLabels.tieAdvances(first.advancement!, first.tie!),
+            'Avanza Racing Club (global 3-2)',
+          );
+        },
+      );
+
+      test('2025 sin penales: el que juega después, con lo guardado de la '
+          'temporada', () async {
+        final river = leg(4501, 2025, 16, 'River Plate');
+        final without = (await detailOf(4501, 2025, [16])(river.id)).data;
+        expect(without.tie!.isComplete, isTrue);
+        expect(without.advancement, isNull);
+
+        final withLater = (await detailOf(4501, 2025, [16, 125])(
+          river.id,
+        )).data;
+        expect(withLater.advancement!.source, TieOutcomeSource.laterMatch);
+        expect(withLater.advancement!.winner.name, 'River Plate');
+      });
+
+      test('vuelta ganada con el global empatado: la tanda (LDU 3-2 '
+          'Palmeiras, 3-4 en penales)', () async {
+        final vuelta = leg(4501, 2026, 125, 'LDU Quito');
+        final detail = (await detailOf(4501, 2026, [125])(vuelta.id)).data;
+        expect(detail.advancement!.source, TieOutcomeSource.penalties);
+        expect(
+          MatchLabels.tieAdvances(detail.advancement!, detail.tie!),
+          'Avanza Palmeiras (4-3 en penales)',
+        );
+      });
+
+      test('Sudamericana: PEN sin tanda → la semifinal guardada', () async {
+        final vuelta = leg(4724, 2026, 125, 'Atlético Mineiro');
+        final detail = (await detailOf(4724, 2026, [125, 150])(vuelta.id)).data;
+        expect(detail.advancement!.source, TieOutcomeSource.laterMatch);
+        expect(detail.advancement!.winner.name, 'Atlético Mineiro');
+      });
+
+      test('Sudamericana 2026: Primera fase a un partido (PEN sin tanda) → '
+          'el que juega los grupos', () async {
+        final r1 = fixtureMatches('eventsround_4724_r1_s2026');
+        final petrolero = r1.singleWhere(
+          (m) =>
+              m.home.name == 'Independiente Petrolero' &&
+              m.kickoff.argentinaDay!.month == 3,
+        );
+        final detail = (await detailOf(4724, 2026, [1])(petrolero.id)).data;
+        expect(detail.tie!.isSeries, isFalse);
+        expect(detail.advancement!.source, TieOutcomeSource.laterMatch);
+        expect(detail.advancement!.winner.name, 'Independiente Petrolero');
+      });
+
+      test('final de la Sudamericana 2025: completa y sin dato de quién '
+          'ganó', () async {
+        final finalMatch = fixtureMatches('eventsround_4724_r200_s2025').single;
+        final detail = (await detailOf(4724, 2025, [150, 200])(
+          finalMatch.id,
+        )).data;
+        expect(detail.tie!.isComplete, isTrue);
+        expect(detail.advancement, isNull);
+      });
+
+      test('los grupos no son llaves', () async {
+        final group = fixtureMatches('eventsround_4501_r4_s2026').first;
+        final detail = (await detailOf(4501, 2026, [4])(group.id)).data;
+        expect(detail.tie, isNull);
+        expect(detail.advancement, isNull);
+      });
     });
 
     test('competición fuera del catálogo: sin fase', () async {

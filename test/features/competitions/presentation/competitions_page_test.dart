@@ -448,6 +448,15 @@ void main() {
         ).toString(),
         '/competiciones/4500?temporada=2026&vista=llaves',
       );
+      // Una copa internacional tiene un solo cuadro (eliminatorias).
+      expect(
+        FixtureRoute.bracketUri(
+          4501,
+          const Season(2025),
+          PhaseKey.knockoutStage,
+        ).toString(),
+        '/competiciones/4501?temporada=2025&vista=llaves',
+      );
       expect(FixtureRoute.parseBracketPhase(const {'llave': 'x'}), isNull);
       expect(
         FixtureRoute.urlToRestore(Uri.parse('/competiciones/4406'), uri),
@@ -469,9 +478,9 @@ void main() {
           4500: 'fixture,calendar,bracket',
           5215: 'fixture,calendar',
           5524: 'fixture,calendar',
-          // Tabla desde la Fase D4; Llaves en la D5.
-          4501: 'fixture,table,calendar',
-          4724: 'fixture,table,calendar',
+          // Tabla desde la Fase D4; Llaves desde la D5.
+          4501: 'fixture,table,calendar,bracket',
+          4724: 'fixture,table,calendar,bracket',
         },
       );
     });

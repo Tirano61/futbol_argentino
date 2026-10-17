@@ -35,6 +35,7 @@ import '../routing/fixture_route.dart';
 import '../widgets/bracket_panel.dart';
 import '../widgets/calendar_panel.dart';
 import '../widgets/fixture_controls.dart';
+import '../widgets/series_list.dart';
 import '../widgets/standings_panel.dart';
 
 /// Fixture, tablas, calendario y llaves de cualquier competición del
@@ -778,12 +779,21 @@ class _FixtureContentView extends StatelessWidget {
                     onRetry: retry,
                   ),
                 ),
-              ...matchDayItems(
-                matches: loaded.matches.matches,
-                now: now,
-                onTap: (m) => onOpen(m.id),
-                selectedId: selectedMatchId,
-              ),
+              if (loaded.matches.series.isNotEmpty)
+                ...seriesItems(
+                  series: loaded.matches.series,
+                  unpaired: loaded.matches.unpaired,
+                  now: now,
+                  onTap: (m) => onOpen(m.id),
+                  selectedId: selectedMatchId,
+                )
+              else
+                ...matchDayItems(
+                  matches: loaded.matches.matches,
+                  now: now,
+                  onTap: (m) => onOpen(m.id),
+                  selectedId: selectedMatchId,
+                ),
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(

@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../competitions/domain/entities/phase_assignment.dart';
+import '../../../matches/domain/entities/knockout_tie.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/services/tie_outcome.dart';
 
@@ -12,6 +13,7 @@ final class MatchDetail extends Equatable {
     this.phase,
     this.stageLabel,
     this.advancement,
+    this.tie,
   });
 
   final Match match;
@@ -26,8 +28,15 @@ final class MatchDetail extends Equatable {
   final String? stageLabel;
 
   /// Partido de eliminación terminado en empate (penales): quién avanzó,
-  /// si se sabe. `null` en el resto (el marcador ya lo dice).
+  /// si se sabe. `null` en el resto (el marcador ya lo dice). En una copa
+  /// internacional, quién avanzó en la llave ([tie]), aunque esta pierna
+  /// no haya terminado empatada.
   final TieOutcome? advancement;
+
+  /// Llave de eliminación de una copa internacional (Fase D5): el partido
+  /// único o la serie de ida y vuelta con las piernas guardadas. `null` en
+  /// el resto.
+  final KnockoutTie? tie;
 
   @override
   List<Object?> get props => [
@@ -37,5 +46,6 @@ final class MatchDetail extends Equatable {
     stageLabel,
     advancement?.winner,
     advancement?.source,
+    tie,
   ];
 }

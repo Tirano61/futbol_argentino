@@ -15,6 +15,7 @@ class MatchCard extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.selected = false,
+    this.showAdvance = true,
   });
 
   final Match match;
@@ -29,13 +30,17 @@ class MatchCard extends StatelessWidget {
   /// Es el partido abierto en el panel de detalle (escritorio).
   final bool selected;
 
+  /// Muestra «Avanza X» de un empate definido por penales. `false` dentro
+  /// de una serie de ida y vuelta: lo dice la serie (con el global).
+  final bool showAdvance;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final overdue = match.isResultOverdue(now);
     // Con un empate, quién pasó solo se sabe por la tanda (ver
     // `TieOutcome`); si se ganó en el partido, el marcador lo dice.
-    final outcome = TieOutcome.of(match);
+    final outcome = showAdvance ? TieOutcome.of(match) : null;
     final advances = outcome?.source == TieOutcomeSource.penalties
         ? MatchLabels.advances(outcome!, match)
         : null;

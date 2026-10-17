@@ -45,6 +45,7 @@ final class FixtureLoaded extends FixtureContent {
   List<Object?> get props => [
     matches.stage,
     matches.matches,
+    matches.series,
     origin,
     fetchedAt,
     refreshError,

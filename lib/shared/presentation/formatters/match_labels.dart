@@ -2,8 +2,10 @@ import '../../../core/time/argentina_time.dart';
 import '../../../core/time/calendar_day.dart';
 import '../../../core/time/calendar_month.dart';
 import '../../../features/matches/domain/entities/kickoff.dart';
+import '../../../features/matches/domain/entities/knockout_tie.dart';
 import '../../../features/matches/domain/entities/match.dart';
 import '../../../features/matches/domain/entities/match_status.dart';
+import '../../../features/matches/domain/entities/score.dart';
 import '../../../features/matches/domain/services/tie_outcome.dart';
 
 /// Textos de partidos para la UI (español rioplatense, hora argentina).
@@ -84,6 +86,44 @@ abstract final class MatchLabels {
     return outcome.source == TieOutcomeSource.penalties && shootout != null
         ? 'Avanza ${outcome.winner.name} ($shootout en penales)'
         : 'Avanza ${outcome.winner.name}';
+  }
+
+  /// «Ida» o «Vuelta» de la pierna [index] (desde 0) de una serie.
+  static String leg(int index) => index == 0 ? 'Ida' : 'Vuelta';
+
+  /// Quién avanzó en [tie]: en un partido único, como [advances]; en una
+  /// serie, con el global o la tanda contados desde el ganador («Avanza
+  /// Palmeiras (4-3 en penales)»).
+  static String tieAdvances(TieOutcome outcome, KnockoutTie tie) {
+    if (!tie.isSeries) return advances(outcome, tie.decisive);
+    final winner = outcome.winner;
+    String fromWinner(Score s) => winner.id == tie.first.id
+        ? '${s.home}-${s.away}'
+        : '${s.away}-${s.home}';
+    final detail = switch (outcome.source) {
+      TieOutcomeSource.aggregate => switch (tie.aggregate) {
+        final s? => 'global ${fromWinner(s)}',
+        null => null,
+      },
+      TieOutcomeSource.penalties => switch (tie.penalties) {
+        final s? => '${fromWinner(s)} en penales',
+        null => 'por penales',
+      },
+      TieOutcomeSource.laterMatch => 'juega la ronda siguiente',
+      TieOutcomeSource.score => null,
+    };
+    return detail == null
+        ? 'Avanza ${winner.name}'
+        : 'Avanza ${winner.name} ($detail)';
+  }
+
+  /// «Global River Plate 3-1 Boca Juniors» («Global parcial» si falta
+  /// jugar); `null` si ninguna pierna empezó.
+  static String? aggregate(KnockoutTie tie) {
+    final s = tie.partialAggregate;
+    if (s == null) return null;
+    final label = tie.isComplete ? 'Global' : 'Global parcial';
+    return '$label ${tie.first.name} ${s.home}-${s.away} ${tie.second.name}';
   }
 
   /// Descripción para lectores de pantalla.

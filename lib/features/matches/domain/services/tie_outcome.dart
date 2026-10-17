@@ -1,3 +1,4 @@
+import '../entities/knockout_tie.dart';
 import '../entities/match.dart';
 import '../entities/match_status.dart';
 import '../entities/team_ref.dart';
@@ -13,9 +14,13 @@ enum TieOutcomeSource {
   /// La API no informa cómo terminó la llave, pero solo uno de los dos
   /// equipos juega un partido posterior de la misma eliminatoria.
   laterMatch,
+
+  /// Serie de ida y vuelta: hizo más goles en el global.
+  aggregate,
 }
 
-/// Quién avanzó en un partido de eliminación directa (a un solo partido).
+/// Quién avanzó en una llave de eliminación: un partido único o una serie
+/// de ida y vuelta.
 final class TieOutcome {
   const TieOutcome({required this.winner, required this.source});
 
@@ -55,6 +60,63 @@ final class TieOutcome {
     if (home == away) return null;
     return TieOutcome(
       winner: home ? m.home : m.away,
+      source: TieOutcomeSource.laterMatch,
+    );
+  }
+
+  /// Ganador de [tie], o `null` si no hay evidencia.
+  ///
+  /// Un partido único sigue exactamente [of]. En una serie de ida y
+  /// vuelta (reglamentos CONMEBOL: global y, si persiste, penales; sin
+  /// alargue ni gol de visitante):
+  /// 1. Global distinto → [TieOutcomeSource.aggregate].
+  /// 2. Global igual → la tanda de la vuelta, si es `PEN` y la API la
+  ///    informa sin empate.
+  /// 3. Si no, el único de los dos que juega un partido de [laterMatches]
+  ///    posterior a la serie (2025 no informa los penales; la
+  ///    Sudamericana 2026 a veces da `PEN` sin la tanda).
+  ///
+  /// Un dato contradictorio (`PEN` en la ida, o en la vuelta con el global
+  /// distinto) no usa ni el global ni la tanda: solo el paso 3.
+  static TieOutcome? ofTie(
+    KnockoutTie tie, {
+    Iterable<Match> laterMatches = const [],
+  }) {
+    if (!tie.isSeries) return of(tie.decisive, laterMatches: laterMatches);
+    if (!tie.legs.every((m) => m.status.isFinished)) return null;
+
+    bool byPenalties(Match m) => m.status.decidedBy == MatchDecision.penalties;
+    final contradictoryLeg = tie.legs
+        .take(tie.legs.length - 1)
+        .any(byPenalties);
+    final aggregate = tie.aggregate;
+    if (aggregate != null && !contradictoryLeg) {
+      final shootout = byPenalties(tie.decisive);
+      if (aggregate.home != aggregate.away) {
+        if (!shootout) {
+          return TieOutcome(
+            winner: aggregate.home > aggregate.away ? tie.first : tie.second,
+            source: TieOutcomeSource.aggregate,
+          );
+        }
+      } else if (shootout) {
+        final p = tie.penalties;
+        if (p != null && p.home != p.away) {
+          return TieOutcome(
+            winner: p.home > p.away ? tie.first : tie.second,
+            source: TieOutcomeSource.penalties,
+          );
+        }
+      }
+    }
+
+    final later = laterMatches.where(tie.isBefore);
+    bool playsLater(TeamRef team) => later.any((m) => m.involvesTeam(team.id));
+    final first = playsLater(tie.first);
+    final second = playsLater(tie.second);
+    if (first == second) return null;
+    return TieOutcome(
+      winner: first ? tie.first : tie.second,
       source: TieOutcomeSource.laterMatch,
     );
   }

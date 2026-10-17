@@ -29,7 +29,8 @@ enum CompetitionsView {
 /// (Nacional: `tabla=zona-a`). Calendario:
 /// `/competiciones/4406?temporada=2026&vista=calendario&mes=2026-10`.
 /// Llaves: `/competiciones/4406?temporada=2026&vista=llaves&llave=apertura`
-/// (la Copa, sin `llave`).
+/// (sin `llave` si la competición tiene un solo cuadro: la Copa, las copas
+/// internacionales).
 abstract final class FixtureRoute {
   static const basePath = '/competiciones';
 
@@ -126,17 +127,21 @@ abstract final class FixtureRoute {
   );
 
   /// URL del cuadro de llaves (sin [phase], el último torneo con
-  /// eliminatorias).
-  static Uri bracketUri(int competitionId, Season season, PhaseKey? phase) =>
-      Uri(
-        path: '$basePath/$competitionId',
-        queryParameters: {
-          'temporada': season.apiValue,
-          'vista': 'llaves',
-          if (phase != null && phase != PhaseKey.unica)
-            'llave': phaseName(phase),
-        },
-      );
+  /// eliminatorias; con un solo cuadro, nunca lleva `llave`).
+  static Uri bracketUri(int competitionId, Season season, PhaseKey? phase) {
+    final single =
+        (CompetitionCatalog.byId(competitionId)?.bracketPhases.length ?? 0) <=
+        1;
+    return Uri(
+      path: '$basePath/$competitionId',
+      queryParameters: {
+        'temporada': season.apiValue,
+        'vista': 'llaves',
+        if (phase != null && phase != PhaseKey.unica && !single)
+          'llave': phaseName(phase),
+      },
+    );
+  }
 
   /// URL de una etapa.
   static Uri uriFor(Stage stage) => Uri(

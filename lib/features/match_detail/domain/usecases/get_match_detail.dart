@@ -7,9 +7,11 @@ import '../../../competitions/domain/entities/season.dart';
 import '../../../competitions/domain/knockout/knockout_bracket.dart';
 import '../../../competitions/domain/services/phase_resolver.dart';
 import '../../../competitions/domain/services/stage_labeler.dart';
+import '../../../matches/domain/entities/knockout_tie.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/tie_outcome.dart';
+import '../../../matches/domain/services/tie_pairing.dart';
 import '../entities/match_detail.dart';
 
 /// Partido + fase y etapa. La fase necesita la ronda completa (consistencia
@@ -36,12 +38,20 @@ class GetMatchDetail {
     }
 
     final round = await _roundOf(match);
-    final phase = PhaseResolver(definition).classifyRound(
-      season: season,
-      apiRound: match.apiRound,
-      matches: round,
-    )[match.id]!;
-    final advancement = await _advancement(definition, season, match, phase);
+    final assigned = PhaseResolver(
+      definition,
+    ).classifyRound(season: season, apiRound: match.apiRound, matches: round);
+    final phase = assigned[match.id]!;
+    final (tie, advancement) = switch (definition.rules) {
+      final ContinentalCupRules rules =>
+        await _continentalTie(rules, season, match, [
+          for (final m in round)
+            if (assigned[m.id]!.phase == phase.phase &&
+                assigned[m.id]!.stageKind == phase.stageKind)
+              m,
+        ], phase),
+      _ => (null, await _advancement(definition, season, match, phase)),
+    };
 
     return result.map(
       (m) => MatchDetail(
@@ -58,7 +68,42 @@ class GetMatchDetail {
               )
             : 'Ronda ${m.apiRound}',
         advancement: advancement,
+        tie: tie,
       ),
+    );
+  }
+
+  /// Llave de una copa internacional: las piernas de la serie dentro de la
+  /// etapa ([sameStage]: los partidos de la ronda con la misma fase) y
+  /// quién avanzó, con la evidencia de los partidos guardados posteriores
+  /// de la temporada. Sin red.
+  Future<(KnockoutTie?, TieOutcome?)> _continentalTie(
+    ContinentalCupRules rules,
+    Season season,
+    Match match,
+    List<Match> sameStage,
+    PhaseAssignment phase,
+  ) async {
+    if (!phase.isDetermined || phase.stageKind != StageKind.knockout) {
+      return (null, null);
+    }
+    final legs =
+        rules
+            .stageFor(season, phase.phase, match.apiRound, StageKind.knockout)
+            ?.legs ??
+        1;
+    final tie = TiePairing.pair(
+      sameStage,
+      legs: legs,
+    ).ties.where((t) => t.legs.any((m) => m.id == match.id)).firstOrNull;
+    if (tie == null) return (null, null);
+    final stored = await _matches.storedSeason(
+      match.competitionId,
+      match.season,
+    );
+    return (
+      tie,
+      TieOutcome.ofTie(tie, laterMatches: stored.where(tie.isBefore)),
     );
   }
 
