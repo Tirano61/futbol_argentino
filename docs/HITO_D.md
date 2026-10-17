@@ -2,7 +2,7 @@
 
 > **Aprobado por el usuario el 14/10/2026, con ajustes** (corte temprano solo con evidencia, D7 sin depender de las finales 2026, reglamentos oficiales). Se trabaja por fases: tarea por tarea dentro de cada fase y aprobación antes de la siguiente. Sin commits ni PR (los hace el usuario).
 >
-> **Estado:** Fases D1 a D4 terminadas y aprobadas (14 a 17/10/2026). Fase D5 terminada y aprobada (17/10/2026). Fase D6 terminada (17/10/2026), esperando aprobación para D7. Resultados en «Resultado de la Fase D1» … «… D6» (§10).
+> **Estado:** Fases D1 a D6 terminadas y aprobadas (14 a 17/10/2026). Fase D7 terminada (17/10/2026), esperando aprobación para cerrar el Hito D. Queda la tarea posterior D-F (finales 2026). Resultados en «Resultado de la Fase D1» … «… D7» (§10).
 
 ## Contexto
 La app cubre el fútbol argentino (Primera, Nacional, B Metro, C, Copa Argentina) con fixture, tablas, calendario, llaves, fichas y favoritos sobre la API gratuita de TheSportsDB. El usuario quiere sumar **Copa Libertadores y Copa Sudamericana completas** (no solo los partidos de equipos argentinos) y ordenar el selector de competiciones en **cuatro categorías**. Hoy la Sudamericana solo aparece como «Otras competiciones» en la ficha de un equipo.
@@ -529,6 +529,28 @@ Orden: D1 → D2 → D3 → D4 → D5 → D6 → D7. Al terminar cada fase: `flu
 - **Aceptación**: `flutter analyze` sin issues, suite completa verde, sin desbordes, Android y Web validados, docs al día.
 - **Pruebas**: regresión completa (`flutter test`) + layout/accesibilidad + presupuestos.
 - **Resultado**: Hito D cerrado.
+
+#### Resultado de la Fase D7 (17/10/2026)
+1. ✅ **Cuadros y finales** con datos reales (grabaciones de D1), en la app completa (`test/app/continental_finals_test.dart`, 8 tests): Libertadores 2025 = 8 + 4 + 2 llaves con «Avanza», la final «Palmeiras 0, Flamengo 1 · Avanza Flamengo» y «Campeón: Flamengo»; su detalle («Eliminatorias · Final», sábado 29/11/2025) dice «Avanza Flamengo». Sudamericana 2025 = cuadro completo con Lanús y Atlético Mineiro en la final 0-0, «Sin dato de la definición» en el cuadro y en el detalle, sin campeón ni «Avanza». 2026 (las dos copas): octavos y cuartos con ganador, semifinales con el global parcial y la vuelta programada sin «Avanza», la final «A definir» sin campeón; en el Fixture la final dice «Sin partidos · Final: TheSportsDB todavía no tiene los partidos cargados.» (antes «…para final.», el texto armado con la etapa en minúscula se leía mal).
+2. ✅ **Pasada en dispositivos** con la API real (respondía en ~0,5 s, con 429 a ratos por la IP compartida): tablet `SOP10X2501001122` con el APK release, horizontal 1280 y vertical 800; teléfono emulado (densidad 320 = 400 px) con texto al 100 % y al 200 %; Web release (`DIAGNOSTICS=true`) en el Chrome de la tablet (`adb reverse`) y en Chrome del PC a 1920 y 360 px.
+3. ✅ **Regresión**: `flutter test` completo (suite argentina incluida: Primera, Nacional, B Metro, C, Copa Argentina, tablas, cuadros, ficha, favoritos, calendario, caché, rutas Web, presupuestos, layout y accesibilidad) y, en la tablet, Primera (Llaves con «Campeón: Belgrano», Tabla Anual), Nacional (zonas), B Metro (sin Tabla), Copa Argentina (semifinales), Favoritos y la ficha de River.
+4. ✅ **Docs**: `CLAUDE.md`, `PLAN.md` (sección del Hito D), `ARCHITECTURE.md`, `DATA_STRATEGY.md`, `API.md`, `DECISIONS.md` y este archivo.
+
+**Arreglo encontrado en la pasada** (Web release a 360 px reales): el selector de vistas de una competición con cuatro vistas («Fixture | Tabla | Calendario | Llaves», también Primera desde la Fase 19.1) partía «Calendario» a mitad de palabra («Calendar / io»): los cuatro segmentos miden lo que el más ancho y en 328 px no entraba con el relleno de Material. Ahora el selector **mide las etiquetas** (`TextPainter` con la escala de texto): íconos solo desde 600 px y si entran; en un teléfono, relleno lateral de 4 px; si aun así no entran (texto grande), se desplaza en vez de partirlas. Reemplaza la regla anterior «se desplaza con la escala > 1,3». Test nuevo con Roboto: `test/app/view_selector_layout_test.dart` (360 px entra sin íconos ni desplazamiento; 360 px al 200 % se desplaza; 800 px con íconos; las cuatro etiquetas en un renglón).
+
+**Validación**: `flutter analyze` sin issues; `flutter test` **882 verdes** (871 + 8 de finales + 3 del selector). Presupuestos sin cambios (Inicio, Fixture, Tabla, Calendario, Llaves, ficha, buscador): 0 consultas nuevas en los tests.
+
+**Dispositivos con la API real** (evidencia en `docs/evidence/d7_*`):
+- Android, horizontal 1280: Libertadores 2026 → Fixture en semifinales (Fluminense 1-2 Palmeiras en la ida), «Siguiente» → la final con el aviso nuevo (`d7_android_final_2026_pendiente.png`); Llaves 2026 con la final «A definir · Sin datos del partido» (`d7_android_llaves_lib2026_final_a_definir.png`); 2025 con «Campeón: Flamengo» y la final 0-1 (`d7_android_llaves_lib2025_campeon.png`, `d7_android_llaves_lib2025_final.png`); Sudamericana 2026 con Boca 0-1 Vasco en la ida y la final a definir (`d7_android_llaves_sud2026_final_a_definir.png`) y 2025 con la final «Final · Sin dato de la definición» (`d7_android_llaves_sud2025_final_sin_dato.png`). TheSportsDB pidió esperar (429) durante ~2 min al abrir las copas: la app mostró la pausa y siguió sola.
+- Android, vertical 800: Sudamericana 2025 con los Playoffs de octavos en dos columnas (`d7_android_vertical_llaves_sud2025_playoffs.png`), Llaves de Primera (`d7_android_vertical_llaves_primera.png`), Tabla Anual, Nacional por zonas, B Metro con «Fixture | Calendario», Copa Argentina en semifinales. Ficha de River (favorito) en tibio = 3 consultas (2 punteros + la fecha 13), con la Sudamericana en el encabezado (sus rondas ya estaban guardadas por las Llaves: no muestra el corte por sí solo, lo cubren los tests).
+- Teléfono emulado (400 px): selector de vistas en una línea con el APK nuevo (`d7_telefono_selector_vistas.png`); al 200 % se desplaza sin partir etiquetas.
+- Web release: en el Chrome de la tablet, `…/4724?temporada=2025&vista=llaves` (`d7_web_tablet_llaves_sud2025.png`); con 9 pestañas viejas de la app abiertas la primera carga quedó en blanco (IndexedDB compartida, ya visto en la Fase 12); al cerrarlas, la recarga abrió el cuadro con **0 consultas** (temporada cerrada guardada). Chrome del PC: 1920 px con la Libertadores 2025 en frío (`d7_web_chrome_1920_llaves_lib2025.png`) y 360 px reales (emulación por DevTools; el modo sin ventana no baja de 500 px) con el selector arreglado (`d7_web_360_selector_vistas.png`). Un intento a 360 px quedó en «Sin conexión»: el 429 de TheSportsDB llega sin CORS y el navegador lo ve como error de red (como en D5); «Reintentar» lo resuelve.
+- Al terminar: densidad 160, texto 100 % y rotación automática restaurados en la tablet.
+
+**No probado / pendiente**:
+- Ficha de Boca en frío en el dispositivo (pendiente de D6): borrar los datos de la app borraría los favoritos del usuario; lo cubre `team_detail_sync_test` (37 / 0).
+- **Fuera del Hito D (anterior, visto en la pasada)**: en un teléfono con texto al 200 % la barra de navegación inferior parte «Competicion / es» (también en la captura de D5). No se tocó; a decidir.
+- **Para revisar (de D6)**: el 3.º de grupo de la Libertadores no corta esa copa en la ficha (`advancingPlaces: 3`).
 
 ### D-F — Finales 2026 (tarea posterior, separada del hito)
 - **Cuándo**: cuando la API tenga las semis y finales 2026 (Sud 21/11, Lib ~28/11), con aprobación propia.

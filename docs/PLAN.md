@@ -502,6 +502,17 @@ Reemplaza a las etapas 10.2 y 10.3. Primero datos (Fases 11–15), después uso 
   - **Fase 19.2 (nov–dic 2026)** — Reducido y final de Nacional, playoffs del Clausura (V3, ventana de eliminatorias en el catálogo), final de Copa 2026; cuadro de Nacional cuando se conozca cómo numera la API sus rondas.
   - **Fase 19.3 (cuando la AFA los publique)** — Zonas con `idTeam` y reglamento 2027 de Primera y Nacional en el catálogo.
 
+### Hito D — Copa Libertadores, Copa Sudamericana y selector por categorías (aprobado el 14/10/2026)
+Detalle completo (contexto, modelo, tareas, aceptación y resultados por fase): [`docs/HITO_D.md`](HITO_D.md). Decisiones D22–D27 en `DECISIONS.md`.
+- **D1 — Investigación y grabaciones** ✅ 14/10: 58 respuestas reales; reglamentos oficiales de CONMEBOL 2025/2026 (V16–V21).
+- **D2 — Categorías y selector** ✅ 15/10: `CompetitionCategory`, `CompetitionPicker` (< 600 botón + hoja; ≥ 600 chips si entran).
+- **D3 — Integración básica** ✅ 15/10: `ContinentalCupRules` con etapas por temporada; Fixture, Calendario y detalle de las dos copas.
+- **D4 — Grupos y tablas** ✅ 15/10: `GroupStage` (A–H por `idTeam`), desempates 2025/2026.
+- **D5 — Series y cuadro** ✅ 17/10: `KnockoutTie`, `TieOutcome.ofTie`, Llaves octavos → final y Playoffs de la Sudamericana.
+- **D6 — Equipos y buscador** ✅ 17/10: copas en la ficha con corte solo con evidencia; búsqueda de extranjeros a pedido.
+- **D7 — Estabilización** ✅ 17/10 (esperando aprobación): cuadros y finales 2025/2026 en la app completa, pasada en tablet, teléfono emulado y Web (360–1920), regresión; arreglo del selector de vistas a 360 px. 882 tests verdes.
+- **D-F — Finales 2026** (tarea posterior, con aprobación propia): grabar semis y finales cuando estén en la API (Sud 21/11, Lib ~28/11) en una instantánea, cerrar las ventanas 2026 y testear el cuadro completo.
+
 Backlog original (antes del Hito C v3):
 Copa: final (V2), ~~«Avanza X» tras penales, cuadro de llaves~~ (Fase 19.1) · Nacional: Reducido (V3) y zonas si se aprueba D7-b · Playoffs del Clausura (V3) · Sync P3 (historial y temporada anterior) · ~~Otras competiciones del equipo (D8)~~ (Fase 15) · ~~Auto-refresco con partidos en vivo (D11)~~ (Fase 17) · ~~Selector manual de tema~~ (Fase 16) · ~~Caché de escudos en disco (Android)~~ (Fase 16) · Purga de temporadas viejas · Tabla de posiciones calculada localmente · Notificaciones · Calendario mensual · ~~Compartir partido~~ · ~~Agregar al calendario~~ (Fase 17) · ~~Más competiciones (5215, 5524)~~ (Fase 15; 5523 pendiente de relevamiento).
 
