@@ -587,34 +587,82 @@ class _ViewSelector extends StatelessWidget {
     (CompetitionsView.bracket, 'Llaves', Icons.account_tree_outlined),
   ];
 
+  /// Relleno lateral de cada segmento sin ícono (el de Material es 12; 4 es
+  /// su mínimo, con texto grande).
+  static const _compactPadding = 4.0;
+
   @override
   Widget build(BuildContext context) {
-    // En un teléfono, sin íconos para que entren las tres etiquetas.
-    final icons = !Breakpoints.isCompact(context);
-    final selector = SegmentedButton<CompetitionsView>(
-      segments: [
-        for (final (value, label, icon) in _segments)
-          if (views.contains(value))
-            ButtonSegment(
-              value: value,
-              label: Text(label),
-              icon: icons ? Icon(icon) : null,
-            ),
-      ],
-      selected: {view},
-      showSelectedIcon: false,
-      onSelectionChanged: (views) => onChanged(views.first),
+    final shown = [
+      for (final segment in _segments)
+        if (views.contains(segment.$1)) segment,
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Los segmentos miden todos lo que el más ancho. En un teléfono van
+        // sin íconos y con menos relleno; si las etiquetas no entran en una
+        // línea (texto grande, cuatro vistas en 360 px), en vez de partirlas
+        // se desplaza, como el selector de competiciones.
+        final widest = _widestLabel(context, shown);
+        bool fits(double extra) =>
+            shown.length * (widest + extra) <= constraints.maxWidth;
+        final icons = !Breakpoints.isCompact(context) && fits(_iconExtra);
+        final selector = SegmentedButton<CompetitionsView>(
+          style: icons
+              ? null
+              : SegmentedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _compactPadding,
+                  ),
+                ),
+          segments: [
+            for (final (value, label, icon) in shown)
+              ButtonSegment(
+                value: value,
+                label: Text(label),
+                icon: icons ? Icon(icon) : null,
+              ),
+          ],
+          selected: {view},
+          showSelectedIcon: false,
+          onSelectionChanged: (views) => onChanged(views.first),
+        );
+        if (icons || fits(_textExtra)) return selector;
+        return Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: selector,
+          ),
+        );
+      },
     );
-    // Con texto grande, en vez de partir las etiquetas en varias líneas, se
-    // desplaza (como el selector de competiciones).
-    if (MediaQuery.textScalerOf(context).scale(10) <= 13) return selector;
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: selector,
-      ),
-    );
+  }
+
+  /// Ícono (18) y separación (8), relleno de Material con ícono (12 + 16),
+  /// borde y margen.
+  static const _iconExtra = 18 + 8 + 12 + 16 + 6.0;
+
+  /// Relleno compacto a cada lado, borde y margen.
+  static const _textExtra = 2 * _compactPadding + 4;
+
+  static double _widestLabel(
+    BuildContext context,
+    List<(CompetitionsView, String, IconData)> shown,
+  ) {
+    final style = Theme.of(context).textTheme.labelLarge;
+    var widest = 0.0;
+    for (final (_, label, _) in shown) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      if (painter.width > widest) widest = painter.width;
+      painter.dispose();
+    }
+    return widest;
   }
 }
 
@@ -755,8 +803,8 @@ class _FixtureContentView extends StatelessWidget {
                     : 'Sin partidos',
                 message: state.stage == null
                     ? 'No hay fechas verificadas para esta temporada.'
-                    : 'TheSportsDB todavía no tiene partidos cargados para '
-                          '${state.stage!.label.toLowerCase()}.',
+                    : '${state.stage!.label}: TheSportsDB todavía no tiene '
+                          'los partidos cargados.',
               ),
             ],
           ),

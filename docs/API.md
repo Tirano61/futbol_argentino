@@ -211,3 +211,7 @@ Grabadas en `test/fixtures/api/` (sección «Hito D · Fase D1» del README). De
 - `searchteams.php?t=Flamengo` y `lookupteam.php?id=134287` traen el mismo equipo (Brasil, `idLeague` 4351, `idLeague2` 4501, …): las copas del catálogo sirven para aceptar extranjeros en la búsqueda en línea; `strCountry` no alcanza.
 - `eventslast` de Flamengo (17/10, 15:51 UTC) todavía devolvía el partido del Brasileirão del 11/10, no la ida de semifinales de la Libertadores del 16/10: el puntero puede atrasarse; por eso la copa entra a la ficha también por los partidos guardados.
 - Con la clave gratuita, TheSportsDB respondió 429 con pocas consultas seguidas durante la prueba en la tablet (17/10): la app pausa, y si el reintento vuelve a dar 429, detiene la descarga de la ficha con «Reintentar».
+
+### Fase D7 (17/10/2026, sin grabaciones nuevas)
+- Las semifinales 2026 siguen en curso (vueltas el 21 y 22/10) y `r=200` de las dos copas sigue vacía: las finales 2026 se graban en la tarea D-F, en una instantánea (`test/fixtures/api/snapshot_2026MMDD/`).
+- 429 frecuentes con la IP compartida (tablet + PC): en Android la app pausa y sigue; en Web el 429 llega sin CORS y el navegador lo informa como error de red («Sin conexión»), como en D5. «Reintentar» lo resuelve.
