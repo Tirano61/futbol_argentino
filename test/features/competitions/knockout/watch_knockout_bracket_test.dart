@@ -10,6 +10,7 @@ import 'package:sembast/sembast_memory.dart';
 
 import '../../../helpers/fake_clock.dart';
 import '../../../helpers/recorded_api.dart';
+import '../../../helpers/recorded_app.dart' show continentalRecordingTime;
 
 class _ClockOf implements Clock {
   _ClockOf(this._clock);
@@ -91,6 +92,49 @@ void main() {
       expect(api.requests, hasLength(6));
     },
   );
+
+  group('Fase D5: copas internacionales (reloj de la grabación)', () {
+    setUp(
+      () => clock.advance(continentalRecordingTime.difference(clock.now())),
+    );
+
+    test('Libertadores en frío: octavos a final (4 peticiones); en caliente, '
+        '0', () async {
+      for (final year in [2025, 2026]) {
+        api.requests.clear();
+        final view = await watch(4501, year: year);
+        expect(rounds(), ['4501:r16', '4501:r125', '4501:r150', '4501:r200']);
+        expect(view.brackets.keys, [PhaseKey.knockoutStage]);
+        await watch(4501, year: year);
+        expect(api.requests, hasLength(4), reason: '$year');
+      }
+    });
+
+    test('Sudamericana en frío: los Playoffs y el cuadro (5 peticiones); en '
+        'caliente, 0', () async {
+      final view = await watch(4724);
+      expect(rounds(), [
+        '4724:r32',
+        '4724:r16',
+        '4724:r125',
+        '4724:r150',
+        '4724:r200',
+      ]);
+      final bracket = view.brackets[PhaseKey.knockoutStage]!;
+      expect(bracket.preliminary.single.slots, hasLength(8));
+      await watch(4724);
+      expect(api.requests, hasLength(5));
+
+      api.requests.clear();
+      final old = await watch(4724, year: 2025);
+      expect(rounds().first, '4724:r160');
+      expect(api.requests, hasLength(5));
+      expect(
+        old.brackets[PhaseKey.knockoutStage]!.rounds.last.slots.single.outcome,
+        isNull,
+      );
+    });
+  });
 
   test('Nacional: sin cuadro verificado y sin peticiones', () async {
     final view = await watch(4616);

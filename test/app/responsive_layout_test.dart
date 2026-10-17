@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/bracket_panel.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 
 import '../helpers/recorded_app.dart';
@@ -120,6 +121,29 @@ void main() {
       await tester.tap(find.widgetWithText(ChoiceChip, '32avos de final'));
       await tester.pumpAndSettle();
       expect(find.text('16avos de final'), findsWidgets);
+      // Los desbordes de layout fallan el test por sí solos.
+    });
+
+    testWidgets('$width px: Llaves de una copa sin desbordes', (tester) async {
+      await pumpApp(tester, size, now: continentalRecordingTime);
+      await openSection(tester, 'Competiciones');
+      await selectCompetition(tester, 'Sudamericana');
+
+      await openView(tester, 'Llaves');
+      await tester.pump(const Duration(minutes: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Octavos de final'), findsWidgets);
+      await tester.scrollUntilVisible(
+        find.text('Playoffs de octavos'),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byType(BracketPanel),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
       // Los desbordes de layout fallan el test por sí solos.
     });
 

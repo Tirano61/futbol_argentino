@@ -49,7 +49,8 @@ final class BracketView extends Equatable {
 
 /// Cuadro de llaves (Fase 19.1): lo guardado enseguida y, con
 /// [CompleteRounds] (P2), las rondas de eliminación que falten (Primera: la
-/// 16 y la 0; Copa: sus 6 rondas). En caliente, 0 peticiones.
+/// 16 y la 0; Copa: sus 6 rondas; Libertadores: octavos a final, 4;
+/// Sudamericana: además los Playoffs, 5). En caliente, 0 peticiones.
 ///
 /// Con `forceRefresh` (refresco manual), primero se fuerzan con P0 las
 /// rondas con partidos sin terminar de ayer y de hoy, y después se piden
@@ -71,9 +72,7 @@ class WatchKnockoutBracket {
     bool forceRefresh = false,
   }) async* {
     final definition = _catalog.where((d) => d.id == competitionId).firstOrNull;
-    final rounds = [
-      ...{...?definition?.bracketRounds.map((r) => r.apiRound)},
-    ];
+    final rounds = definition?.bracketApiRounds(season) ?? const <int>[];
     if (definition == null || rounds.isEmpty) {
       yield BracketView.unavailable(
         competitionId: competitionId,

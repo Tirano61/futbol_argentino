@@ -81,6 +81,43 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('Llaves y series de una copa en un teléfono: pautas y texto '
+      'al 200 % sin desbordes', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpApp(tester, const Size(360, 780), now: continentalRecordingTime);
+    await openSection(tester, 'Competiciones');
+    await selectCompetition(tester, 'Libertadores');
+    // El fixture de las semifinales, agrupado por serie.
+    expect(find.textContaining('Ida · '), findsWidgets);
+    await expectGuidelines(tester);
+    await openView(tester, 'Llaves');
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Octavos de final'), findsWidgets);
+    await expectGuidelines(tester);
+
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpAndSettle();
+    await selectCompetition(tester, 'Sudamericana');
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Playoffs de octavos'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(BracketPanel),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await openView(tester, 'Fixture');
+    expect(find.textContaining('Ida · '), findsWidgets);
+    semantics.dispose();
+  });
+
   testWidgets('texto al 200 % en un teléfono: sin desbordes', (tester) async {
     final semantics = tester.ensureSemantics();
     tester.platformDispatcher.textScaleFactorTestValue = 2;

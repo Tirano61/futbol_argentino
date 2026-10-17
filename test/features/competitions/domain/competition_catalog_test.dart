@@ -92,8 +92,9 @@ void main() {
           4500: true,
           5215: false,
           5524: false,
-          4501: false,
-          4724: false,
+          // Cuadro desde la Fase D5.
+          4501: true,
+          4724: true,
         },
       );
     });
@@ -184,7 +185,7 @@ void main() {
       (4724, 2026): [1, 2, 3, 4, 5, 6, 32, 16, 125, 150, 200],
     };
 
-    test('fuera del Inicio y del índice; sin tabla ni cuadro todavía', () {
+    test('fuera del Inicio y del índice; cuadro de octavos a la final', () {
       for (final d in [libertadores, sudamericana]) {
         expect(d.category, CompetitionCategory.internationalCup);
         expect(d.showInHome, isFalse);
@@ -194,8 +195,93 @@ void main() {
           PhaseKey.groups,
           PhaseKey.knockoutStage,
         ]);
-        expect(d.bracketRounds, isEmpty);
+        expect(d.bracketPhases, [PhaseKey.knockoutStage]);
+        expect(
+          [for (final r in d.bracketRounds) (r.label, r.apiRound, r.legs)],
+          [
+            ('Octavos de final', 16, 2),
+            ('Cuartos de final', 125, 2),
+            ('Semifinales', 150, 2),
+            ('Final', 200, 1),
+          ],
+        );
       }
+    });
+
+    test('Fase D5: cada ronda del cuadro es una etapa de eliminatorias de '
+        'cada temporada, con las mismas piernas y llaves', () {
+      for (final d in [libertadores, sudamericana]) {
+        final rules = d.rules as ContinentalCupRules;
+        for (final year in rules.seasons.keys) {
+          final season = Season(year);
+          for (final r in d.bracketRounds) {
+            final stage = rules.stageFor(
+              season,
+              PhaseKey.knockoutStage,
+              r.apiRound,
+              StageKind.knockout,
+            );
+            final reason = '${d.shortName} $year ${r.label}';
+            expect(stage, isNotNull, reason: reason);
+            expect(stage!.label, r.label, reason: reason);
+            expect(stage.legs, r.legs, reason: reason);
+            expect(stage.expectedMatches, r.matches * r.legs, reason: reason);
+          }
+        }
+      }
+    });
+
+    test('Fase D5: series previas al cuadro (solo los Playoffs de la '
+        'Sudamericana) y rondas de la vista «Llaves»', () {
+      ContinentalCupRules rules(CompetitionDefinition d) =>
+          d.rules as ContinentalCupRules;
+      for (final year in [2025, 2026]) {
+        expect(rules(libertadores).preliminarySeries(Season(year)), isEmpty);
+        expect(libertadores.bracketApiRounds(Season(year)), [
+          16,
+          125,
+          150,
+          200,
+        ]);
+      }
+      final playoffs2025 = rules(
+        sudamericana,
+      ).preliminarySeries(const Season(2025)).single;
+      expect(
+        (playoffs2025.label, playoffs2025.apiRound, playoffs2025.legs),
+        ('Playoffs de octavos', 160, 2),
+      );
+      expect(
+        rules(
+          sudamericana,
+        ).preliminarySeries(const Season(2026)).single.apiRound,
+        32,
+      );
+      expect(sudamericana.bracketApiRounds(const Season(2025)), [
+        160,
+        16,
+        125,
+        150,
+        200,
+      ]);
+      expect(sudamericana.bracketApiRounds(const Season(2026)), [
+        32,
+        16,
+        125,
+        150,
+        200,
+      ]);
+      // Sin formato verificado: solo el cuadro.
+      expect(sudamericana.bracketApiRounds(const Season(2024)), [
+        16,
+        125,
+        150,
+        200,
+      ]);
+      expect(
+        CompetitionCatalog.primeraDivision.bracketApiRounds(const Season(2026)),
+        [16, 0],
+      );
     });
 
     test('etapas de cada temporada: identidad única y ventanas que no se '

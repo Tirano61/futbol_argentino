@@ -59,7 +59,7 @@ sealed class CompetitionRules {
   const CompetitionRules();
 }
 
-/// Ronda del cuadro de eliminación directa (a un solo partido).
+/// Ronda del cuadro de eliminación directa.
 ///
 /// Una ronda de la API puede tener varias: en Primera, la ronda 0 trae
 /// cuartos, semifinales y final.
@@ -68,6 +68,7 @@ final class BracketRound {
     required this.label,
     required this.apiRound,
     required this.matches,
+    this.legs = 1,
   });
 
   final String label;
@@ -75,8 +76,12 @@ final class BracketRound {
   /// `intRound` de la API.
   final int apiRound;
 
-  /// Partidos de la ronda: la mitad que en la anterior; la final, 1.
+  /// Llaves de la ronda: la mitad que en la anterior; la final, 1. Con ida
+  /// y vuelta, cada llave son [legs] partidos.
   final int matches;
+
+  /// 1: a un partido; 2: ida y vuelta (las dos piernas en la misma ronda).
+  final int legs;
 }
 
 /// Liga con dos torneos por temporada que comparten numeración de rondas
@@ -241,7 +246,7 @@ final class ContinentalSeason {
 /// Libertadores, Copa Sudamericana). Los códigos de ronda cambian entre
 /// temporadas: sin formato verificado, la temporada no tiene etapas.
 final class ContinentalCupRules extends CompetitionRules {
-  const ContinentalCupRules({required this.seasons});
+  const ContinentalCupRules({required this.seasons, this.bracket = const []});
 
   static const phases = [
     PhaseKey.qualifying,
@@ -251,6 +256,23 @@ final class ContinentalCupRules extends CompetitionRules {
 
   /// Año → formato verificado.
   final Map<int, ContinentalSeason> seasons;
+
+  /// Cuadro de las eliminatorias (octavos → final), igual en todas las
+  /// temporadas con formato: sus rondas tienen que ser etapas
+  /// [PhaseKey.knockoutStage] de cada temporada, con las mismas piernas.
+  final List<BracketRound> bracket;
+
+  /// Series de eliminación previas al cuadro que se muestran en «Llaves»
+  /// como lista (Sudamericana: Playoffs de octavos): las etapas de
+  /// eliminatorias de [season] fuera del cuadro. Las fases previas se ven
+  /// solo en el Fixture.
+  List<ContinentalStage> preliminarySeries(Season season) {
+    final tree = {for (final r in bracket) r.apiRound};
+    return [
+      for (final s in stagesOf(season))
+        if (s.phase == PhaseKey.knockoutStage && !tree.contains(s.apiRound)) s,
+    ];
+  }
 
   List<ContinentalStage> stagesOf(Season season) =>
       seasons[season.year]?.stages ?? const [];
@@ -334,9 +356,27 @@ final class CompetitionDefinition {
       for (final r in rounds)
         BracketRound(label: r.label, apiRound: r.code, matches: r.matches),
     ],
-    // Las series de ida y vuelta llegan con el cuadro (Fase D5).
-    ContinentalCupRules() => const [],
+    ContinentalCupRules(:final bracket) => bracket,
   };
+
+  /// Fases con cuadro de llaves (los chips de la vista «Llaves»).
+  List<PhaseKey> get bracketPhases => switch (rules) {
+    SplitSeasonLeagueRules(:final phases) => phases,
+    SingleTableLeagueRules() => const [],
+    KnockoutCupRules() => const [PhaseKey.unica],
+    ContinentalCupRules() => const [PhaseKey.knockoutStage],
+  };
+
+  /// Rondas de la API que necesita la vista «Llaves» de [season], en orden
+  /// del torneo: en las copas internacionales, primero las series previas
+  /// (Playoffs de la Sudamericana); después, las del cuadro.
+  List<int> bracketApiRounds(Season season) => [
+    ...{
+      if (rules case final ContinentalCupRules r)
+        for (final s in r.preliminarySeries(season)) s.apiRound,
+      for (final r in bracketRounds) r.apiRound,
+    },
+  ];
 
   /// Fases que se ofrecen al usuario, en orden.
   List<PhaseKey> get phases => switch (rules) {
@@ -686,8 +726,8 @@ abstract final class CompetitionCatalog {
 
   /// Copa Libertadores (V16–V18). Etapas y ventanas (días argentinos) de
   /// los partidos grabados el 14/10/2026 (`docs/evidence/d1_grupos_y_etapas.md`).
-  /// Tablas de grupos 2025 y 2026 (Fase D4); sin cuadro hasta la Fase D5;
-  /// fuera del Inicio.
+  /// Tablas de grupos 2025 y 2026 (Fase D4) y cuadro (Fase D5); fuera del
+  /// Inicio.
   static const copaLibertadores = CompetitionDefinition(
     id: 4501,
     name: 'Copa Libertadores',
@@ -817,6 +857,7 @@ abstract final class CompetitionCatalog {
           ],
         ),
       },
+      bracket: _continentalBracket,
     ),
     standingsBySeason: {
       2025: _libertadores2025Standings,
@@ -954,6 +995,7 @@ abstract final class CompetitionCatalog {
           ],
         ),
       },
+      bracket: _continentalBracket,
     ),
     standingsBySeason: {
       2025: _sudamericana2025Standings,
@@ -962,6 +1004,17 @@ abstract final class CompetitionCatalog {
     showInHome: false,
     inTeamIndex: false,
   );
+
+  /// Cuadro de las dos copas, 2025 y 2026 (Manuales de Clubes: octavos a
+  /// semifinales a ida y vuelta, final única; Lib 2.4.3/2.4.4, Sud
+  /// 2.4.4/2.4.5). Los Playoffs de la Sudamericana van aparte, como lista
+  /// de series ([ContinentalCupRules.preliminarySeries]).
+  static const _continentalBracket = [
+    BracketRound(label: 'Octavos de final', apiRound: 16, matches: 8, legs: 2),
+    BracketRound(label: 'Cuartos de final', apiRound: 125, matches: 4, legs: 2),
+    BracketRound(label: 'Semifinales', apiRound: 150, matches: 2, legs: 2),
+    BracketRound(label: 'Final', apiRound: 200, matches: 1),
+  ];
 
   /// Fechas de grupos de las dos copas (mismos días en las dos). La
   /// ventana es la de toda la fase: la ronda ya dice qué fecha es, y así

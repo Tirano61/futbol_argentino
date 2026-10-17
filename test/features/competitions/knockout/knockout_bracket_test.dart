@@ -211,6 +211,177 @@ void main() {
     });
   });
 
+  group('Fase D5: copas internacionales (ida y vuelta)', () {
+    String series(BracketSlot s) {
+      final t = s.tie;
+      return t == null ? '—' : '${t.first.name} - ${t.second.name}';
+    }
+
+    KnockoutBracket bracketOf(CompetitionDefinition d, int year) {
+      final rounds = [
+        ...d.bracketApiRounds(Season(year)),
+        // Las previas y los grupos no entran al cuadro.
+        if (year == 2025) 400 else 1,
+        6,
+      ];
+      final brackets = KnockoutBracketBuilder.forSeason(
+        definition: d,
+        season: Season(year),
+        matches: recorded(d.id, year, rounds),
+      );
+      expect(brackets.keys, [PhaseKey.knockoutStage]);
+      return brackets[PhaseKey.knockoutStage]!;
+    }
+
+    test('Libertadores 2025: árbol completo de series hasta la final '
+        'Palmeiras 0-1 Flamengo', () {
+      final bracket = bracketOf(CompetitionCatalog.copaLibertadores, 2025);
+      expect(bracket.unplaced, isEmpty);
+      expect(bracket.preliminary, isEmpty);
+      final rounds = bracket.rounds;
+      expect([for (final r in rounds) r.slots.length], [8, 4, 2, 1]);
+      expect([for (final r in rounds) r.legs], [2, 2, 2, 1]);
+      for (final r in rounds) {
+        expect(r.pairingUnknown, isFalse, reason: r.label);
+        for (final s in r.slots) {
+          expect(s.tie!.isComplete, isTrue, reason: series(s));
+          expect(s.tie!.legs, hasLength(r.legs), reason: series(s));
+          expect(s.outcome, isNotNull, reason: series(s));
+        }
+      }
+      expect(rounds[2].slots.map(series), [
+        'LDU Quito - Palmeiras',
+        'Flamengo - Racing Club',
+      ]);
+      expect(rounds[1].slots.map(series), [
+        'LDU Quito - São Paulo',
+        'River Plate - Palmeiras',
+        'Flamengo - Estudiantes de La Plata',
+        'Vélez Sarsfield - Racing Club',
+      ]);
+      final finalSlot = rounds.last.slots.single;
+      expect(series(finalSlot), 'Palmeiras - Flamengo');
+      expect(finalSlot.outcome!.winner.name, 'Flamengo');
+      expect(finalSlot.outcome!.source, TieOutcomeSource.score);
+    });
+
+    test('Libertadores 2025: cada llave al lado de las dos que la alimentan, '
+        'por el ganador de cada serie', () {
+      final rounds = bracketOf(
+        CompetitionCatalog.copaLibertadores,
+        2025,
+      ).rounds;
+      for (var k = 1; k < rounds.length; k++) {
+        for (final (i, parent) in rounds[k].slots.indexed) {
+          final winners = {
+            for (final child in [
+              rounds[k - 1].slots[2 * i],
+              rounds[k - 1].slots[2 * i + 1],
+            ])
+              child.outcome!.winner.id,
+          };
+          expect(winners, {parent.tie!.first.id, parent.tie!.second.id});
+        }
+      }
+    });
+
+    test('Libertadores 2025: series empatadas sin penales (la API no los '
+        'informa) → el que juega la ronda siguiente', () {
+      final rounds = bracketOf(
+        CompetitionCatalog.copaLibertadores,
+        2025,
+      ).rounds;
+      final byLaterMatch = {
+        for (final r in rounds)
+          for (final s in r.slots)
+            if (s.outcome!.source == TieOutcomeSource.laterMatch)
+              series(s): s.outcome!.winner.name,
+      };
+      expect(byLaterMatch, {
+        'Atlético Nacional - São Paulo': 'São Paulo',
+        'Club Libertad - River Plate': 'River Plate',
+        'Flamengo - Estudiantes de La Plata': 'Flamengo',
+      });
+      final byAggregate = [
+        for (final r in rounds.take(3))
+          for (final s in r.slots)
+            if (s.outcome!.source == TieOutcomeSource.aggregate) series(s),
+      ];
+      expect(byAggregate, hasLength(14 - 3));
+    });
+
+    test('Libertadores 2026: octavos con sus tandas; semifinales en juego y '
+        'final a definir', () {
+      final rounds = bracketOf(
+        CompetitionCatalog.copaLibertadores,
+        2026,
+      ).rounds;
+      final byPenalties = [
+        for (final s in rounds.first.slots)
+          if (s.outcome?.source == TieOutcomeSource.penalties)
+            s.outcome!.winner.name,
+      ];
+      expect(
+        byPenalties,
+        unorderedEquals(['Fluminense', 'Platense', 'LDU Quito']),
+      );
+      expect(rounds[0].slots.every((s) => s.outcome != null), isTrue);
+      expect(rounds[1].slots.every((s) => s.outcome != null), isTrue);
+      // Cuartos: la vuelta LDU 3-2 Palmeiras; la serie, Palmeiras.
+      final ldu = rounds[1].slots.singleWhere(
+        (s) => s.tie!.involvesTeam(138227),
+      );
+      expect(ldu.outcome!.winner.name, 'Palmeiras');
+      expect(rounds[2].slots.map(series), [
+        'Fluminense - Palmeiras',
+        'Estudiantes de La Plata - Flamengo',
+      ]);
+      expect(rounds[2].slots.every((s) => s.outcome == null), isTrue);
+      final finalSlot = rounds.last.slots.single;
+      expect(finalSlot.tie, isNull);
+      expect(finalSlot.qualified, isEmpty);
+    });
+
+    test('Sudamericana 2025: Playoffs como lista de series y final sin dato '
+        'de la definición', () {
+      final bracket = bracketOf(CompetitionCatalog.copaSudamericana, 2025);
+      expect(bracket.unplaced, isEmpty);
+      final playoffs = bracket.preliminary.single;
+      expect(playoffs.label, 'Playoffs de octavos');
+      expect(playoffs.legs, 2);
+      expect(playoffs.slots, hasLength(8));
+      expect(playoffs.slots.every((s) => s.outcome != null), isTrue);
+      expect(playoffs.slots.every((s) => !s.linkedToNext), isTrue);
+      // Global 1-1 sin penales: Atlético Mineiro juega los octavos.
+      final mineiro = playoffs.slots.singleWhere(
+        (s) => series(s) == 'Atlético Bucaramanga - Atlético Mineiro',
+      );
+      expect(mineiro.outcome!.source, TieOutcomeSource.laterMatch);
+      expect(mineiro.outcome!.winner.name, 'Atlético Mineiro');
+
+      expect([for (final r in bracket.rounds) r.slots.length], [8, 4, 2, 1]);
+      final finalSlot = bracket.rounds.last.slots.single;
+      expect(series(finalSlot), 'Lanús - Atlético Mineiro');
+      expect(finalSlot.tie!.isComplete, isTrue);
+      expect(finalSlot.outcome, isNull);
+    });
+
+    test('Sudamericana 2026: Playoffs en la ronda 32 (Boca por penales) y '
+        'el PEN sin tanda de cuartos por la semifinal', () {
+      final bracket = bracketOf(CompetitionCatalog.copaSudamericana, 2026);
+      final boca = bracket.preliminary.single.slots.singleWhere(
+        (s) => s.tie!.involvesTeam(135156),
+      );
+      expect(boca.outcome!.source, TieOutcomeSource.penalties);
+      expect(boca.outcome!.winner.name, 'Boca Juniors');
+      final santos = bracket.rounds[1].slots.singleWhere(
+        (s) => series(s) == 'Santos - Atlético Mineiro',
+      );
+      expect(santos.outcome!.source, TieOutcomeSource.laterMatch);
+      expect(santos.outcome!.winner.name, 'Atlético Mineiro');
+    });
+  });
+
   test('sin partidos de eliminación: sin cuadro', () {
     expect(
       KnockoutBracketBuilder.forSeason(

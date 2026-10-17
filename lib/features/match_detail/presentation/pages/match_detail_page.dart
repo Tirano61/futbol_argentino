@@ -15,6 +15,7 @@ import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../matches/domain/entities/kickoff.dart';
+import '../../../matches/domain/entities/knockout_tie.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/match_status.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
@@ -312,15 +313,36 @@ class _DetailBody extends StatelessWidget {
                                 'penales.'
                           : null,
                     ),
+                  if (detail.tie case final tie? when tie.isSeries)
+                    _InfoTile(
+                      icon: Icons.compare_arrows,
+                      label: 'Serie de ida y vuelta',
+                      value: _seriesText(tie),
+                    ),
                   if (detail.advancement case final outcome?)
                     _InfoTile(
                       icon: Icons.check_circle_outline,
                       label: 'Llave',
-                      value: MatchLabels.advances(outcome, m),
-                      note: outcome.source == TieOutcomeSource.laterMatch
+                      value: switch (detail.tie) {
+                        final tie? => MatchLabels.tieAdvances(outcome, tie),
+                        null => MatchLabels.advances(outcome, m),
+                      },
+                      note: outcome.source != TieOutcomeSource.laterMatch
+                          ? null
+                          : detail.tie == null
                           ? 'Según los partidos guardados de la ronda '
                                 'siguiente.'
-                          : null,
+                          : 'Según los partidos guardados posteriores de la '
+                                'copa.',
+                    )
+                  else if (detail.tie case final tie? when tie.isComplete)
+                    const _InfoTile(
+                      icon: Icons.help_outline,
+                      label: 'Llave',
+                      value: 'Sin dato de la definición',
+                      note:
+                          'TheSportsDB no informa cómo se definió y ningún '
+                          'partido guardado posterior lo muestra.',
                     ),
                   if (m.venue case final venue?)
                     _InfoTile(
@@ -460,6 +482,33 @@ class _Scoreboard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Las piernas de la serie («Ida: Fortaleza 0-0 Vélez Sarsfield») y el
+/// global, un renglón cada una.
+String _seriesText(KnockoutTie tie) {
+  String legText(Match leg) {
+    final score = leg.score;
+    if (score == null || !(leg.status.isFinished || leg.status.isInPlay)) {
+      return '${leg.home.name} - ${leg.away.name}, '
+          '${MatchLabels.day(leg.kickoff.argentinaDay)} · '
+          '${MatchLabels.kickoffTime(leg.kickoff)}';
+    }
+    final shootout = leg.status.isFinished ? MatchLabels.penalties(leg) : null;
+    return [
+      '${leg.home.name} ${score.home}-${score.away} ${leg.away.name}',
+      if (shootout != null) '($shootout en penales)',
+      if (leg.status.isInPlay) '(en juego)',
+    ].join(' ');
+  }
+
+  return [
+    for (final (i, leg) in tie.legs.indexed)
+      '${MatchLabels.leg(i)}: ${legText(leg)}',
+    if (tie.legs.length < tie.expectedLegs)
+      '${MatchLabels.leg(tie.legs.length)}: sin datos en TheSportsDB',
+    ?MatchLabels.aggregate(tie),
+  ].join('\n');
 }
 
 class _InfoTile extends StatelessWidget {
