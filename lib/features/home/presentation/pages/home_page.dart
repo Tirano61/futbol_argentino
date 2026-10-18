@@ -8,28 +8,26 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
-import '../../../../shared/presentation/widgets/match_card.dart';
-import '../../../../shared/presentation/widgets/match_day_list.dart';
-import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
-import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../competitions/domain/repositories/competition_repository.dart';
-import '../../../competitions/presentation/routing/fixture_route.dart';
 import '../../../favorites/domain/repositories/favorites_repository.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
 import '../../../../app/shell/top_bar_team_search.dart';
-import '../../domain/entities/favorite_team_overview.dart';
 import '../../domain/entities/home_feed.dart';
 import '../../domain/usecases/get_home_feed.dart';
 import '../../domain/usecases/watch_favorite_teams.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_favorites_bloc.dart';
+import '../widgets/favorite_teams_section.dart';
+import '../widgets/home_match_list.dart';
+import '../widgets/home_shortcuts.dart';
 
 /// Inicio: tus equipos, partidos de hoy, próximos 7 días y de ayer de todas
 /// las competiciones, con accesos a cada fixture y al buscador.
@@ -121,7 +119,9 @@ class _HomeView extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Fútbol Argentino'),
             actions: [
-              const TopBarTeamSearch(showButtonWhenNarrow: true),
+              // En escritorio. En pantallas más angostas el acceso va arriba
+              // del contenido, sin un ícono duplicado en la barra.
+              const TopBarTeamSearch(),
               IconButton(
                 tooltip: 'Actualizar',
                 onPressed: state.isBusy ? null : () => _refresh(context),
@@ -199,26 +199,30 @@ class _FeedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final now = context.read<Clock>().now();
     void retry() => context.read<HomeBloc>().add(const HomeRefreshRequested());
-    void open(int matchId) => context.push(AppRoutes.matchDetail(matchId));
+    void open(HomeMatch m) => context.push(AppRoutes.matchDetail(m.match.id));
+    String emptyOrLoading(String empty) =>
+        feed.isLoading ? 'Buscando partidos…' : empty;
 
-    final labels = {
-      for (final c in feed.competitions)
-        for (final m in c.matches) m.match.id: _contextLabel(m),
-    };
-    final today = feed.todayMatches;
-    final upcoming = feed.upcoming;
-    final recent = feed.recent;
+    final phone = Breakpoints.isCompact(context);
+    // 12 en teléfonos, como las demás pantallas: con 16, a 360 px
+    // «Independiente» ya no entra en un renglón de la fila (E2).
+    final gutter = phone ? AppSpacing.md : AppSpacing.xl;
+    final today = HomeGrouping.byDay(feed.todayMatches);
+    final upcoming = HomeGrouping.byDay(feed.upcoming);
+    final recent = HomeGrouping.byDay(feed.recent);
+    // Ayer es un solo día: va en el título, como el de Hoy.
+    final recentDay = recent.length == 1 ? recent.single.day : null;
     final fetchedAt = feed.fetchedAt;
     final refreshError = feed.refreshError;
     final failed = feed.failedCompetitions;
 
     final notices = [
-      if (feed.isLoading) const LinearProgressIndicator(),
       if (refreshError != null && fetchedAt != null)
         Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: StaleDataBanner(
             fetchedAt: fetchedAt,
             failure: refreshError,
@@ -227,7 +231,7 @@ class _FeedView extends StatelessWidget {
         ),
       if (failed.isNotEmpty)
         Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: _FailedCompetitionsNotice(
             competitions: failed,
             onRetry: retry,
@@ -238,67 +242,57 @@ class _FeedView extends StatelessWidget {
     final todaySection = [
       SectionHeader(title: 'Hoy', subtitle: MatchLabels.day(feed.today)),
       if (today.isEmpty)
-        _EmptySection(
-          feed.isLoading ? 'Buscando partidos…' : 'No hay partidos hoy.',
-        )
+        HomeEmptyMessage(emptyOrLoading('No hay partidos hoy.'))
       else
-        MatchGroup(
-          children: [
-            for (final m in today)
-              MatchCard(
-                key: ValueKey(m.match.id),
-                match: m.match,
-                now: now,
-                subtitle: labels[m.match.id],
-                onTap: () => open(m.match.id),
-              ),
-          ],
+        ...homeMatchItems(
+          days: today,
+          now: now,
+          onTap: open,
+          dayHeaders: false,
         ),
     ];
 
     final upcomingSection = [
       const SectionHeader(title: 'Próximos 7 días'),
       if (upcoming.isEmpty)
-        _EmptySection(
-          feed.isLoading
-              ? 'Buscando partidos…'
-              : 'No hay partidos en los próximos 7 días.',
+        HomeEmptyMessage(
+          emptyOrLoading('No hay partidos en los próximos 7 días.'),
         )
       else
-        ...matchDayItems(
-          matches: [for (final m in upcoming) m.match],
-          now: now,
-          subtitle: (m) => labels[m.id],
-          onTap: (m) => open(m.id),
-        ),
+        ...homeMatchItems(days: upcoming, now: now, onTap: open),
     ];
 
     final recentSection = [
-      const SectionHeader(title: 'Recientes', subtitle: 'Partidos de ayer'),
+      SectionHeader(
+        title: 'Recientes',
+        subtitle: recentDay != null
+            ? MatchLabels.day(recentDay)
+            : 'Partidos de ayer',
+      ),
       if (recent.isEmpty)
-        _EmptySection(
-          feed.isLoading ? 'Buscando partidos…' : 'No hubo partidos ayer.',
-        )
+        HomeEmptyMessage(emptyOrLoading('No hubo partidos ayer.'))
       else
-        ...matchDayItems(
-          matches: [for (final m in recent) m.match],
+        ...homeMatchItems(
+          days: recent,
           now: now,
-          subtitle: (m) => labels[m.id],
-          onTap: (m) => open(m.id),
+          onTap: open,
+          dayHeaders: recentDay == null,
         ),
     ];
 
     final footer = [
       if (fetchedAt != null)
         Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: Text(
             'Actualizado el '
             '${ArgentinaTime.formatDay(ArgentinaTime.dayOf(fetchedAt))} '
             'a las ${ArgentinaTime.formatTime(fetchedAt)} · '
             'Horarios de Argentina',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
     ];
@@ -307,203 +301,74 @@ class _FeedView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
     );
+    Widget padded(Widget child) => Padding(
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: child,
+    );
+    const gap = SizedBox(height: AppSpacing.sm);
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-        children: twoColumns
-            ? [
-                ...notices,
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: column([...todaySection, ...upcomingSection]),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 2,
-                      child: column([
-                        // El buscador está en la barra superior.
-                        const _Shortcuts(showSearch: false),
-                        _FavoriteTeams(now: now),
-                        ...recentSection,
-                      ]),
-                    ),
-                  ],
-                ),
-                ...footer,
-              ]
-            : [
-                ...notices,
-                const _Shortcuts(showSearch: true),
-                _FavoriteTeams(now: now),
-                ...todaySection,
-                ...upcomingSection,
+    final List<Widget> children;
+    if (twoColumns) {
+      children = [
+        ...notices,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: column([...todaySection, ...upcomingSection]),
+            ),
+            const SizedBox(width: AppSpacing.xl),
+            Expanded(
+              flex: 2,
+              child: column([
+                // El buscador está en la barra superior.
+                const SizedBox(height: AppSpacing.lg),
+                const CompetitionShortcuts(singleRow: false),
+                FavoriteTeamsSection(now: now),
                 ...recentSection,
-                ...footer,
-              ],
-      ),
-    );
-  }
+              ]),
+            ),
+          ],
+        ),
+        ...footer,
+      ].map(padded).toList();
+    } else {
+      children = [
+        for (final w in [...notices, gap, const TeamSearchShortcut(), gap])
+          padded(w),
+        // En un teléfono, la fila de accesos llega a los bordes.
+        if (phone)
+          CompetitionShortcuts(singleRow: true, gutter: gutter)
+        else
+          padded(const CompetitionShortcuts(singleRow: false)),
+        for (final w in [
+          FavoriteTeamsSection(now: now),
+          ...todaySection,
+          ...upcomingSection,
+          ...recentSection,
+          ...footer,
+        ])
+          padded(w),
+      ];
+    }
 
-  /// «Primera División · Clausura · Fecha 12».
-  static String _contextLabel(HomeMatch m) =>
-      [m.competitionName, ?m.phaseLabel, m.stageLabel].join(' · ');
-}
-
-/// «Tus equipos»: próximo y último partido de cada favorito, con lo
-/// guardado (sin peticiones).
-class _FavoriteTeams extends StatelessWidget {
-  const _FavoriteTeams({required this.now});
-
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    return switch (context.watch<HomeFavoritesBloc>().state) {
-      HomeFavoritesLoading() => const SizedBox.shrink(),
-      HomeFavoritesUnavailable() => const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(title: 'Tus equipos'),
-          _EmptySection('No se pudieron leer tus equipos guardados.'),
-        ],
-      ),
-      HomeFavoritesLoaded(:final teams) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(title: 'Tus equipos'),
-          if (teams.isEmpty)
-            const _EmptySection(
-              'Tocá la estrella de un equipo, en el buscador o en su ficha, '
-              'para seguirlo desde acá.',
-            )
-          else
-            for (final t in teams)
-              _FavoriteTeam(key: ValueKey(t.team.teamId), team: t, now: now),
-        ],
-      ),
-    };
-  }
-}
-
-class _FavoriteTeam extends StatelessWidget {
-  const _FavoriteTeam({super.key, required this.team, required this.now});
-
-  final FavoriteTeamOverview team;
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final favorite = team.team;
-    final next = team.next;
-    final last = team.last;
-    // Sin encabezados de día: el día va en la tarjeta.
-    Widget card(String prefix, HomeMatch m) => MatchCard(
-      match: m.match,
-      now: now,
-      subtitle:
-          '$prefix · ${MatchLabels.day(m.match.kickoff.argentinaDay)}\n'
-          '${_FeedView._contextLabel(m)}',
-      onTap: () => context.push(AppRoutes.matchDetail(m.match.id)),
-    );
-
+    // La barra de actualización queda fija arriba aunque se desplace la
+    // lista.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: TeamBadge(name: favorite.name, url: favorite.badgeUrl),
-          title: Text(favorite.name),
-          trailing: const Icon(Icons.chevron_right),
-          // La ficha dentro de Favoritos: «atrás» vuelve a la lista.
-          onTap: () => context.go(AppRoutes.favoriteTeam(favorite.teamId)),
+        if (feed.isLoading) const LinearProgressIndicator(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+              children: children,
+            ),
+          ),
         ),
-        if (!team.hasMatches)
-          const _EmptySection(
-            'Sin partidos guardados. Abrí la ficha para buscarlos.',
-          ),
-        if (next != null || last != null)
-          MatchGroup(
-            children: [
-              if (next != null)
-                card(next.match.status.isInPlay ? 'En juego' : 'Próximo', next),
-              if (last != null) card('Último', last),
-            ],
-          ),
       ],
-    );
-  }
-}
-
-/// Accesos al buscador y a cada competición, por categoría.
-class _Shortcuts extends StatelessWidget {
-  const _Shortcuts({required this.showSearch});
-
-  final bool showSearch;
-
-  /// En un teléfono, una fila con desplazamiento por categoría: con los
-  /// chips en varios renglones «Tus equipos» y los partidos quedan bajos.
-  static Widget _chips(
-    BuildContext context,
-    List<CompetitionDefinition> competitions,
-  ) {
-    final chips = [
-      for (final competition in competitions)
-        ActionChip(
-          avatar: const Icon(Icons.emoji_events_outlined),
-          label: Text(competition.name),
-          tooltip: 'Fixture de ${competition.name}',
-          onPressed: () =>
-              context.go('${FixtureRoute.basePath}/${competition.id}'),
-        ),
-    ];
-    if (!Breakpoints.isCompact(context)) {
-      return Wrap(spacing: 8, runSpacing: 8, children: chips);
-    }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(spacing: 8, children: chips),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (showSearch) ...[
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.search),
-                title: const Text('Buscar equipo'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go(AppRoutes.teams),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          for (final MapEntry(key: category, value: competitions)
-              in CompetitionCatalog.byCategory().entries) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  category.label,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-            ),
-            _chips(context, competitions),
-          ],
-        ],
-      ),
     );
   }
 }
@@ -525,26 +390,6 @@ class _FailedCompetitionsNotice extends StatelessWidget {
       icon: Icons.cloud_off,
       text: 'No se pudo cargar: $names.',
       action: TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-    );
-  }
-}
-
-class _EmptySection extends StatelessWidget {
-  const _EmptySection(this.message);
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-      child: Text(
-        message,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
     );
   }
 }

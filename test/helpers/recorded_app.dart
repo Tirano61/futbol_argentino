@@ -10,6 +10,7 @@ import 'package:futbol_argentino/features/competitions/domain/catalog/competitio
 import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:sembast/sembast.dart' show Database;
 import 'package:sembast/sembast_memory.dart' show newDatabaseFactoryMemory;
 
 import 'package:futbol_argentino/core/time/clock.dart';
@@ -52,7 +53,8 @@ final continentalRecordingTime = DateTime.utc(2026, 10, 15, 0, 45);
 /// 11/10/2026 a las 17:00 de Argentina ([now] cambia el arranque del
 /// reloj). [respond] puede reemplazar una respuesta (si devuelve `null`, se
 /// usa la grabada). Sin [settle] no espera a que terminen las cargas. Cada
-/// petición se agrega a [requests].
+/// petición se agrega a [requests]. [seed] guarda datos en la base antes de
+/// arrancar (p. ej. un favorito).
 Future<void> pumpApp(
   WidgetTester tester,
   Size size, {
@@ -60,6 +62,7 @@ Future<void> pumpApp(
   bool settle = true,
   List<Uri>? requests,
   DateTime? now,
+  Future<void> Function(Database db)? seed,
 }) async {
   tester.view
     ..physicalSize = size
@@ -67,6 +70,7 @@ Future<void> pumpApp(
   addTearDown(tester.view.reset);
 
   final db = await newDatabaseFactoryMemory().openDatabase('app.db');
+  if (seed != null) await tester.runAsync(() => seed(db));
   final deps = AppDependencies.create(
     database: db,
     config: const AppConfig(apiKey: '123', enableDiagnostics: false),

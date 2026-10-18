@@ -27,6 +27,7 @@ class MatchCard extends StatelessWidget {
     required this.match,
     required this.now,
     this.subtitle,
+    this.subtitleLead,
     this.onTap,
     this.selected = false,
     this.showAdvance = true,
@@ -40,6 +41,10 @@ class MatchCard extends StatelessWidget {
   /// Contexto opcional arriba a la izquierda (competición, fecha…). En las
   /// listas agrupadas se omite: lo dice el encabezado del grupo o del día.
   final String? subtitle;
+
+  /// Comienzo destacado del contexto («Próximo», «Último» en «Tus
+  /// equipos»), seguido de « · [subtitle]».
+  final String? subtitleLead;
   final VoidCallback? onTap;
 
   /// Es el partido abierto en el panel de detalle (escritorio).
@@ -79,13 +84,27 @@ class MatchCard extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (subtitle != null)
+        if (subtitle != null || subtitleLead != null)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text(
-              subtitle!,
-              style: theme.textTheme.secondary.copyWith(
-                color: colors.onSurfaceVariant,
+            child: Text.rich(
+              TextSpan(
+                style: theme.textTheme.secondary.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+                children: [
+                  if (subtitleLead case final lead?)
+                    TextSpan(
+                      text: lead,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                  if (subtitleLead != null && subtitle != null)
+                    const TextSpan(text: ' · '),
+                  if (subtitle case final text?) TextSpan(text: text),
+                ],
               ),
             ),
           ),
