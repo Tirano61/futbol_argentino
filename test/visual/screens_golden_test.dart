@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/favorites/data/repositories/favorites_repository_impl.dart';
+import 'package:futbol_argentino/features/favorites/domain/entities/favorite_team.dart';
 import 'package:http/http.dart' as http;
+import 'package:sembast/sembast.dart' show Database;
 
+import '../helpers/fake_teams.dart';
 import '../helpers/recorded_app.dart';
 import 'visual_helpers.dart';
 
@@ -18,6 +22,8 @@ void main() {
 
   final scenes = <_Scene>[
     _Scene('inicio', (tester) async {}),
+    // «Tus equipos» con un favorito (Fase E3).
+    _Scene('inicio_favorito', (tester) async {}, seed: _saveBoca),
     _Scene(
       'fixture_primera',
       (tester) => goTo(
@@ -120,7 +126,12 @@ void main() {
     'tabla_anual',
     'llaves_libertadores_2025',
   };
-  const scaledScenes = {'inicio', 'fixture_libertadores_series', 'tabla_zona'};
+  const scaledScenes = {
+    'inicio',
+    'inicio_favorito',
+    'fixture_libertadores_series',
+    'tabla_zona',
+  };
 
   for (final scene in scenes) {
     for (final brightness in Brightness.values) {
@@ -179,14 +190,24 @@ void main() {
 
 String _themeName(Brightness b) => b == Brightness.light ? 'claro' : 'oscuro';
 
+Future<void> _saveBoca(Database db) => FavoritesRepositoryImpl(db).save(
+  FavoriteTeam.fromRef(
+    recordedTeam('Boca Juniors'),
+    addedAt: DateTime.utc(2026, 10, 1),
+  ),
+);
+
 class _Scene {
-  _Scene(this.name, this.open, {this.continental = false});
+  _Scene(this.name, this.open, {this.continental = false, this.seed});
 
   final String name;
   final Future<void> Function(WidgetTester tester) open;
 
   /// Usa la hora de las grabaciones de las copas (14/10/2026, D1).
   final bool continental;
+
+  /// Datos guardados antes de arrancar (un favorito).
+  final Future<void> Function(Database db)? seed;
 
   void register(Size size, Brightness brightness, {double textScale = 1}) {
     final theme = _themeName(brightness);
@@ -200,6 +221,7 @@ class _Scene {
           tester,
           size,
           now: continental ? continentalRecordingTime : null,
+          seed: seed,
         );
         await open(tester);
         await expectScreen(tester, file);

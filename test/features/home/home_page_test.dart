@@ -12,6 +12,7 @@ import 'package:futbol_argentino/features/favorites/domain/repositories/favorite
 import 'package:futbol_argentino/features/home/presentation/pages/home_page.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/match_group.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../helpers/fake_teams.dart';
@@ -128,8 +129,21 @@ void main() {
     expect(find.byType(MatchCard), findsNWidgets(62));
     expect(find.text('Sábado 10/10/2026'), findsOneWidget);
     expect(find.text('Domingo 18/10/2026'), findsOneWidget);
+    // El contexto va una sola vez, en el encabezado del grupo (uno por
+    // competición y día), y no en cada fila: los 18 partidos de la Fecha 34
+    // de Nacional, en sus 3 días.
     expect(find.text('Primera División · Clausura · Fecha 12'), findsWidgets);
-    expect(find.text('Primera Nacional · Fecha 34'), findsNWidgets(18));
+    final nacional34 = find.ancestor(
+      of: find.text('Primera Nacional · Fecha 34'),
+      matching: find.byType(MatchGroup),
+    );
+    expect(nacional34, findsNWidgets(3));
+    expect(
+      find.descendant(of: nacional34, matching: find.byType(MatchCard)),
+      findsNWidgets(18),
+    );
+    // Ayer es un solo día: va en el título de Recientes.
+    expect(find.text('Partidos de ayer'), findsNothing);
     expect(find.textContaining('Horarios de Argentina'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
@@ -155,18 +169,28 @@ void main() {
           matching: find.text(label),
         ),
     ];
-    double top(Finder f) => tester.getTopLeft(f).dy;
-    final tops = [for (final h in headers) top(h)];
-    expect(tops, orderedEquals([...tops]..sort()));
+    // Orden de lectura: renglón y, dentro del renglón, de izquierda a
+    // derecha (desde 600 px, una categoría sigue a la anterior si entra).
+    bool before(Finder a, Finder b) {
+      final ra = tester.getRect(a);
+      final rb = tester.getRect(b);
+      return (ra.center.dy - rb.center.dy).abs() < 1
+          ? ra.left < rb.left
+          : ra.center.dy < rb.center.dy;
+    }
+
+    for (var i = 1; i < headers.length; i++) {
+      expect(before(headers[i - 1], headers[i]), isTrue);
+    }
     // La C (Ascenso) antes de las copas nacionales.
     expect(
-      top(find.widgetWithText(ActionChip, 'Primera C')),
-      lessThan(top(headers[2])),
+      before(find.widgetWithText(ActionChip, 'Primera C'), headers[2]),
+      isTrue,
     );
     // Las copas internacionales (Fase D3), después de la Copa Argentina.
     expect(
-      top(find.widgetWithText(ActionChip, 'Copa Argentina')),
-      lessThan(top(headers[3])),
+      before(find.widgetWithText(ActionChip, 'Copa Argentina'), headers[3]),
+      isTrue,
     );
     await tester.tap(find.widgetWithText(ActionChip, 'Copa Argentina'));
     await tester.pumpAndSettle();
@@ -341,19 +365,34 @@ void main() {
       await pumpHome(tester, matches: matches, favorites: favorites);
 
       expect(find.widgetWithText(ListTile, 'Boca Juniors'), findsOneWidget);
+      // El equipo encabeza su bloque; cada fila dice qué partido es.
+      final block = find.ancestor(
+        of: find.widgetWithText(ListTile, 'Boca Juniors'),
+        matching: find.byType(MatchGroup),
+      );
       expect(
-        find.text(
-          'Próximo · Domingo 18/10/2026\n'
-          'Primera División · Clausura · Fecha 13',
+        find.descendant(
+          of: block,
+          matching: find.text(
+            'Próximo · Domingo 18/10/2026 · '
+            'Primera División · Clausura · Fecha 13',
+          ),
         ),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Último · Viernes 09/10/2026\n'
-          'Primera División · Clausura · Fecha 12',
+        find.descendant(
+          of: block,
+          matching: find.text(
+            'Último · Viernes 09/10/2026 · '
+            'Primera División · Clausura · Fecha 12',
+          ),
         ),
         findsOneWidget,
+      );
+      expect(
+        find.descendant(of: block, matching: find.byType(MatchCard)),
+        findsNWidgets(2),
       );
       // «Tus equipos» va antes de «Hoy».
       expect(

@@ -59,6 +59,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Tokens en `lib/shared/presentation/theme/`: colores del `ColorScheme` o de `AppPalette` (`group`, `live`, `warning`, `success`), espacios y medidas de `AppSpacing`/`AppRadius`/`AppSizes`, estilos de `AppText`. **Sin colores, tamaños de letra ni radios literales** en pantallas ni widgets compartidos.
 - Partidos: `MatchCard` es una fila y va dentro de un `MatchGroup` (superficie con divisores); nunca una `Card` por partido. Avisos: siempre `InfoBanner` con su `tone`.
 - Un estado nunca se indica solo con color (texto, y en las anomalías también ícono). Sin animaciones infinitas (el punto «en vivo» es fijo).
+- Inicio (E3): accesos con `CompetitionShortcuts` (< 600 una fila desplazable hasta los bordes; ≥ 600 `Wrap` por categoría) y búsqueda con `TeamSearchShortcut` (< 1200; en la barra desde 1200, sin ícono duplicado). Partidos agrupados solo en presentación con `HomeGrouping.byDay` (contexto una vez en el encabezado). Margen lateral de las listas: 12 en teléfonos (con 16, a 360 px la fila parte «Independiente»). Tests `test/app/home_layout_test.dart` (360 × 640); `pumpApp(seed:)` guarda un favorito antes de arrancar.
 - Las mediciones de un componente usan el ancho disponible (`LayoutBuilder`), no el de la pantalla. La fila de partido apila los equipos si a los costados no entra un nombre (texto grande en teléfono): en tests de anchos reales, cargar Roboto.
 
 ## Responsive y accesibilidad

@@ -3,14 +3,13 @@ import 'package:go_router/go_router.dart';
 
 import '../router/app_router.dart';
 import '../../shared/presentation/layout/breakpoints.dart';
+import '../../shared/presentation/theme/app_spacing.dart';
 
 /// Buscador de equipos de la barra superior. En escritorio (≥ 1200 px) es
 /// un campo: al confirmar abre Equipos con lo escrito. En pantallas más
-/// angostas es un botón (con [showButtonWhenNarrow]) o nada.
+/// angostas no se muestra (el Inicio tiene su acceso arriba del contenido).
 class TopBarTeamSearch extends StatefulWidget {
-  const TopBarTeamSearch({super.key, this.showButtonWhenNarrow = false});
-
-  final bool showButtonWhenNarrow;
+  const TopBarTeamSearch({super.key});
 
   @override
   State<TopBarTeamSearch> createState() => _TopBarTeamSearchState();
@@ -38,17 +37,9 @@ class _TopBarTeamSearchState extends State<TopBarTeamSearch> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Breakpoints.isExpanded(context)) {
-      return widget.showButtonWhenNarrow
-          ? IconButton(
-              tooltip: 'Buscar equipo',
-              onPressed: () => context.go(AppRoutes.teams),
-              icon: const Icon(Icons.search),
-            )
-          : const SizedBox.shrink();
-    }
+    if (!Breakpoints.isExpanded(context)) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: SizedBox(
         width: 280,
         child: TextField(
@@ -59,9 +50,7 @@ class _TopBarTeamSearchState extends State<TopBarTeamSearch> {
             hintText: 'Buscar equipo',
             prefixIcon: Icon(Icons.search),
             isDense: true,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(24)),
-            ),
+            border: OutlineInputBorder(borderRadius: AppRadius.pillAll),
           ),
         ),
       ),

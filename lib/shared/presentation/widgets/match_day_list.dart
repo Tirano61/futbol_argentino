@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/time/calendar_day.dart';
 import '../../../features/matches/domain/entities/match.dart';
 import '../../../features/matches/domain/services/match_grouping.dart';
 import '../formatters/match_labels.dart';
@@ -26,7 +27,7 @@ List<Widget> matchDayItems({
       in newestFirst
           ? MatchGrouping.byArgentinaDay(matches).reversed
           : MatchGrouping.byArgentinaDay(matches)) ...[
-    DayHeader(group: group),
+    DayHeader(day: group.day),
     MatchGroup(
       children: [
         for (final m in group.matches)
@@ -43,10 +44,12 @@ List<Widget> matchDayItems({
   ],
 ];
 
+/// Encabezado de un día («Sábado 17/10/2026»), en `primary`.
 class DayHeader extends StatelessWidget {
-  const DayHeader({super.key, required this.group});
+  const DayHeader({super.key, required this.day});
 
-  final MatchDayGroup group;
+  /// `null`: partidos sin fecha conocida.
+  final CalendarDay? day;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +64,7 @@ class DayHeader extends StatelessWidget {
           AppSpacing.sm,
         ),
         child: Text(
-          MatchLabels.day(group.day),
+          MatchLabels.day(day),
           style: theme.textTheme.dayHeader.copyWith(
             color: theme.colorScheme.primary,
           ),

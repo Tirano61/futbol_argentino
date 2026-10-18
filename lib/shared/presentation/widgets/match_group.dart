@@ -55,16 +55,53 @@ class MatchGroupHeader extends StatelessWidget {
     required this.title,
     this.detail,
     this.trailing,
+    this.detailInline = false,
   });
 
   final String title;
   final String? detail;
   final Widget? trailing;
 
+  /// El detalle sigue al título en el mismo renglón, en gris («Primera
+  /// División · Clausura · Fecha 12»), y baja solo si no entra.
+  final bool detailInline;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final titleStyle = theme.textTheme.groupTitle.copyWith(
+      color: colors.onSurface,
+    );
+    final detail = this.detail;
+    final text = detailInline && detail != null
+        ? [
+            Text.rich(
+              TextSpan(
+                text: title,
+                style: titleStyle,
+                children: [
+                  TextSpan(
+                    text: ' · $detail',
+                    style: titleStyle.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ]
+        : [
+            Text(title, style: titleStyle),
+            if (detail != null)
+              Text(
+                detail,
+                style: theme.textTheme.secondary.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+          ];
     return Semantics(
       header: true,
       child: ColoredBox(
@@ -84,21 +121,7 @@ class MatchGroupHeader extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.groupTitle.copyWith(
-                          color: colors.onSurface,
-                        ),
-                      ),
-                      if (detail != null)
-                        Text(
-                          detail!,
-                          style: theme.textTheme.secondary.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
+                    children: text,
                   ),
                 ),
                 ?trailing,
