@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/argentina_time.dart';
-import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/formatters/sync_texts.dart';
 import '../../../../shared/presentation/theme/app_palette.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/theme/app_text.dart';
@@ -252,9 +252,8 @@ class _SyncStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final failure = progress.failure;
-    final rounds =
-        'Fechas consultadas ${coverage.roundsQueried} de ${coverage.roundsTotal}';
     if (progress.isRunning) {
+      final rounds = SyncTexts.running(progress, unit: 'fechas');
       return Semantics(
         liveRegion: true,
         label: rounds,
@@ -265,9 +264,9 @@ class _SyncStatus extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LinearProgressIndicator(
-                value: coverage.roundsTotal == 0
+                value: progress.total == 0
                     ? null
-                    : coverage.roundsQueried / coverage.roundsTotal,
+                    : progress.done / progress.total,
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(rounds, style: Theme.of(context).textTheme.labelSmall),
@@ -277,15 +276,17 @@ class _SyncStatus extends StatelessWidget {
       );
     }
     if (failure == null) return const SizedBox.shrink();
-    final (:title, message: _) = failureMessage(failure);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: InfoBanner(
         tone: InfoTone.offline,
         icon: Icons.cloud_off,
-        text:
-            'No se pudieron consultar todas las fechas '
-            '(${coverage.roundsQueried} de ${coverage.roundsTotal}). $title',
+        text: SyncTexts.stopped(
+          progress,
+          failure,
+          unit: 'fechas',
+          stored: coverage.roundsQueried,
+        ),
         action: TextButton(
           onPressed: () => context.read<StandingsBloc>().add(
             const StandingsRefreshRequested(),
@@ -311,7 +312,7 @@ class _CoverageLine extends StatelessWidget {
     final colors = theme.colorScheme;
     final palette = AppPalette.of(context);
     final summary =
-        'Fechas consultadas ${coverage.roundsQueried} de '
+        'Fechas guardadas ${coverage.roundsQueried} de '
         '${coverage.roundsTotal} · ${coverage.counted} de '
         '${coverage.scheduled} partidos sumados';
     final (icon, color, status) = coverage.isComplete

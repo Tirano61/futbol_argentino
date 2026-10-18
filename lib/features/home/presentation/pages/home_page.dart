@@ -28,6 +28,7 @@ import '../bloc/home_favorites_bloc.dart';
 import '../widgets/favorite_teams_section.dart';
 import '../widgets/home_match_list.dart';
 import '../widgets/home_shortcuts.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
 
 /// Inicio: tus equipos, partidos de hoy, próximos 7 días y de ayer de todas
 /// las competiciones, con accesos a cada fixture y al buscador.
@@ -116,29 +117,32 @@ class _HomeView extends StatelessWidget {
       builder: (context, state) {
         final bloc = context.read<HomeBloc>();
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Fútbol Argentino'),
-            actions: [
-              // En escritorio. En pantallas más angostas el acceso va arriba
-              // del contenido, sin un ícono duplicado en la barra.
-              const TopBarTeamSearch(),
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: state.isBusy ? null : () => _refresh(context),
-                icon: const Icon(Icons.refresh),
-              ),
-              IconButton(
-                tooltip: 'Ajustes',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => context.push(AppRoutes.settings),
-              ),
-              if (showDiagnostics)
+          appBar: ContentAppBar(
+            maxWidth: Breakpoints.listWidth(context),
+            bar: AppBar(
+              title: const Text('Fútbol Argentino'),
+              actions: [
+                // En escritorio. En pantallas más angostas el acceso va arriba
+                // del contenido, sin un ícono duplicado en la barra.
+                const TopBarTeamSearch(),
                 IconButton(
-                  tooltip: 'Diagnóstico de la API',
-                  icon: const Icon(Icons.bug_report_outlined),
-                  onPressed: () => context.push(AppRoutes.diagnostics),
+                  tooltip: 'Actualizar',
+                  onPressed: state.isBusy ? null : () => _refresh(context),
+                  icon: const Icon(Icons.refresh),
                 ),
-            ],
+                IconButton(
+                  tooltip: 'Ajustes',
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => context.push(AppRoutes.settings),
+                ),
+                if (showDiagnostics)
+                  IconButton(
+                    tooltip: 'Diagnóstico de la API',
+                    icon: const Icon(Icons.bug_report_outlined),
+                    onPressed: () => context.push(AppRoutes.diagnostics),
+                  ),
+              ],
+            ),
           ),
           body: LiveAutoRefresh(
             hasLiveMatches: () => _hasLiveMatches(context),
@@ -147,14 +151,33 @@ class _HomeView extends StatelessWidget {
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
+                  maxWidth: Breakpoints.listWidth(context),
                 ),
                 child: switch (state) {
                   HomeInitial() || HomeLoading() => const _Loading(),
                   HomeLoaded() when !favoritesReady => const _Loading(),
-                  HomeFailure(:final failure) => ErrorView(
-                    failure: failure,
-                    onRetry: () => bloc.add(const HomeRefreshRequested()),
+                  // Sin el buscador de la barra (< 1200), su acceso sigue a
+                  // mano aunque el Inicio no cargue (E7).
+                  HomeFailure(:final failure) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!expanded)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            _gutter(context),
+                            AppSpacing.sm,
+                            _gutter(context),
+                            0,
+                          ),
+                          child: const TeamSearchShortcut(),
+                        ),
+                      Expanded(
+                        child: ErrorView(
+                          failure: failure,
+                          onRetry: () => bloc.add(const HomeRefreshRequested()),
+                        ),
+                      ),
+                    ],
                   ),
                   HomeLoaded(:final feed) => _FeedView(
                     feed: feed,
@@ -170,6 +193,11 @@ class _HomeView extends StatelessWidget {
     );
   }
 }
+
+/// Margen lateral: 12 en teléfonos, como las demás pantallas (con 16, a
+/// 360 px «Independiente» ya no entra en un renglón de la fila; E2).
+double _gutter(BuildContext context) =>
+    Breakpoints.isCompact(context) ? AppSpacing.md : AppSpacing.xl;
 
 class _Loading extends StatelessWidget {
   const _Loading();
@@ -207,9 +235,7 @@ class _FeedView extends StatelessWidget {
         feed.isLoading ? 'Buscando partidos…' : empty;
 
     final phone = Breakpoints.isCompact(context);
-    // 12 en teléfonos, como las demás pantallas: con 16, a 360 px
-    // «Independiente» ya no entra en un renglón de la fila (E2).
-    final gutter = phone ? AppSpacing.md : AppSpacing.xl;
+    final gutter = _gutter(context);
     final today = HomeGrouping.byDay(feed.todayMatches);
     final upcoming = HomeGrouping.byDay(feed.upcoming);
     final recent = HomeGrouping.byDay(feed.recent);

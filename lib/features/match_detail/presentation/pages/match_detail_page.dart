@@ -28,6 +28,8 @@ import '../../domain/usecases/get_match_detail.dart';
 import '../bloc/match_detail_bloc.dart';
 import '../formatters/match_detail_texts.dart';
 import '../widgets/match_hero.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
 
 /// Detalle de un partido a pantalla completa (`/partidos/:id`).
 class MatchDetailPage extends StatelessWidget {
@@ -99,25 +101,28 @@ class _MatchDetailView extends StatelessWidget {
     return BlocBuilder<MatchDetailBloc, MatchDetailState>(
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(
-            // Por enlace directo no hay a dónde volver: se ofrece el inicio.
-            leading: Navigator.canPop(context)
-                ? null
-                : IconButton(
-                    tooltip: 'Ir al inicio',
-                    onPressed: () => context.go(AppRoutes.home),
-                    icon: const Icon(Icons.home_outlined),
-                  ),
-            title: const Text('Partido'),
-            actions: [
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: _isRefreshing(state)
-                    ? null
-                    : () => _refresh(context),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+          appBar: ContentAppBar(
+            maxWidth: Breakpoints.maxNarrowWidth,
+            bar: AppBar(
+              // Por enlace directo no hay a dónde volver: se ofrece el inicio.
+              leading: Navigator.canPop(context)
+                  ? null
+                  : IconButton(
+                      tooltip: 'Ir al inicio',
+                      onPressed: () => context.go(AppRoutes.home),
+                      icon: const Icon(Icons.home_outlined),
+                    ),
+              title: const Text('Partido'),
+              actions: [
+                IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: _isRefreshing(state)
+                      ? null
+                      : () => _refresh(context),
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
           ),
           body: _MatchDetailContent(state: state),
         );
@@ -178,7 +183,7 @@ class _MatchDetailPanelView extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1),
+            const Divider(height: AppSizes.divider),
             Expanded(child: _MatchDetailContent(state: state)),
           ],
         );
@@ -253,7 +258,7 @@ class _DetailBody extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
+        constraints: const BoxConstraints(maxWidth: Breakpoints.maxNarrowWidth),
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [

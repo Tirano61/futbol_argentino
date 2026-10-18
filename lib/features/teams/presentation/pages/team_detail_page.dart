@@ -26,6 +26,8 @@ import '../../domain/entities/team_detail.dart';
 import '../../domain/repositories/team_repository.dart';
 import '../../domain/usecases/watch_team_detail.dart';
 import '../bloc/team_detail_bloc.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
 
 /// Ficha de un equipo (`/equipos/:teamId`): próximos y disputados de todas
 /// las competiciones guardadas. Se ve enseguida con lo guardado y se va
@@ -61,6 +63,27 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
   /// Se apaga cuando la sección de la ficha queda oculta (otra sección del
   /// menú) y se prende al volver.
   ValueListenable<TickerModeData>? _visible;
+
+  /// La cabecera (con el nombre) salió de la vista: el nombre pasa a la
+  /// barra. Mientras se ve, la barra dice «Equipo» y no lo repite (E7).
+  final _headerKey = GlobalKey();
+  var _nameInBar = false;
+
+  /// Último alto medido de la cabecera: lejos de la vista la lista la
+  /// descarta y ya no se puede medir.
+  var _headerHeight = 0.0;
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+    final measured = _headerKey.currentContext?.size?.height;
+    if (measured != null) _headerHeight = measured;
+    final inBar =
+        _headerHeight > 0 && notification.metrics.pixels >= _headerHeight;
+    if (inBar != _nameInBar) setState(() => _nameInBar = inBar);
+    return false;
+  }
 
   @override
   void didChangeDependencies() {
@@ -115,19 +138,23 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
         final bloc = context.read<TeamDetailBloc>();
         void refresh() => bloc.add(const TeamDetailRefreshRequested());
         return Scaffold(
-          appBar: AppBar(
-            title: Text(switch (state) {
-              TeamDetailLoaded(:final detail) => detail.team!.name,
-              _ => 'Equipo',
-            }),
-            // El favorito va en la cabecera, junto al nombre (E-D14).
-            actions: [
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: state.isBusy ? null : _refresh,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+          appBar: ContentAppBar(
+            maxWidth: Breakpoints.maxListWidth,
+            bar: AppBar(
+              title: Text(switch (state) {
+                TeamDetailLoaded(:final detail) when _nameInBar =>
+                  detail.team!.name,
+                _ => 'Equipo',
+              }),
+              // El favorito va en la cabecera, junto al nombre (E-D14).
+              actions: [
+                IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: state.isBusy ? null : _refresh,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
           ),
           body: LiveAutoRefresh(
             hasLiveMatches: _hasLiveMatches,
@@ -135,7 +162,9 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
+                constraints: const BoxConstraints(
+                  maxWidth: Breakpoints.maxListWidth,
+                ),
                 child: switch (state) {
                   TeamDetailInitial() || TeamDetailLoading() => Center(
                     child: Semantics(
@@ -147,10 +176,18 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
                     failure: failure,
                     onRetry: refresh,
                   ),
-                  TeamDetailLoaded(:final detail) => RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: _DetailBody(detail: detail, onRetry: refresh),
-                  ),
+                  TeamDetailLoaded(:final detail) =>
+                    NotificationListener<ScrollNotification>(
+                      onNotification: _onScroll,
+                      child: RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: _DetailBody(
+                          detail: detail,
+                          headerKey: _headerKey,
+                          onRetry: refresh,
+                        ),
+                      ),
+                    ),
                 },
               ),
             ),
@@ -162,9 +199,14 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.detail, required this.onRetry});
+  const _DetailBody({
+    required this.detail,
+    required this.headerKey,
+    required this.onRetry,
+  });
 
   final TeamDetail detail;
+  final GlobalKey headerKey;
   final VoidCallback onRetry;
 
   @override
@@ -194,7 +236,7 @@ class _DetailBody extends StatelessWidget {
         AppSpacing.xl,
       ),
       children: [
-        _Header(detail: detail),
+        _Header(key: headerKey, detail: detail),
         _SyncStatus(progress: progress, onRetry: onRetry),
         if (empty)
           Padding(
@@ -268,7 +310,7 @@ class _DetailBody extends StatelessWidget {
 /// ancho; nunca se parte una palabra. Un chip que no entra en un renglón
 /// usa dos (la letra no se achica).
 class _Header extends StatelessWidget {
-  const _Header({required this.detail});
+  const _Header({super.key, required this.detail});
 
   final TeamDetail detail;
 

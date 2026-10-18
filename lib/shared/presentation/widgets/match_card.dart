@@ -18,7 +18,8 @@ import 'team_badge.dart';
 ///
 /// La altura sale del contenido (56 es solo el mínimo): nunca se recorta un
 /// marcador, una hora, una tanda ni un estado. El nombre de un equipo va en
-/// hasta dos renglones (completo en la semántica y en el detalle). Si a los
+/// hasta tres renglones a los costados del marcador y dos con los equipos
+/// apilados (completo en la semántica y en el detalle). Si a los
 /// costados del marcador no entra un nombre (texto grande en un teléfono),
 /// los equipos van uno debajo del otro, con los goles a la derecha.
 class MatchCard extends StatelessWidget {
@@ -425,8 +426,15 @@ class _TeamSide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A los costados del marcador entran unas diez letras por renglón: con
+    // dos, «Gimnasia y Esgrima de Mendoza» quedaba en «Esgrima de L…» (E7).
     final name = Flexible(
-      child: _TeamName(team: team, winner: winner, alignEnd: alignEnd),
+      child: _TeamName(
+        team: team,
+        winner: winner,
+        alignEnd: alignEnd,
+        maxLines: 3,
+      ),
     );
     final badge = TeamBadge(
       name: team.name,
@@ -449,18 +457,20 @@ class _TeamName extends StatelessWidget {
     required this.team,
     required this.winner,
     this.alignEnd = false,
+    this.maxLines = 2,
   });
 
   final TeamRef team;
   final bool winner;
   final bool alignEnd;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Text(
       team.name,
-      maxLines: 2,
+      maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
       textAlign: alignEnd ? TextAlign.end : TextAlign.start,
       style:

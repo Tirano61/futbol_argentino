@@ -62,7 +62,7 @@ void main() {
           'Ida: Peñarol 1, Racing Club 0\\. Final\\. '
           'Vuelta: Racing Club 3, Peñarol 1\\. Final\\. '
           'Global Peñarol 2-3 Racing Club\\. '
-          'Avanza Racing Club \\(global 3-2\\)\$',
+          'Clasificó Racing Club por resultado global \\(3-2\\)\$',
         ),
       ),
       findsOne,
@@ -72,7 +72,7 @@ void main() {
       find.bySemanticsLabel(
         RegExp(
           '^Octavos de final\\. Club Libertad contra River Plate.*'
-          'Avanza River Plate \\(juega la ronda siguiente\\)\$',
+          'Clasificó River Plate: juega la ronda siguiente\$',
         ),
       ),
       findsOne,
@@ -107,7 +107,10 @@ void main() {
     );
     expect(find.text('Serie de ida y vuelta'), findsOne);
     expect(find.text('Global Peñarol 2-3 Racing Club'), findsOne);
-    expect(find.text('Avanza Racing Club (global 3-2)'), findsOne);
+    expect(
+      find.text('Clasificó Racing Club por resultado global (3-2)'),
+      findsOne,
+    );
   });
 
   testWidgets('Sudamericana 2025: Playoffs como lista y la final sin dato de '
@@ -132,8 +135,8 @@ void main() {
       find.bySemanticsLabel(
         RegExp(
           '^Playoffs de octavos\\. Atlético Bucaramanga contra Atlético '
-          'Mineiro, ida y vuelta.*Avanza Atlético Mineiro \\(juega la ronda '
-          'siguiente\\)\$',
+          'Mineiro, ida y vuelta.*Clasificó Atlético Mineiro: juega la '
+          'ronda siguiente\$',
         ),
       ),
       findsOne,
@@ -192,7 +195,7 @@ void main() {
     expect(
       find.descendant(
         of: series,
-        matching: find.text('Avanza Fluminense (5-4 en penales)'),
+        matching: find.text('Clasificó Fluminense por penales (5-4)'),
       ),
       findsOne,
     );
@@ -200,7 +203,8 @@ void main() {
       find.descendant(of: series, matching: find.byType(MatchCard)),
       findsNWidgets(2),
     );
-    // Dentro de la serie, la tarjeta no repite «Avanza».
-    expect(find.textContaining('Avanza Fluminense (4-5'), findsNothing);
+    // Dentro de la serie, la tarjeta no repite quién pasa.
+    expect(find.textContaining('Avanza Fluminense'), findsNothing);
+    expect(find.textContaining('Fluminense por penales'), findsOne);
   });
 }

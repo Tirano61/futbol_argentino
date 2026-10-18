@@ -81,16 +81,31 @@ class CompetitionShortcuts extends StatelessWidget {
     List<Widget> category(
       CompetitionCategory category,
       List<CompetitionDefinition> competitions,
-    ) => [
-      _CategoryLabel(category.label),
-      for (final competition in competitions)
-        ActionChip(
-          label: Text(competition.name),
-          tooltip: 'Fixture de ${competition.name}',
-          onPressed: () =>
-              context.go('${FixtureRoute.basePath}/${competition.id}'),
-        ),
-    ];
+    ) {
+      // «Primera División» tiene un solo acceso con su mismo nombre: la
+      // etiqueta repetiría el chip. Se muestra solo el chip, que pasa a ser
+      // el encabezado de la categoría (los lectores de pantalla conservan
+      // la estructura; E7).
+      final repeated =
+          competitions.length == 1 &&
+          competitions.single.name == category.label;
+      Widget chip(CompetitionDefinition competition) => ActionChip(
+        label: Text(competition.name),
+        tooltip: 'Fixture de ${competition.name}',
+        onPressed: () =>
+            context.go('${FixtureRoute.basePath}/${competition.id}'),
+      );
+      return [
+        if (repeated)
+          MergeSemantics(
+            child: Semantics(header: true, child: chip(competitions.single)),
+          )
+        else ...[
+          _CategoryLabel(category.label),
+          for (final competition in competitions) chip(competition),
+        ],
+      ];
+    }
 
     if (!singleRow) {
       return Wrap(

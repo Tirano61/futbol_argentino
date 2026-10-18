@@ -8,7 +8,7 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
-import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/formatters/sync_texts.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/layout/text_measure.dart';
 import '../../../../shared/presentation/theme/app_palette.dart';
@@ -372,8 +372,8 @@ class _SyncStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final failure = progress.failure;
-    final rounds = 'Rondas consultadas ${progress.done} de ${progress.total}';
     if (progress.isRunning) {
+      final rounds = SyncTexts.running(progress, unit: 'rondas');
       return Semantics(
         liveRegion: true,
         label: rounds,
@@ -396,15 +396,12 @@ class _SyncStatus extends StatelessWidget {
       );
     }
     if (failure == null) return const SizedBox.shrink();
-    final (:title, message: _) = failureMessage(failure);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: InfoBanner(
         tone: InfoTone.offline,
         icon: Icons.cloud_off,
-        text:
-            'No se pudieron consultar todas las rondas '
-            '(${progress.done} de ${progress.total}). $title',
+        text: SyncTexts.stopped(progress, failure, unit: 'rondas'),
         action: TextButton(
           onPressed: () =>
               context.read<BracketBloc>().add(const BracketRefreshRequested()),
@@ -420,8 +417,9 @@ class _SyncStatus extends StatelessWidget {
 /// (`BracketSlot.linkedToNext`).
 ///
 /// Las tarjetas se miden con la escala de texto: la columna no baja de la
-/// palabra más ancha de los nombres y todas las tarjetas tienen el alto de
-/// la más alta (así los conectores quedan alineados). Con texto grande el
+/// palabra más ancha de los nombres y el lugar de cada llave tiene el alto
+/// de la más alta (así los conectores quedan alineados); cada tarjeta va
+/// centrada en su lugar, con el alto de su contenido. Con texto grande el
 /// cuadro se agranda y se desplaza; nunca recorta los datos de una llave.
 class _BracketCanvas extends StatelessWidget {
   const _BracketCanvas({
@@ -502,18 +500,19 @@ class _BracketCanvas extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // El lugar de cada llave sale de la más alta del cuadro
+                  // (conectores alineados); la tarjeta tiene el alto de su
+                  // contenido, centrada en su lugar: las de nombres cortos
+                  // no quedan con aire (E7).
                   for (final (i, slot) in round.slots.indexed)
                     SizedBox(
                       height: height / round.slots.length,
                       child: Center(
-                        child: SizedBox(
-                          height: cardHeight,
-                          child: _TieCard(
-                            slot: slot,
-                            content: contents[j][i],
-                            round: round.label,
-                            styles: styles,
-                          ),
+                        child: _TieCard(
+                          slot: slot,
+                          content: contents[j][i],
+                          round: round.label,
+                          styles: styles,
                         ),
                       ),
                     ),
@@ -974,6 +973,7 @@ class _TieCard extends StatelessWidget {
     final body = Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

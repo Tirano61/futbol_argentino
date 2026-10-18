@@ -236,11 +236,11 @@ void main() {
     expect(find.text('Sin datos del partido'), findsOne);
   });
 
-  // Con Roboto, la pauta de contraste mide píxeles: con «Apertura» elegida
-  // el chip «Clausura» (el mismo estilo que el resto de los chips, de E4)
-  // da 2,25:1 por el suavizado de esa palabra; con «Clausura» elegida pasa.
-  // Por eso Primera se verifica en el Clausura y las tarjetas de llaves, en
-  // las copas.
+  // Primera con cada torneo elegido: hasta E6, con «Apertura» elegida el
+  // chip «Clausura» sin elegir daba 2,25:1 (la pauta mide píxeles y el chip
+  // empezaba en x = 106,4: a densidad 1 su texto se dibujaba borroso). Desde
+  // E7 los elementos de la fila empiezan en un píxel entero (`ScrollRow`) y
+  // se verifican los dos estados.
   group('pautas de accesibilidad', () {
     const cases = [
       (
@@ -256,6 +256,11 @@ void main() {
       (
         'Copa Argentina 2026',
         '/competiciones/4500?temporada=2026&vista=llaves',
+        false,
+      ),
+      (
+        'Primera Apertura 2026',
+        '/competiciones/4406?temporada=2026&vista=llaves&llave=apertura',
         false,
       ),
       (

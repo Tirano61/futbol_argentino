@@ -58,11 +58,44 @@ class MatchHero extends StatelessWidget {
           textAlign: TextAlign.center,
           style: theme.textTheme.groupTitle.copyWith(color: colors.onSurface),
         ),
-        if (stage != null)
-          Text(stage, textAlign: TextAlign.center, style: secondary),
-        Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.xs),
-          child: Text(_when(m), textAlign: TextAlign.center, style: secondary),
+        // Si no entra en un renglón, cada parte («Cuartos de final»,
+        // «16/09/2026 · 19:00») se mantiene junta (si entra sola): al 200 %
+        // «final» o la hora quedaban solas en un renglón (E7).
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final measure = TextMeasure.of(context);
+            final width = constraints.maxWidth;
+            String together(List<String> parts, String separator) {
+              final plain = parts.join(separator);
+              if (measure.width(plain, secondary!) <= width) return plain;
+              return [
+                for (final part in parts)
+                  measure.width(part, secondary) <= width
+                      ? part.replaceAll(' ', _nbsp)
+                      : part,
+              ].join(separator);
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (stage != null)
+                  Text(
+                    together(stage.split(' · '), ' · '),
+                    textAlign: TextAlign.center,
+                    style: secondary,
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    together(_when(m), ' '),
+                    textAlign: TextAlign.center,
+                    style: secondary,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: AppSpacing.lg),
         _Scoreboard(match: m, overdue: overdue),
@@ -104,12 +137,22 @@ class MatchHero extends StatelessWidget {
     );
   }
 
-  /// «Sábado 21/03/2026 · 14:30». Si el partido no empezó y la hora es
-  /// confiable, la hora va en grande en el centro: acá, solo el día.
-  static String _when(Match m) {
+  static const _nbsp = '\u00A0';
+
+  /// «Sábado 21/03/2026 · 14:30», en dos partes que pueden ir en renglones
+  /// distintos: el día de la semana y «21/03/2026 · 14:30». Si el partido
+  /// no empezó y la hora es confiable, la hora va en grande en el centro:
+  /// acá, solo el día.
+  static List<String> _when(Match m) {
     final day = MatchLabels.day(m.kickoff.argentinaDay);
     final timeInCenter = _Center.of(m) == _Center.time;
-    return timeInCenter ? day : '$day · ${MatchLabels.kickoffTime(m.kickoff)}';
+    final text = timeInCenter
+        ? day
+        : '$day · ${MatchLabels.kickoffTime(m.kickoff)}';
+    final space = text.indexOf(' ');
+    return space < 0
+        ? [text]
+        : [text.substring(0, space), text.substring(space + 1)];
   }
 }
 
@@ -227,8 +270,13 @@ class _Scoreboard extends StatelessWidget {
             ], theme.textTheme.heroTeamWinner),
           );
 
-          Widget column(TeamRef t) =>
-              _TeamColumn(team: t, winner: t.id == winner, stacked: false);
+          Widget column(TeamRef t, {double badge = AppSizes.badgeHero}) =>
+              _TeamColumn(
+                team: t,
+                winner: t.id == winner,
+                stacked: false,
+                badge: badge,
+              );
           if ((width - middleWidth) / 2 - AppSpacing.md >= team) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,13 +289,23 @@ class _Scoreboard extends StatelessWidget {
               ],
             );
           }
-          final teams = (width - AppSpacing.md) / 2 >= team
+          // Con el marcador debajo (texto grande), escudos de 32: el
+          // encabezado no se alarga más de lo necesario (E7).
+          final narrowTeam = math.max(
+            AppSizes.badgeHeader,
+            team - AppSizes.badgeHero + AppSizes.badgeHeader,
+          );
+          final teams = (width - AppSpacing.md) / 2 >= narrowTeam
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: column(m.home)),
+                    Expanded(
+                      child: column(m.home, badge: AppSizes.badgeHeader),
+                    ),
                     const SizedBox(width: AppSpacing.md),
-                    Expanded(child: column(m.away)),
+                    Expanded(
+                      child: column(m.away, badge: AppSizes.badgeHeader),
+                    ),
                   ],
                 )
               : Column(
@@ -279,13 +337,14 @@ class _Scoreboard extends StatelessWidget {
   }
 }
 
-/// Un equipo: escudo de 72 con el nombre debajo; [stacked], escudo chico
-/// y nombre al lado (un equipo por renglón, local arriba).
+/// Un equipo: escudo de [badge] con el nombre debajo; [stacked], escudo
+/// chico y nombre al lado (un equipo por renglón, local arriba).
 class _TeamColumn extends StatelessWidget {
   const _TeamColumn({
     required this.team,
     required this.winner,
     required this.stacked,
+    this.badge = AppSizes.badgeHero,
   });
 
   final TeamRef team;
@@ -293,6 +352,7 @@ class _TeamColumn extends StatelessWidget {
   /// Ganó el partido (no necesariamente la llave).
   final bool winner;
   final bool stacked;
+  final double badge;
 
   @override
   Widget build(BuildContext context) {
@@ -315,11 +375,7 @@ class _TeamColumn extends StatelessWidget {
     }
     return Column(
       children: [
-        TeamBadge(
-          name: team.name,
-          url: team.badgeUrl,
-          size: AppSizes.badgeHero,
-        ),
+        TeamBadge(name: team.name, url: team.badgeUrl, size: badge),
         const SizedBox(height: AppSpacing.sm),
         Text(team.name, textAlign: TextAlign.center, style: style),
       ],

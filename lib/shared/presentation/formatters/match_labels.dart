@@ -104,30 +104,33 @@ abstract final class MatchLabels {
   /// «Ida» o «Vuelta» de la pierna [index] (desde 0) de una serie.
   static String leg(int index) => index == 0 ? 'Ida' : 'Vuelta';
 
-  /// Quién avanzó en [tie]: en un partido único, como [advances]; en una
-  /// serie, con el global o la tanda contados desde el ganador («Avanza
-  /// Palmeiras (4-3 en penales)»).
+  /// Quién pasó en [tie]. En un partido único, como [advances]: el
+  /// ganador del partido es el que pasa. En una serie de ida y vuelta el
+  /// ganador de un partido puede no ser el que clasifica (una vuelta ganada
+  /// 3-2 que se pierde en los penales), así que se dice cómo, con la
+  /// evidencia de `TieOutcome` y el global o la tanda contados desde el
+  /// que clasificó (Fase E7): «Clasificó Palmeiras por penales (4-3)»,
+  /// «Clasificó Lanús por resultado global (3-2)», «Clasificó River Plate:
+  /// juega la ronda siguiente».
   static String tieAdvances(TieOutcome outcome, KnockoutTie tie) {
     if (!tie.isSeries) return advances(outcome, tie.decisive);
-    final winner = outcome.winner;
-    String fromWinner(Score s) => winner.id == tie.first.id
+    final winner = outcome.winner.name;
+    String fromWinner(Score s) => outcome.winner.id == tie.first.id
         ? '${s.home}-${s.away}'
         : '${s.away}-${s.home}';
-    final detail = switch (outcome.source) {
+    return switch (outcome.source) {
       TieOutcomeSource.aggregate => switch (tie.aggregate) {
-        final s? => 'global ${fromWinner(s)}',
-        null => null,
+        final s? => 'Clasificó $winner por resultado global (${fromWinner(s)})',
+        null => 'Clasificó $winner por resultado global',
       },
       TieOutcomeSource.penalties => switch (tie.penalties) {
-        final s? => '${fromWinner(s)} en penales',
-        null => 'por penales',
+        final s? => 'Clasificó $winner por penales (${fromWinner(s)})',
+        null => 'Clasificó $winner por penales',
       },
-      TieOutcomeSource.laterMatch => 'juega la ronda siguiente',
-      TieOutcomeSource.score => null,
+      TieOutcomeSource.laterMatch =>
+        'Clasificó $winner: juega la ronda siguiente',
+      TieOutcomeSource.score => 'Clasificó $winner',
     };
-    return detail == null
-        ? 'Avanza ${winner.name}'
-        : 'Avanza ${winner.name} ($detail)';
   }
 
   /// «Global River Plate 3-1 Boca Juniors» («Global parcial» si falta

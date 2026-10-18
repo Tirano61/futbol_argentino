@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/result/data_result.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../bloc/cache_probe_bloc.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 
 /// Prueba de caché (Fase 3): cada toque muestra qué devolvió el repositorio
 /// y de dónde. Las peticiones reales aparecen como `GET …` en el log.
@@ -16,7 +17,7 @@ class CacheProbeSection extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: BlocBuilder<CacheProbeBloc, CacheProbeState>(
           builder: (context, state) {
             final bloc = context.read<CacheProbeBloc>();
@@ -24,16 +25,16 @@ class CacheProbeSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Prueba de caché', style: textTheme.titleMedium),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Primera División · fecha 12 · temporada 2026 · '
                   'repositorio con caché local',
                   style: textTheme.bodySmall,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: [
                     FilledButton.tonalIcon(
                       onPressed: state.running
@@ -54,10 +55,10 @@ class CacheProbeSection extends StatelessWidget {
                   ],
                 ),
                 if (state.running) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   const LinearProgressIndicator(),
                 ],
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 for (final entry in state.entries) _EntryRow(entry: entry),
               ],
             );
@@ -97,7 +98,7 @@ class _EntryRow extends StatelessWidget {
     final error = entry.error;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -105,7 +106,9 @@ class _EntryRow extends StatelessWidget {
           if (error != null)
             SelectableText(
               'Error de actualización: ${error.runtimeType}: ${error.detail}',
-              style: TextStyle(color: colors.error, fontSize: 12),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.error),
               maxLines: 3,
             ),
         ],

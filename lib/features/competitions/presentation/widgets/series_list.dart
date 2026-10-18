@@ -10,7 +10,7 @@ import '../../domain/usecases/watch_stage_matches.dart';
 
 /// Etapa de ida y vuelta en el Fixture: un grupo por serie, con los equipos
 /// y el global en el encabezado, sus piernas («Ida · Martes 12/08/2025») y
-/// quién avanza al pie. Los partidos sin emparejar van al final.
+/// quién clasificó al pie. Los partidos sin emparejar van al final.
 List<Widget> seriesItems({
   required List<StageSeries> series,
   required List<Match> unpaired,
@@ -56,7 +56,7 @@ List<Widget> seriesItems({
   ];
 }
 
-/// Quién avanza (con el global o la tanda), o que la serie terminó sin
+/// Quién clasificó (por el global o la tanda), o que la serie terminó sin
 /// evidencia de la definición. Mientras se juega, nada.
 Widget? _seriesFooter(StageSeries series) {
   final tie = series.tie;

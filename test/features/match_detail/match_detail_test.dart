@@ -123,7 +123,7 @@ void main() {
           expect(first.advancement!.source, TieOutcomeSource.aggregate);
           expect(
             MatchLabels.tieAdvances(first.advancement!, first.tie!),
-            'Avanza Racing Club (global 3-2)',
+            'Clasificó Racing Club por resultado global (3-2)',
           );
         },
       );
@@ -149,7 +149,7 @@ void main() {
         expect(detail.advancement!.source, TieOutcomeSource.penalties);
         expect(
           MatchLabels.tieAdvances(detail.advancement!, detail.tie!),
-          'Avanza Palmeiras (4-3 en penales)',
+          'Clasificó Palmeiras por penales (4-3)',
         );
       });
 

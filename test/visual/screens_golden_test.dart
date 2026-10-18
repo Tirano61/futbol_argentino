@@ -214,6 +214,15 @@ void main() {
       await tester.tap(vuelta);
       await tester.pumpAndSettle();
     }, continental: true),
+    // Fase E7: Equipos, Favoritos y Ajustes con los componentes comunes.
+    _Scene('busqueda', (tester) => goTo(tester, '/equipos?q=gimnasia')),
+    _Scene(
+      'favoritos',
+      (tester) => goTo(tester, '/favoritos'),
+      seed: _saveBoca,
+    ),
+    _Scene('favoritos_vacio', (tester) => goTo(tester, '/favoritos')),
+    _Scene('ajustes', (tester) => goTo(tester, '/ajustes')),
   ];
 
   // Matriz: todas las pantallas a 360 y 1280 en claro y oscuro; las de
@@ -248,7 +257,14 @@ void main() {
     'detalle_primera',
     'detalle_serie_penales',
     'detalle_programado',
+    // Fase E7.
+    'busqueda',
+    'favoritos',
+    'ajustes',
   };
+  // Fase E7: toda la matriz de anchos (360 · 411 · 768 · 800 · 1280 ·
+  // 1920) en las pantallas que todavía no la tenían.
+  const e7Scenes = {'inicio', 'busqueda', 'favoritos', 'ajustes'};
   // Fase E4: Competiciones también en el teléfono de 411 dp y en la tablet
   // vertical (800 px).
   const competitionScenes = {
@@ -292,9 +308,14 @@ void main() {
       scene.register(VisualSizes.phoneWide, Brightness.light);
       scene.register(VisualSizes.tablet800, Brightness.light);
     }
-    if (wideScenes.contains(scene.name)) {
+    if (wideScenes.contains(scene.name) || e7Scenes.contains(scene.name)) {
       scene.register(VisualSizes.tabletPortrait, Brightness.light);
       scene.register(VisualSizes.desktop, Brightness.light);
+    }
+    if (e7Scenes.contains(scene.name) &&
+        !competitionScenes.contains(scene.name)) {
+      scene.register(VisualSizes.phoneWide, Brightness.light);
+      scene.register(VisualSizes.tablet800, Brightness.light);
     }
     if (scaledScenes.contains(scene.name)) {
       scene.register(VisualSizes.phone, Brightness.light, textScale: 2);

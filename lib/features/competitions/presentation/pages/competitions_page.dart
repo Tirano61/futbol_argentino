@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +42,7 @@ import '../widgets/competition_picker.dart';
 import '../widgets/series_list.dart';
 import '../widgets/standings_panel.dart';
 import '../widgets/view_tabs.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
 
 /// Fixture, tablas, calendario y llaves de cualquier competición del
 /// catálogo.
@@ -424,13 +427,13 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         }
         _updateUrl(state);
       },
-      // El ancho de la pantalla de la sección (sin el riel): de ahí sale lo
-      // que entra en la barra superior.
+      // El ancho de la barra superior (la sección sin el riel, hasta el de
+      // la columna de contenido): de ahí sale lo que entra en ella.
       builder: (context, state) => LayoutBuilder(
         builder: (context, constraints) => _page(
           context,
           state,
-          constraints.maxWidth,
+          math.min(constraints.maxWidth, Breakpoints.listWidth(context)),
           expanded: expanded,
           busy: (
             standings: standingsBusy,
@@ -532,65 +535,66 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
     final selected = _selectedMatchId;
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: AppSpacing.sm,
-        title: definition == null
-            ? const Text('Competiciones')
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: CompetitionPicker(
-                      key: FixtureSelectors.competitionSelectorKey,
-                      selected: definition,
-                      shortName: layout!.shortName,
-                      onSelected: (id) =>
-                          bloc.add(FixtureCompetitionChanged(id)),
+      appBar: ContentAppBar(
+        maxWidth: Breakpoints.listWidth(context),
+        bar: AppBar(
+          titleSpacing: AppSpacing.sm,
+          title: definition == null
+              ? const Text('Competiciones')
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: CompetitionPicker(
+                        key: FixtureSelectors.competitionSelectorKey,
+                        selected: definition,
+                        shortName: layout!.shortName,
+                        onSelected: (id) =>
+                            bloc.add(FixtureCompetitionChanged(id)),
+                      ),
                     ),
-                  ),
-                  if (hasSeason && seasonInBar) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    // La barra limita la escala del título a 1,34; la
-                    // temporada es un control y usa la del sistema.
-                    MediaQuery(
-                      data: MediaQuery.of(context),
-                      child: seasonSelector(compact: compact),
-                    ),
+                    if (hasSeason && seasonInBar) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      // La barra limita la escala del título a 1,34; la
+                      // temporada es un control y usa la del sistema.
+                      MediaQuery(
+                        data: MediaQuery.of(context),
+                        child: seasonSelector(compact: compact),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-        actions: [
-          const TopBarTeamSearch(),
-          IconButton(
-            tooltip: 'Actualizar',
-            onPressed: switch (_view) {
-              CompetitionsView.table =>
-                busy.standings ? null : () => _refreshStandings(context),
-              CompetitionsView.calendar =>
-                busy.calendar ? null : () => _refreshCalendar(context),
-              CompetitionsView.bracket =>
-                busy.bracket ? null : () => _refreshBracket(context),
-              CompetitionsView.fixture =>
-                state.stage == null || state.isRefreshing
-                    ? null
-                    : () => _refreshFixture(context),
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+                ),
+          actions: [
+            const TopBarTeamSearch(),
+            IconButton(
+              tooltip: 'Actualizar',
+              onPressed: switch (_view) {
+                CompetitionsView.table =>
+                  busy.standings ? null : () => _refreshStandings(context),
+                CompetitionsView.calendar =>
+                  busy.calendar ? null : () => _refreshCalendar(context),
+                CompetitionsView.bracket =>
+                  busy.bracket ? null : () => _refreshBracket(context),
+                CompetitionsView.fixture =>
+                  state.stage == null || state.isRefreshing
+                      ? null
+                      : () => _refreshFixture(context),
+              },
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
-          ),
+          constraints: BoxConstraints(maxWidth: Breakpoints.listWidth(context)),
           child: expanded && _view == CompetitionsView.fixture
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(child: content),
-                    const VerticalDivider(width: 1),
+                    const VerticalDivider(width: AppSizes.divider),
                     SizedBox(
                       width: _panelWidth,
                       child: selected == null
@@ -775,7 +779,7 @@ class _FixtureContentView extends StatelessWidget {
         return RefreshIndicator(
           onRefresh: () => _refreshFixture(context),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               if (isRefreshing) const LinearProgressIndicator(),
               if (refreshError != null && fetchedAt != null)
@@ -803,12 +807,17 @@ class _FixtureContentView extends StatelessWidget {
         return RefreshIndicator(
           onRefresh: () => _refreshFixture(context),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.xl,
+            ),
             children: [
               if (loaded.isRefreshing) const LinearProgressIndicator(),
               if (loaded.refreshError != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: StaleDataBanner(
                     fetchedAt: loaded.fetchedAt,
                     failure: loaded.refreshError!,
@@ -831,7 +840,7 @@ class _FixtureContentView extends StatelessWidget {
                   selectedId: selectedMatchId,
                 ),
               Padding(
-                padding: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.only(top: AppSpacing.lg),
                 child: Text(
                   'Actualizado el '
                   '${ArgentinaTime.formatDay(ArgentinaTime.dayOf(loaded.fetchedAt))} '

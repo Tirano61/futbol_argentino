@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../shared/presentation/theme/app_palette.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+
 /// Prueba de carga de escudos (T0.2). `r2.thesportsdb.com` no envía
 /// `Access-Control-Allow-Origin`, así que en Flutter Web la carga normal
 /// puede fallar; se compara con la estrategia de elemento `<img>`.
@@ -23,18 +26,18 @@ class BadgeProbeSection extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Prueba de escudos', style: textTheme.titleMedium),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Plataforma: ${kIsWeb ? 'Web' : defaultTargetPlatform.name}',
               style: textTheme.bodySmall,
             ),
             SelectableText(badgeUrl, style: textTheme.bodySmall),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             for (final strategy in const [
               WebHtmlElementStrategy.never,
               WebHtmlElementStrategy.fallback,
@@ -43,14 +46,14 @@ class BadgeProbeSection extends StatelessWidget {
                 'webHtmlElementStrategy.${strategy.name}',
                 style: textTheme.labelLarge,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               for (final (label, suffix) in _variants)
                 _BadgeProbe(
                   label: label,
                   url: '$badgeUrl$suffix',
                   strategy: strategy,
                 ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
             ],
           ],
         ),
@@ -70,44 +73,55 @@ class _BadgeProbe extends StatelessWidget {
   final String url;
   final WebHtmlElementStrategy strategy;
 
+  /// Tamaño de la muestra: ni el de una fila ni el del héroe, para ver la
+  /// imagen original sin escalar demasiado (pantalla de desarrollo).
+  static const _imageSize = 56.0;
+
   String get _id => '[${strategy.name} $label]';
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Image.network(
         url,
-        width: 56,
-        height: 56,
+        width: _imageSize,
+        height: _imageSize,
         webHtmlElementStrategy: strategy,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           final loaded = frame != null || wasSynchronouslyLoaded;
           if (loaded) debugPrint('Escudo $_id OK');
           return _row(
+            context,
             image: child,
             status: loaded ? 'OK: imagen mostrada' : 'Cargando…',
-            color: loaded ? Colors.green : null,
+            color: loaded ? AppPalette.of(context).success : null,
           );
         },
         errorBuilder: (context, error, stackTrace) {
           debugPrint('Escudo $_id ERROR ${error.runtimeType}: $error');
           return _row(
-            image: const Icon(Icons.broken_image, size: 56),
+            context,
+            image: const Icon(Icons.broken_image, size: _imageSize),
             status: 'ERROR ${error.runtimeType}: $error',
-            color: Colors.red,
+            color: Theme.of(context).colorScheme.error,
           );
         },
       ),
     );
   }
 
-  Widget _row({required Widget image, required String status, Color? color}) {
+  Widget _row(
+    BuildContext context, {
+    required Widget image,
+    required String status,
+    Color? color,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 56, height: 56, child: image),
-        const SizedBox(width: 12),
+        SizedBox.square(dimension: _imageSize, child: image),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +129,9 @@ class _BadgeProbe extends StatelessWidget {
               Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
               SelectableText(
                 status,
-                style: TextStyle(color: color, fontSize: 12),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: color),
                 maxLines: 4,
               ),
             ],

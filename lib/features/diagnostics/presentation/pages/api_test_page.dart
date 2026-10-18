@@ -10,6 +10,7 @@ import '../widgets/badge_probe_section.dart';
 import '../widgets/cache_probe_section.dart';
 import '../widgets/history_probe_section.dart';
 import '../widgets/package_probe_section.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 
 class ApiTestPage extends StatelessWidget {
   const ApiTestPage({super.key});
@@ -21,14 +22,14 @@ class ApiTestPage extends StatelessWidget {
       body: BlocBuilder<ApiTestBloc, ApiTestState>(
         builder: (context, state) {
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               Text(
                 'Primera Nacional · id ${ApiTestBloc.leagueId} · '
                 'fecha ${ApiTestBloc.round} · temporada ${ApiTestBloc.season}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               FilledButton.icon(
                 onPressed: state is ApiTestLoading
                     ? null
@@ -38,22 +39,22 @@ class ApiTestPage extends StatelessWidget {
                 icon: const Icon(Icons.cloud_download),
                 label: const Text('Consultar API'),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               const CacheProbeSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               const HistoryProbeSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               const BadgeProbeSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               const PackageProbeSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               ...switch (state) {
                 ApiTestInitial() => [
                   const Text('Presioná "Consultar API" para hacer la prueba.'),
                 ],
                 ApiTestLoading() => [
                   const Center(child: CircularProgressIndicator()),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   const Center(child: Text('Consultando TheSportsDB…')),
                 ],
                 ApiTestSuccess(:final result) => _successContent(result),
@@ -77,7 +78,7 @@ class ApiTestPage extends StatelessWidget {
     if (result.matches.isEmpty)
       const Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Text(
             'Respuesta válida sin partidos: el campo "events" vino vacío o '
             'null.',
@@ -85,14 +86,14 @@ class ApiTestPage extends StatelessWidget {
         ),
       ),
     for (final match in result.matches) _MatchCard(match: match),
-    const SizedBox(height: 8),
+    const SizedBox(height: AppSpacing.sm),
     _RawContentPanel(title: 'Ver JSON completo', content: result.prettyJson),
   ];
 
   List<Widget> _failureContent(Failure failure) => [
     _ErrorCard(failure: failure),
     if (failure.responseBody != null) ...[
-      const SizedBox(height: 8),
+      const SizedBox(height: AppSpacing.sm),
       _RawContentPanel(
         title: 'Ver respuesta completa del servidor',
         content: failure.responseBody!.isEmpty
@@ -112,12 +113,12 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           children: [
             for (final (label, value) in rows)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
                     Expanded(child: Text(label)),
@@ -147,7 +148,7 @@ class _MatchCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -155,7 +156,7 @@ class _MatchCard extends StatelessWidget {
               '${match.homeTeam} vs ${match.awayTeam}',
               style: textTheme.titleMedium,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             if (argentina == null)
               const Text('Horario no disponible')
             else ...[
@@ -197,7 +198,7 @@ class _ErrorCard extends StatelessWidget {
     return Card(
       color: colors.errorContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: DefaultTextStyle.merge(
           style: TextStyle(color: colors.onErrorContainer),
           child: Column(
@@ -205,20 +206,23 @@ class _ErrorCard extends StatelessWidget {
             children: [
               Text(
                 _label(failure),
-                style: const TextStyle(
-                  fontSize: 18,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: colors.onErrorContainer,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               if (failure.statusCode != null)
                 Text('Estado HTTP: ${failure.statusCode}'),
               if (failure.elapsed != null)
                 Text('Tiempo: ${failure.elapsed!.inMilliseconds} ms'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               SelectableText(
                 failure.detail,
-                style: const TextStyle(fontFamily: 'monospace'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.onErrorContainer,
+                  fontFamily: 'monospace',
+                ),
               ),
             ],
           ),
@@ -256,16 +260,20 @@ class _RawContentPanelState extends State<_RawContentPanel> {
         expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
+            // Alto fijo con su propio desplazamiento: el JSON tiene miles de
+            // renglones (pantalla de desarrollo).
             height: 400,
             child: Scrollbar(
               controller: _scrollController,
               thumbVisibility: true,
               child: SingleChildScrollView(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: SelectableText(
                   widget.content,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                 ),
               ),
             ),

@@ -493,7 +493,7 @@ void main() {
       expect(
         // El ícono va dentro del mismo texto.
         find.textContaining(
-          'Tabla parcial · Fechas consultadas 16 de 16 · 413 de 480 '
+          'Tabla parcial · Fechas guardadas 16 de 16 · 413 de 480 '
           'partidos sumados',
         ),
         findsOne,
@@ -554,7 +554,7 @@ void main() {
       );
       expect(
         find.textContaining(
-          'Tabla completa · Fechas consultadas 6 de 6 · 12 de 12 partidos '
+          'Tabla completa · Fechas guardadas 6 de 6 · 12 de 12 partidos '
           'sumados',
         ),
         findsOne,

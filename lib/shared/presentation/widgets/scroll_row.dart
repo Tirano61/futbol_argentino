@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../theme/app_spacing.dart';
@@ -9,7 +10,8 @@ import '../theme/app_spacing.dart';
 /// - el borde por donde sigue el contenido se esfuma (indicación discreta
 ///   de que hay más);
 /// - [visible] (el elegido) queda a la vista al abrir y cuando cambia;
-/// - en Web se arrastra también con el mouse.
+/// - en Web se arrastra también con el mouse;
+/// - cada elemento empieza en un píxel entero (texto nítido).
 class ScrollRow extends StatefulWidget {
   const ScrollRow({
     super.key,
@@ -96,7 +98,10 @@ class ScrollRowState extends State<ScrollRow> {
       spacing: widget.spacing,
       children: [
         for (final (i, child) in widget.children.indexed)
-          KeyedSubtree(key: _keys[i], child: child),
+          KeyedSubtree(
+            key: _keys[i],
+            child: _WholePixelWidth(child: child),
+          ),
       ],
     );
     return NotificationListener<ScrollMetricsNotification>(
@@ -138,4 +143,42 @@ class ScrollRowState extends State<ScrollRow> {
       stops: [0, edge, 1 - edge, 1],
     ).createShader(bounds);
   }
+}
+
+/// Redondea hacia arriba el ancho de [child]: así cada elemento de la fila
+/// empieza en un píxel entero. Un chip en negrita mide, por ejemplo, 86,4
+/// px y dejaba al siguiente en x = 106,4; con una densidad de 1 (Web en un
+/// monitor común) su texto se dibujaba borroso, y la pauta de contraste
+/// medía 2,25:1 en el chip «Clausura» sin elegir (Fase E7).
+class _WholePixelWidth extends SingleChildRenderObjectWidget {
+  const _WholePixelWidth({super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderWholePixelWidth();
+}
+
+class _RenderWholePixelWidth extends RenderProxyBox {
+  @override
+  void performLayout() {
+    final child = this.child!;
+    child.layout(constraints, parentUsesSize: true);
+    size = constraints.constrain(
+      Size(child.size.width.ceilToDouble(), child.size.height),
+    );
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final size = child!.getDryLayout(constraints);
+    return constraints.constrain(Size(size.width.ceilToDouble(), size.height));
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      super.computeMinIntrinsicWidth(height).ceilToDouble();
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      super.computeMaxIntrinsicWidth(height).ceilToDouble();
 }

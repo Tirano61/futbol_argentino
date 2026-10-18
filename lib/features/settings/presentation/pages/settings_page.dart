@@ -4,6 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_router.dart';
 import '../../../../core/time/clock.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
+import '../../../../shared/presentation/widgets/info_banner.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../domain/entities/app_settings.dart';
@@ -13,7 +18,8 @@ import '../bloc/settings_bloc.dart';
 import '../bloc/stored_data_bloc.dart';
 
 /// Ajustes: el tema y los «Datos guardados» (temporadas guardadas en el
-/// dispositivo y su limpieza manual).
+/// dispositivo y su limpieza manual). Cada sección va en una superficie de
+/// grupo con divisores, como el resto de la app (Fase E7).
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -27,23 +33,33 @@ class SettingsPage extends StatelessWidget {
         clock: context.read<Clock>(),
       )..add(const StoredDataStarted()),
       child: Scaffold(
-        appBar: AppBar(
-          // Por enlace directo no hay a dónde volver: se ofrece el inicio.
-          leading: Navigator.canPop(context)
-              ? null
-              : IconButton(
-                  tooltip: 'Ir al inicio',
-                  onPressed: () => context.go(AppRoutes.home),
-                  icon: const Icon(Icons.home_outlined),
-                ),
-          title: const Text('Ajustes'),
+        appBar: ContentAppBar(
+          maxWidth: Breakpoints.maxNarrowWidth,
+          bar: AppBar(
+            // Por enlace directo no hay a dónde volver: se ofrece el inicio.
+            leading: Navigator.canPop(context)
+                ? null
+                : IconButton(
+                    tooltip: 'Ir al inicio',
+                    onPressed: () => context.go(AppRoutes.home),
+                    icon: const Icon(Icons.home_outlined),
+                  ),
+            title: const Text('Ajustes'),
+          ),
         ),
         body: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: const BoxConstraints(
+              maxWidth: Breakpoints.maxNarrowWidth,
+            ),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.xl,
+              ),
               children: const [_ThemeSection(), _StoredDataSection()],
             ),
           ),
@@ -72,7 +88,7 @@ class _ThemeSection extends StatelessWidget {
             if (value == null) return;
             context.read<SettingsBloc>().add(ThemePreferenceChanged(value));
           },
-          child: const Column(
+          child: const MatchGroup(
             children: [
               RadioListTile(
                 value: ThemePreference.system,
@@ -124,6 +140,9 @@ class _StoredDataSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final secondary = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     return BlocBuilder<StoredDataBloc, StoredDataState>(
       builder: (context, state) {
         final bloc = context.read<StoredDataBloc>();
@@ -132,26 +151,34 @@ class _StoredDataSection extends StatelessWidget {
           children: [
             const SectionHeader(title: 'Datos guardados'),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
               child: Text(
                 'Los partidos se guardan en este dispositivo para ver la '
                 'app sin conexión y no volver a pedirlos. Podés borrar '
                 'temporadas anteriores: si las volvés a abrir, se descargan '
                 'de nuevo. La temporada actual no se puede borrar y tus '
                 'favoritos no se tocan.',
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.md),
             ...switch (state) {
-              StoredDataLoading() => const [
+              StoredDataLoading() => [
                 Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Center(
+                    child: Semantics(
+                      label: 'Cargando datos guardados',
+                      child: const CircularProgressIndicator(),
+                    ),
+                  ),
                 ),
               ],
               StoredDataUnavailable() => [
-                _Message(
+                InfoBanner(
+                  tone: InfoTone.error,
                   text: 'No se pudieron leer los datos guardados.',
                   action: TextButton(
                     onPressed: () => bloc.add(const StoredDataStarted()),
@@ -159,14 +186,24 @@ class _StoredDataSection extends StatelessWidget {
                   ),
                 ),
               ],
-              StoredDataLoaded(seasons: final seasons) when seasons.isEmpty =>
-                const [_Message(text: 'Todavía no hay partidos guardados.')],
+              StoredDataLoaded(seasons: final seasons) when seasons.isEmpty => [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'Todavía no hay partidos guardados.',
+                    style: secondary,
+                  ),
+                ),
+              ],
               final StoredDataLoaded loaded => [
-                ..._seasonTiles(context, loaded),
-                const SizedBox(height: 16),
+                ..._seasonGroups(context, loaded),
+                const SizedBox(height: AppSpacing.lg),
                 Align(
                   alignment: AlignmentDirectional.centerStart,
-                  child: FilledButton.icon(
+                  child: FilledButton.tonalIcon(
                     onPressed: loaded.selection.isEmpty || loaded.isDeleting
                         ? null
                         : () => _confirmAndDelete(context, loaded.selection),
@@ -179,8 +216,11 @@ class _StoredDataSection extends StatelessWidget {
                   ),
                 ),
                 if (loaded.isDeleting) ...[
-                  const SizedBox(height: 8),
-                  const LinearProgressIndicator(),
+                  const SizedBox(height: AppSpacing.sm),
+                  Semantics(
+                    label: 'Borrando datos guardados',
+                    child: const LinearProgressIndicator(),
+                  ),
                 ],
               ],
             },
@@ -190,50 +230,46 @@ class _StoredDataSection extends StatelessWidget {
     );
   }
 
-  static List<Widget> _seasonTiles(
+  /// Un grupo por competición: su nombre como encabezado y una fila por
+  /// temporada (con casilla si se puede borrar).
+  static List<Widget> _seasonGroups(
     BuildContext context,
     StoredDataLoaded state,
   ) {
-    final theme = Theme.of(context);
     final bloc = context.read<StoredDataBloc>();
-    final tiles = <Widget>[];
-    int? competition;
+    final byCompetition = <int, List<StoredSeason>>{};
     for (final s in state.seasons) {
-      if (s.competitionId != competition) {
-        competition = s.competitionId;
-        tiles.add(
-          Semantics(
-            header: true,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
-              child: Text(
-                s.competitionName,
-                style: theme.textTheme.titleMedium,
-              ),
-            ),
-          ),
-        );
-      }
-      final count = _matches(s.matchCount);
-      tiles.add(
-        s.canDelete
-            ? CheckboxListTile(
-                value: state.selected.contains(s.key),
-                onChanged: state.isDeleting
-                    ? null
-                    : (_) => bloc.add(StoredDataToggled(s.key)),
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text('Temporada ${s.season}'),
-                subtitle: Text(count),
-              )
-            : ListTile(
-                leading: const Icon(Icons.lock_outline),
-                title: Text('Temporada ${s.season}'),
-                subtitle: Text('$count · temporada actual, no se puede borrar'),
-              ),
-      );
+      byCompetition.putIfAbsent(s.competitionId, () => []).add(s);
     }
-    return tiles;
+    Widget tile(StoredSeason s) {
+      final count = _matches(s.matchCount);
+      return s.canDelete
+          ? CheckboxListTile(
+              value: state.selected.contains(s.key),
+              onChanged: state.isDeleting
+                  ? null
+                  : (_) => bloc.add(StoredDataToggled(s.key)),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text('Temporada ${s.season}'),
+              subtitle: Text(count),
+            )
+          : ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: Text('Temporada ${s.season}'),
+              subtitle: Text('$count · temporada actual, no se puede borrar'),
+            );
+    }
+
+    return [
+      for (final (i, seasons) in byCompetition.values.indexed)
+        Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 0 : AppSpacing.md),
+          child: MatchGroup(
+            header: MatchGroupHeader(title: seasons.first.competitionName),
+            children: [for (final s in seasons) tile(s)],
+          ),
+        ),
+    ];
   }
 }
 
@@ -256,13 +292,13 @@ class _ConfirmDeleteDialog extends StatelessWidget {
           children: [
             for (final s in selection)
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Text(
                   '• ${s.competitionName} ${s.season}: '
                   '${_matches(s.matchCount)}',
                 ),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'Se borran ${_matches(total)} de este dispositivo. Tus '
               'favoritos no se tocan. Si volvés a abrir esas temporadas, se '
@@ -283,20 +319,4 @@ class _ConfirmDeleteDialog extends StatelessWidget {
       ],
     );
   }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.text, this.action});
-
-  final String text;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [Text(text), ?action],
-    ),
-  );
 }

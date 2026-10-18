@@ -3,9 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_router.dart';
+import '../../../../app/shell/top_bar_team_search.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
-import '../../../../app/shell/top_bar_team_search.dart';
 import '../../domain/entities/favorite_team.dart';
 import '../bloc/favorites_bloc.dart';
 import '../widgets/favorite_button.dart';
@@ -16,15 +20,21 @@ class FavoritesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Favoritos'),
-        actions: const [TopBarTeamSearch()],
+      appBar: ContentAppBar(
+        maxWidth: Breakpoints.maxNarrowWidth,
+        bar: AppBar(
+          title: const Text('Favoritos'),
+          actions: const [TopBarTeamSearch()],
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(
+            maxWidth: Breakpoints.maxNarrowWidth,
+          ),
           child: BlocBuilder<FavoritesBloc, FavoritesState>(
             builder: (context, state) => switch (state) {
               FavoritesLoading() => Center(
@@ -45,17 +55,30 @@ class FavoritesPage extends StatelessWidget {
                   label: const Text('Buscar equipo'),
                 ),
               ),
+              // En una superficie de grupo con divisores, como los
+              // partidos (sin una tarjeta por equipo).
               FavoritesLoaded(:final teams) => ListView(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.xl,
+                ),
                 children: [
-                  for (final team in teams)
-                    _FavoriteTile(key: ValueKey(team.teamId), team: team),
+                  MatchGroup(
+                    children: [
+                      for (final team in teams)
+                        _FavoriteTile(key: ValueKey(team.teamId), team: team),
+                    ],
+                  ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 16),
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
                     child: Text(
                       'Guardados solo en este dispositivo',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -75,13 +98,11 @@ class _FavoriteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: TeamBadge(name: team.name, url: team.badgeUrl),
-        title: Text(team.name),
-        trailing: FavoriteButton(team: team.ref),
-        onTap: () => context.push(AppRoutes.favoriteTeam(team.teamId)),
-      ),
+    return ListTile(
+      leading: TeamBadge(name: team.name, url: team.badgeUrl),
+      title: Text(team.name),
+      trailing: FavoriteButton(team: team.ref),
+      onTap: () => context.push(AppRoutes.favoriteTeam(team.teamId)),
     );
   }
 }
