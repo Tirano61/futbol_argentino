@@ -141,7 +141,9 @@ final class GroupStage extends ZonedStandingsFormat {
   /// De dónde salen los criterios de desempate.
   final String tieBreakArticle;
 
-  /// Quiénes pasan a la etapa siguiente (la app no lo marca en la tabla).
+  /// Quiénes pasan a la etapa siguiente. La tabla lo muestra literal como
+  /// leyenda de su único marcador, «Sigue en competencia», que sale de
+  /// [advancingPlaces] (Hito E, E-D10).
   final String qualificationNote;
 
   /// Puestos de cada grupo que siguen en alguna copa según el reglamento

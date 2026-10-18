@@ -102,7 +102,7 @@ void main() {
       '4501:r150:s2026',
       '4501:r200:s2026',
     });
-    expect(lib.toSet(), hasLength(lib.length));
+    expect(lib.toSet(), hasLength(lib.length), reason: '$lib');
 
     await selectCompetition(tester, 'Sudamericana');
     await tester.pump(const Duration(minutes: 1));
@@ -118,7 +118,9 @@ void main() {
       '4724:r150:s2026',
       '4724:r200:s2026',
     });
-    expect(sud.toSet(), hasLength(sud.length));
+    // Con la lista en orden: la intermitencia vista en E4 y E5 (una ronda
+    // pedida dos veces) queda registrada si vuelve a aparecer.
+    expect(sud.toSet(), hasLength(sud.length), reason: '$sud');
 
     await tester.tap(find.text('Fixture'));
     await tester.pumpAndSettle();
