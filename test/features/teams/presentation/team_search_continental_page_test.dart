@@ -19,7 +19,10 @@ void main() {
   }
 
   Future<void> tapAction(WidgetTester tester) async {
+    // Desde E7 la acción va después de los resultados: al 200 % hay que
+    // desplazar la lista y dejar que se dibuje antes de tocar.
     await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
     await tester.tap(action);
     await tester.pumpAndSettle();
   }

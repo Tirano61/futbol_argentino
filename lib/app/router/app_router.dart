@@ -18,7 +18,7 @@ import '../../features/matches/domain/repositories/match_repository.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/teams/presentation/pages/team_detail_page.dart';
 import '../../features/teams/presentation/pages/team_search_page.dart';
-import '../../shared/presentation/widgets/coming_soon_page.dart';
+import '../../shared/presentation/widgets/invalid_link_page.dart';
 import '../shell/adaptive_shell.dart';
 
 abstract final class AppRoutes {
@@ -145,7 +145,7 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['eventId'] ?? '');
           return id == null
-              ? const ComingSoonPage(
+              ? const InvalidLinkPage(
                   title: 'Partido',
                   icon: Icons.sports_soccer,
                   message: 'El enlace del partido no es válido.',
@@ -190,7 +190,7 @@ GoRouter createAppRouter({required bool enableDiagnostics}) {
 Widget _teamDetail(BuildContext context, GoRouterState state) {
   final id = int.tryParse(state.pathParameters['teamId'] ?? '');
   return id == null
-      ? const ComingSoonPage(
+      ? const InvalidLinkPage(
           title: 'Equipo',
           icon: Icons.shield,
           message: 'El enlace del equipo no es válido.',

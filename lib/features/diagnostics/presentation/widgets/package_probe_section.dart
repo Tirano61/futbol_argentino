@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'badge_probe_section.dart';
 import '../../../../core/platform/file_download.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 
 /// Prueba de paquetes (T11.4): compartir, agregar al calendario y escudos
 /// guardados en disco. Solo datos de prueba, rotulados como tales.
@@ -108,7 +109,7 @@ class _PackageProbeSectionState extends State<PackageProbeSection> {
     final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -117,10 +118,10 @@ class _PackageProbeSectionState extends State<PackageProbeSection> {
               'Plataforma: ${kIsWeb ? 'Web' : defaultTargetPlatform.name}',
               style: textTheme.bodySmall,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
                 FilledButton.tonal(
                   onPressed: _share,
@@ -140,11 +141,11 @@ class _PackageProbeSectionState extends State<PackageProbeSection> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text('Escudo con CachedNetworkImage', style: textTheme.labelLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             SizedBox.square(
-              dimension: 56,
+              dimension: AppSizes.badgeHero,
               child: CachedNetworkImage(
                 imageUrl: _badge,
                 errorWidget: (context, url, error) {
@@ -153,7 +154,7 @@ class _PackageProbeSectionState extends State<PackageProbeSection> {
                 },
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             for (final line in _log)
               SelectableText(line, style: textTheme.bodySmall),
           ],

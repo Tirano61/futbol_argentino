@@ -416,7 +416,8 @@ void main() {
   };
 
   /// Ningún texto de la fila se recorta ni se sale de ella: solo el nombre
-  /// de un equipo puede cortarse desde el tercer renglón.
+  /// de un equipo puede cortarse (desde el cuarto renglón a los costados
+  /// del marcador y el tercero con los equipos apilados; E7).
   void expectNothingCut(WidgetTester tester) {
     for (final card in find.byType(MatchCard).evaluate()) {
       final box = card.renderObject! as RenderBox;
@@ -514,16 +515,20 @@ void main() {
             findsOne,
           );
           expect(find.text('Global River Plate 3-1 Boca Juniors'), findsOne);
-          expect(find.text('Avanza River Plate (global 3-1)'), findsOne);
+          expect(
+            find.text('Clasificó River Plate por resultado global (3-1)'),
+            findsOne,
+          );
           expect(find.text('Global Palmeiras 1-1 LDU Quito'), findsOne);
-          expect(find.text('Avanza Palmeiras (4-3 en penales)'), findsOne);
+          expect(find.text('Clasificó Palmeiras por penales (4-3)'), findsOne);
           expect(find.text('Global Lanús 1-1 Atlético Mineiro'), findsOne);
           expect(find.text('Sin dato de la definición'), findsOne);
           expect(find.text('Vuelta: sin datos en TheSportsDB'), findsOne);
           expect(find.byIcon(Icons.check_circle_outline), findsNWidgets(2));
           expect(find.byIcon(Icons.help_outline), findsOne);
-          // Dentro de la serie, la fila no repite «Avanza».
-          expect(find.textContaining('Avanza LDU'), findsNothing);
+          // Dentro de la serie, la fila no repite quién pasa (ni la
+          // vuelta que ganó LDU dice «Avanza LDU»).
+          expect(find.textContaining('Avanza'), findsNothing);
           expect(find.textContaining('Ida · '), findsNWidgets(5));
           expect(find.textContaining('Vuelta · '), findsNWidgets(4));
 

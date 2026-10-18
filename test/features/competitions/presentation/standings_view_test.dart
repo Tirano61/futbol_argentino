@@ -146,12 +146,12 @@ void main() {
     expect(tableRows, findsNWidgets(30));
     expect(
       find.textContaining(
-        'Fechas consultadas 16 de 16 · 413 de 480 partidos sumados',
+        'Fechas guardadas 16 de 16 · 413 de 480 partidos sumados',
       ),
       findsOne,
     );
     // La línea de cobertura empieza con el estado (Hito E, E5).
-    expect(find.textContaining('Tabla parcial · Fechas consultadas'), findsOne);
+    expect(find.textContaining('Tabla parcial · Fechas guardadas'), findsOne);
     expect(find.text('Partidos sin sumar (67)'), findsOne);
     expect(find.textContaining('art. 24 del'), findsOne);
     expect(find.textContaining('la app no los define'), findsOne);
@@ -252,7 +252,7 @@ void main() {
     expect(find.textContaining('Tabla Anual'), findsNothing);
     expect(
       find.textContaining(
-        'Fechas consultadas 36 de 36 · 307 de 342 partidos sumados',
+        'Fechas guardadas 36 de 36 · 307 de 342 partidos sumados',
       ),
       findsOne,
     );
@@ -356,7 +356,7 @@ void main() {
     expect(find.bySemanticsLabel(RegExp(r'^Posición 2: Mirassol\.')), findsOne);
     expect(
       find.textContaining(
-        'Fechas consultadas 6 de 6 · 12 de 12 partidos sumados',
+        'Fechas guardadas 6 de 6 · 12 de 12 partidos sumados',
       ),
       findsOne,
     );

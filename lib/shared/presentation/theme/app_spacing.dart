@@ -61,6 +61,11 @@ abstract final class AppSizes {
   /// Ícono de una vista vacía o de error.
   static const double emptyIcon = 40;
 
+  /// Indicador de carga dentro de un renglón de texto («Buscando en las
+  /// copas internacionales…»): del tamaño del ícono de un aviso.
+  static const double inlineProgress = bannerIcon;
+  static const double inlineProgressStroke = 2;
+
   /// Borde esfumado de una fila que se desplaza (hay más contenido).
   static const double scrollFade = 24;
 

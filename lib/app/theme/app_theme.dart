@@ -11,6 +11,9 @@ import '../../shared/presentation/theme/app_spacing.dart';
 /// estilos en cada widget: contenido sin elevación (la separación sale de
 /// la superficie), chips sin tilde, divisores de 1 px.
 abstract final class AppTheme {
+  /// Opacidad del contenido de un control deshabilitado (Material 3).
+  static const _disabledAlpha = 0.38;
+
   static ThemeData get light => _build(Brightness.light);
 
   static ThemeData get dark => _build(Brightness.dark);
@@ -26,7 +29,15 @@ abstract final class AppTheme {
     final palette = AppPalette.forBrightness(brightness);
     final text = ThemeData(colorScheme: colors).textTheme;
 
-    final chipLabel = text.labelLarge!.copyWith(color: colors.onSurface);
+    // Deshabilitado, como Material 3 (el color fijo valía también para ese
+    // estado y un chip inactivo se veía activo; E7).
+    final chipLabel = text.labelLarge!.copyWith(
+      color: WidgetStateColor.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? colors.onSurface.withValues(alpha: _disabledAlpha)
+            : colors.onSurface,
+      ),
+    );
     final chipSelectedLabel = chipLabel.copyWith(
       color: colors.onPrimaryContainer,
       fontWeight: FontWeight.w700,

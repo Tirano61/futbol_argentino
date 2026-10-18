@@ -6,7 +6,9 @@ import '../theme/app_text.dart';
 
 /// Superficie de un grupo de partidos (Hito E, §4.4): las filas
 /// (`MatchCard`) separadas por divisores finos, con un encabezado y un pie
-/// opcionales. Reemplaza «una tarjeta elevada por partido».
+/// opcionales. Reemplaza «una tarjeta elevada por partido». Desde E7 es
+/// también la superficie de las listas de equipos (Equipos, Favoritos) y
+/// de las secciones de Ajustes.
 class MatchGroup extends StatelessWidget {
   const MatchGroup({
     super.key,
@@ -134,8 +136,9 @@ class MatchGroupHeader extends StatelessWidget {
   }
 }
 
-/// Pie de un grupo: quién avanza en una serie («✓ Avanza Palmeiras
-/// (global 3-1)», en el color de quien avanza) o por qué no se sabe.
+/// Pie de un grupo: quién clasificó en una serie («✓ Clasificó Palmeiras
+/// por resultado global (3-1)», en el color de quien avanza) o por qué no
+/// se sabe.
 class MatchGroupFooter extends StatelessWidget {
   const MatchGroupFooter({
     super.key,

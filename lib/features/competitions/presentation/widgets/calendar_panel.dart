@@ -9,7 +9,7 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/calendar_day.dart';
 import '../../../../core/time/calendar_month.dart';
 import '../../../../core/time/clock.dart';
-import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/formatters/sync_texts.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/theme/app_palette.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
@@ -313,7 +313,7 @@ class _CoverageStatus extends StatelessWidget {
         context.read<CalendarBloc>().add(const CalendarCompletionRequested());
 
     if (progress.isRunning) {
-      final rounds = 'Fechas consultadas ${progress.done} de ${progress.total}';
+      final rounds = SyncTexts.running(progress, unit: 'fechas');
       return Semantics(
         liveRegion: true,
         label: rounds,
@@ -335,17 +335,18 @@ class _CoverageStatus extends StatelessWidget {
         ),
       );
     }
-    final upToDate = view.roundsTotal - view.roundsPending;
     if (progress.failure case final failure?) {
-      final (:title, message: _) = failureMessage(failure);
       return Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
         child: InfoBanner(
           tone: InfoTone.offline,
           icon: Icons.cloud_off,
-          text:
-              'No se pudieron consultar todas las fechas ($upToDate de '
-              '${view.roundsTotal} al día). $title',
+          text: SyncTexts.stopped(
+            progress,
+            failure,
+            unit: 'fechas',
+            stored: view.roundsStored,
+          ),
           action: TextButton(
             onPressed: complete,
             child: const Text('Reintentar'),

@@ -188,9 +188,9 @@ void main() {
     expect(weightOf(tester, 'Palmeiras'), FontWeight.w400);
     expect(find.text('Penales: 3-4'), findsOne);
     expect(find.text('Global Palmeiras 3-3 LDU Quito'), findsOne);
-    expect(find.text('Avanza Palmeiras (4-3 en penales)'), findsOne);
+    expect(find.text('Clasificó Palmeiras por penales (4-3)'), findsOne);
     expect(
-      find.bySemanticsLabel('Llave: Avanza Palmeiras (4-3 en penales)'),
+      find.bySemanticsLabel('Llave: Clasificó Palmeiras por penales (4-3)'),
       findsOne,
     );
     // Los datos conservan sus etiquetas y la serie lista las piernas.

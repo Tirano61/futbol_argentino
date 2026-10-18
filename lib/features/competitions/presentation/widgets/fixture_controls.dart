@@ -78,7 +78,7 @@ class FixtureSelectors extends StatelessWidget {
                   onPressed: () => bloc.add(
                     const FixturePhaseChanged(PhaseKey.undetermined),
                   ),
-                  icon: const Icon(Icons.help_outline, size: 18),
+                  icon: const Icon(Icons.help_outline),
                   label: Text(
                     state.undeterminedInRound == 1
                         ? '1 partido de esta ronda sin fase determinada'

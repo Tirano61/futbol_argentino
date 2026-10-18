@@ -63,6 +63,8 @@ class TeamBadge extends StatelessWidget {
 class _Initials extends StatelessWidget {
   const _Initials({required this.text, required this.size});
 
+  static const _maxScale = 1.3;
+
   final String text;
   final double size;
 
@@ -78,8 +80,17 @@ class _Initials extends StatelessWidget {
           color: colors.primaryContainer,
           shape: BoxShape.circle,
         ),
+        // El círculo no crece con el texto: las iniciales crecen hasta 1,3×
+        // (dos letras siguen entrando) y nunca se parten (al 200 % «NO» iba
+        // en dos renglones; E7). Son decorativas: el nombre completo va al
+        // lado y en la semántica.
         child: Text(
           text,
+          maxLines: 1,
+          softWrap: false,
+          textScaler: MediaQuery.textScalerOf(
+            context,
+          ).clamp(maxScaleFactor: _maxScale),
           style: TextStyle(
             color: colors.onPrimaryContainer,
             fontSize: size * 0.36,

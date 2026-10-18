@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../theme/app_palette.dart';
 import '../theme/app_spacing.dart';
@@ -58,32 +61,43 @@ class InfoBanner extends StatelessWidget {
       InfoTone.error => (Icons.error_outline, colors.error),
     };
 
-    Widget content = Padding(
-      padding: EdgeInsets.fromLTRB(
-        band ? AppSpacing.lg : AppSpacing.md,
-        AppSpacing.sm,
-        action == null ? (band ? AppSpacing.lg : AppSpacing.md) : AppSpacing.xs,
-        AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon ?? defaultIcon,
-            color: iconColor,
-            size: AppSizes.bannerIcon,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bannerMessage.copyWith(
-                color: colors.onSurface,
-              ),
+    final message = Row(
+      children: [
+        Icon(icon ?? defaultIcon, color: iconColor, size: AppSizes.bannerIcon),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bannerMessage.copyWith(
+              color: colors.onSurface,
             ),
           ),
-          ?action,
-        ],
+        ),
+      ],
+    );
+    final side = band ? AppSpacing.lg : AppSpacing.md;
+    final action = this.action;
+    Widget content = Padding(
+      padding: EdgeInsets.fromLTRB(
+        side,
+        AppSpacing.sm,
+        action == null ? side : AppSpacing.xs,
+        AppSpacing.sm,
       ),
+      child: action == null
+          ? message
+          : _MessageWithAction(
+              // Al lado del texto solo si le deja unas 12 letras por
+              // renglón; si no (texto grande en un teléfono), debajo.
+              minMessageWidth:
+                  AppSizes.bannerIcon +
+                  AppSpacing.md +
+                  12 *
+                      MediaQuery.textScalerOf(
+                        context,
+                      ).scale(theme.textTheme.bannerMessage.fontSize!),
+              children: [message, action],
+            ),
     );
     if (band) content = SafeArea(bottom: false, child: content);
 
@@ -96,4 +110,126 @@ class InfoBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// El mensaje y su acción: la acción a la derecha si al mensaje le queda
+/// al menos [minMessageWidth]; si no, debajo y alineada al final. Así, con
+/// el texto al 200 %, el aviso no queda en una columna angosta (el de
+/// «Completar» del Calendario ocupaba media pantalla; Fase E7).
+class _MessageWithAction extends MultiChildRenderObjectWidget {
+  const _MessageWithAction({
+    required this.minMessageWidth,
+    required super.children,
+  });
+
+  final double minMessageWidth;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMessageWithAction(minMessageWidth);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMessageWithAction renderObject,
+  ) => renderObject.minMessageWidth = minMessageWidth;
+}
+
+class _ActionParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderMessageWithAction extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _ActionParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _ActionParentData> {
+  _RenderMessageWithAction(this._minMessageWidth);
+
+  double _minMessageWidth;
+  set minMessageWidth(double value) {
+    if (value == _minMessageWidth) return;
+    _minMessageWidth = value;
+    markNeedsLayout();
+  }
+
+  RenderBox get _message => firstChild!;
+  RenderBox get _action => lastChild!;
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _ActionParentData) {
+      child.parentData = _ActionParentData();
+    }
+  }
+
+  /// Si la acción va al lado del mensaje con este ancho.
+  bool _beside(double width, double actionWidth) =>
+      width - actionWidth >= _minMessageWidth;
+
+  Size _layout(BoxConstraints constraints, {required bool dry}) {
+    final width = constraints.maxWidth;
+    Size measure(RenderBox child, BoxConstraints c) {
+      if (dry) return child.getDryLayout(c);
+      child.layout(c, parentUsesSize: true);
+      return child.size;
+    }
+
+    final action = measure(_action, BoxConstraints(maxWidth: width));
+    if (_beside(width, action.width)) {
+      final message = measure(
+        _message,
+        BoxConstraints.tightFor(width: width - action.width),
+      );
+      final height = math.max(message.height, action.height);
+      if (!dry) {
+        _offset(_message, Offset(0, (height - message.height) / 2));
+        _offset(
+          _action,
+          Offset(width - action.width, (height - action.height) / 2),
+        );
+      }
+      return constraints.constrain(Size(width, height));
+    }
+    final message = measure(_message, BoxConstraints.tightFor(width: width));
+    if (!dry) {
+      _offset(_message, Offset.zero);
+      _offset(_action, Offset(width - action.width, message.height));
+    }
+    return constraints.constrain(Size(width, message.height + action.height));
+  }
+
+  static void _offset(RenderBox child, Offset offset) =>
+      (child.parentData! as _ActionParentData).offset = offset;
+
+  @override
+  void performLayout() => size = _layout(constraints, dry: false);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      _layout(constraints, dry: true);
+
+  @override
+  double computeMinIntrinsicWidth(double height) => math.max(
+    _message.getMinIntrinsicWidth(height),
+    _action.getMinIntrinsicWidth(height),
+  );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _message.getMaxIntrinsicWidth(height) +
+      _action.getMaxIntrinsicWidth(height);
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _layout(BoxConstraints(maxWidth: width), dry: true).height;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      computeMinIntrinsicHeight(width);
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
 }

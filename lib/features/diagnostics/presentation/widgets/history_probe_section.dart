@@ -7,6 +7,7 @@ import '../../../competitions/domain/catalog/competition_catalog.dart';
 import '../../../competitions/domain/entities/season.dart';
 import '../../../competitions/domain/entities/season_completion.dart';
 import '../bloc/history_probe_bloc.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 
 /// Historial a pedido (Fase 12): completa una temporada con prioridad P2 y
 /// muestra qué se pidió y qué no. Las peticiones reales aparecen como
@@ -37,7 +38,7 @@ class _HistoryProbeSectionState extends State<HistoryProbeSection> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: BlocBuilder<HistoryProbeBloc, HistoryProbeState>(
           builder: (context, state) {
             final bloc = context.read<HistoryProbeBloc>();
@@ -52,17 +53,17 @@ class _HistoryProbeSectionState extends State<HistoryProbeSection> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Historial', style: textTheme.titleMedium),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Completa una temporada a pedido (P2: 10 rondas por minuto, '
                   'de a una). No vuelve a pedir lo vigente, ni las rondas '
                   'cerradas o históricas salvo «Forzar vencidas».',
                   style: textTheme.bodySmall,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: [
                     for (final d in CompetitionCatalog.all)
                       ChoiceChip(
@@ -78,10 +79,10 @@ class _HistoryProbeSectionState extends State<HistoryProbeSection> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: [
                     FilledButton.tonalIcon(
                       onPressed: state.running ? null : start,
@@ -105,12 +106,12 @@ class _HistoryProbeSectionState extends State<HistoryProbeSection> {
                   ],
                 ),
                 if (state.completion case final completion?) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   _CompletionView(state: state, completion: completion),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text('Temporadas guardadas', style: textTheme.titleSmall),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 if (state.summaries.isEmpty)
                   const Text('Sin partidos guardados.')
                 else
@@ -120,7 +121,7 @@ class _HistoryProbeSectionState extends State<HistoryProbeSection> {
                       'partidos · ${s.orphanedCount} sin confirmar · '
                       '${s.removedCount} dados de baja',
                     ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Limpieza automática: desactivada. Solo borraría partidos '
                   'dados de baja y verificados con lookupevent hace más de 30 '
@@ -177,7 +178,7 @@ class _CompletionView extends StatelessWidget {
           '${completion.matches.length} partidos guardados',
         ),
         if (state.running) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           LinearProgressIndicator(
             value: progress.total == 0 ? null : progress.done / progress.total,
           ),
@@ -185,12 +186,14 @@ class _CompletionView extends StatelessWidget {
         if (failure != null)
           SelectableText(
             '${failure.runtimeType}: ${failure.detail}',
-            style: TextStyle(color: colors.error, fontSize: 12),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.error),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 12,
-          runSpacing: 4,
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xs,
           children: [
             for (final r in completion.rounds)
               Text('r${r.apiRound} ${_label(r.status)}'),

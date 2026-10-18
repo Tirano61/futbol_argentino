@@ -33,7 +33,9 @@ void main() {
   Finder ties(String round) =>
       find.bySemanticsLabel(RegExp('^${RegExp.escape(round)}\\. '));
 
-  Finder advancing() => find.bySemanticsLabel(RegExp('Avanza '));
+  /// Quién pasa: «Avanza X» en un partido único y «Clasificó X por…» en
+  /// una serie de ida y vuelta (Fase E7).
+  Finder advancing() => find.bySemanticsLabel(RegExp('Avanza |Clasificó '));
 
   group('2025 completo', () {
     testWidgets('Libertadores: 15 llaves con ganador y la final Palmeiras 0-1 '
@@ -83,7 +85,7 @@ void main() {
         find.bySemanticsLabel(
           RegExp(
             '^Semifinales\\. Universidad de Chile contra Lanús.*'
-            'Avanza Lanús \\(global 3-2\\)\$',
+            'Clasificó Lanús por resultado global \\(3-2\\)\$',
           ),
         ),
         findsOne,
@@ -92,7 +94,7 @@ void main() {
         find.bySemanticsLabel(
           RegExp(
             '^Semifinales\\. Independiente del Valle contra Atlético Mineiro.*'
-            'Avanza Atlético Mineiro \\(global 4-2\\)\$',
+            'Clasificó Atlético Mineiro por resultado global \\(4-2\\)\$',
           ),
         ),
         findsOne,
@@ -101,7 +103,7 @@ void main() {
       expect(
         find.bySemanticsLabel(
           RegExp(
-            '^(Octavos de final|Cuartos de final|Semifinales)\\..*Avanza ',
+            '^(Octavos de final|Cuartos de final|Semifinales)\\..*Clasificó ',
           ),
         ),
         findsNWidgets(14),
@@ -128,7 +130,7 @@ void main() {
 
       expect(find.text('Eliminatorias · Final'), findsOne);
       expect(find.text('Sin dato de la definición'), findsOne);
-      expect(find.textContaining('Avanza'), findsNothing);
+      expect(find.textContaining(RegExp('Avanza|Clasificó')), findsNothing);
     });
   });
 
@@ -184,7 +186,7 @@ void main() {
           ),
           findsOne,
         );
-        expect(find.textContaining('Avanza'), findsNothing);
+        expect(find.textContaining(RegExp('Avanza|Clasificó')), findsNothing);
       });
     }
   });

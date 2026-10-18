@@ -8,7 +8,12 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_palette.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/widgets/content_app_bar.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
@@ -86,17 +91,29 @@ class _TeamSearchViewState extends State<_TeamSearchView> {
       },
       builder: (context, state) {
         final indexFailure = state.indexFailure;
+        final colors = Theme.of(context).colorScheme;
+        // Con la forma del acceso del Inicio (`TeamSearchShortcut`), que
+        // abre esta pantalla.
+        OutlineInputBorder border(Color color) => OutlineInputBorder(
+          borderRadius: AppRadius.pillAll,
+          borderSide: BorderSide(color: color),
+        );
         return Scaffold(
-          appBar: AppBar(title: const Text('Equipos')),
+          appBar: ContentAppBar(
+            maxWidth: Breakpoints.maxNarrowWidth,
+            bar: AppBar(title: const Text('Equipos')),
+          ),
           body: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
+              constraints: const BoxConstraints(
+                maxWidth: Breakpoints.maxNarrowWidth,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: TextField(
                       controller: _controller,
                       textInputAction: TextInputAction.search,
@@ -110,7 +127,11 @@ class _TeamSearchViewState extends State<_TeamSearchView> {
                                 onPressed: _clear,
                                 icon: const Icon(Icons.clear),
                               ),
-                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: AppPalette.of(context).group,
+                        border: border(colors.outlineVariant),
+                        enabledBorder: border(colors.outlineVariant),
+                        focusedBorder: border(colors.primary),
                       ),
                       onChanged: (text) => context.read<TeamSearchBloc>().add(
                         TeamSearchQueryChanged(text),
@@ -124,7 +145,12 @@ class _TeamSearchViewState extends State<_TeamSearchView> {
                     ),
                   if (indexFailure != null && !state.isIndexing)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
                       child: _IndexNotice(
                         failure: indexFailure,
                         hasTeams: state.indexSize > 0,
@@ -184,25 +210,38 @@ class _Results extends StatelessWidget {
             ? _ContinentalSearch(state: state)
             : null,
       ),
+      // Los equipos en una superficie de grupo con divisores, como las
+      // filas de partido (sin una tarjeta por equipo).
       TeamSearchFound(:final teams, :final isOnline) => ListView(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
+        // El aviso presenta los resultados y van enseguida; la búsqueda en
+        // las copas, después: con texto grande no los tapa (E7).
         children: [
-          if (isOnline && _offersContinental(state))
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-              child: _ContinentalSearch(state: state),
-            ),
           if (isOnline)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-              child: Text(
-                'Sin coincidencias en los equipos guardados. '
-                'Resultados de TheSportsDB:',
-                style: Theme.of(context).textTheme.bodySmall,
+            const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.sm),
+              child: InfoBanner(
+                text:
+                    'Sin coincidencias en los equipos guardados. '
+                    'Resultados de TheSportsDB:',
               ),
             ),
-          for (final team in teams)
-            _TeamTile(key: ValueKey(team.team.id), team: team),
+          MatchGroup(
+            children: [
+              for (final team in teams)
+                _TeamTile(key: ValueKey(team.team.id), team: team),
+            ],
+          ),
+          if (isOnline && _offersContinental(state))
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: _ContinentalSearch(state: state),
+            ),
         ],
       ),
     };
@@ -226,12 +265,15 @@ class _ContinentalSearch extends StatelessWidget {
         liveRegion: true,
         child: const Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              dimension: AppSizes.inlineProgress,
+              child: CircularProgressIndicator(
+                strokeWidth: AppSizes.inlineProgressStroke,
+              ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: AppSpacing.md),
             Flexible(child: Text('Buscando en las copas internacionales…')),
           ],
         ),
@@ -241,7 +283,7 @@ class _ContinentalSearch extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           onPressed: () => context.read<TeamSearchBloc>().add(
             const TeamSearchContinentalRequested(),
           ),
@@ -250,12 +292,12 @@ class _ContinentalSearch extends StatelessWidget {
         ),
         if (failure != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'No se pudieron consultar las copas: '
-              '${failureMessage(failure).title}.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: InfoBanner(
+              tone: InfoTone.error,
+              text:
+                  'No se pudieron consultar las copas: '
+                  '${failureMessage(failure).title}.',
             ),
           ),
       ],
@@ -276,14 +318,12 @@ class _TeamTile extends StatelessWidget {
       for (final c in CompetitionCatalog.all)
         if (team.competitionIds.contains(c.id)) c.name,
     ];
-    return Card(
-      child: ListTile(
-        leading: TeamBadge(name: team.team.name, url: team.team.badgeUrl),
-        title: Text(team.team.name),
-        subtitle: competitions.isEmpty ? null : Text(competitions.join(' · ')),
-        trailing: FavoriteButton(team: team.team),
-        onTap: () => context.push(AppRoutes.teamDetail(team.team.id)),
-      ),
+    return ListTile(
+      leading: TeamBadge(name: team.team.name, url: team.team.badgeUrl),
+      title: Text(team.team.name),
+      subtitle: competitions.isEmpty ? null : Text(competitions.join(' · ')),
+      trailing: FavoriteButton(team: team.team),
+      onTap: () => context.push(AppRoutes.teamDetail(team.team.id)),
     );
   }
 }
