@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/competition_logo.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
+import 'package:http/http.dart' as http;
 
 import '../helpers/accessibility.dart';
 import '../helpers/real_fonts.dart';
@@ -32,9 +34,9 @@ void main() {
     (const Size(1280, 800), 'Copa Libertadores', 'Temporada 2026'),
     (const Size(800, 1280), 'Copa Libertadores', 'Temporada 2026'),
     (const Size(1920, 1080), 'Copa Libertadores', 'Temporada 2026'),
-    // En un teléfono, el año solo; a 360 todavía entra el nombre completo.
+    // En un teléfono, el año solo; a 360, con el logo, el nombre corto.
     (const Size(411, 900), 'Copa Libertadores', '2026'),
-    (const Size(360, 780), 'Copa Libertadores', '2026'),
+    (const Size(360, 780), 'Libertadores', '2026'),
   ]) {
     testWidgets('${size.width.toInt()}×${size.height.toInt()}: «$name» y la '
         'temporada en la barra, sin cortes ni superposiciones', (tester) async {
@@ -136,4 +138,47 @@ void main() {
     expect(text.didExceedMaxLines, isFalse);
     expect(inBar(find.text('Temporada 2026')), findsOne);
   });
+
+  // Los logos son assets de la app: se ven sin conexión y abrir el
+  // selector no pide nada (ni a la API ni a la red de imágenes).
+  for (final size in [const Size(360, 780), const Size(1280, 800)]) {
+    testWidgets('${size.width.toInt()} px sin conexión: los siete logos se '
+        'dibujan y abrir el selector no hace peticiones', (tester) async {
+      final requests = <Uri>[];
+      await pumpApp(
+        tester,
+        size,
+        requests: requests,
+        // Ninguna consulta responde (404: sin los reintentos de un error
+        // pasajero, que dejarían temporizadores pendientes).
+        respond: (url) => http.Response('Sin conexión', 404),
+      );
+      await openSection(tester, 'Competiciones');
+      final before = requests.length;
+
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      final logos = find.byType(CompetitionLogo);
+      // La de la barra y una por competición en la hoja o el menú.
+      expect(logos, findsNWidgets(8));
+      final context = tester.element(logos.first);
+      await tester.runAsync(() async {
+        for (final path in CompetitionLogo.assets.values) {
+          await precacheImage(AssetImage(path), context);
+        }
+      });
+      await tester.pumpAndSettle();
+
+      final images = tester.widgetList<RawImage>(
+        find.descendant(of: logos, matching: find.byType(RawImage)),
+      );
+      expect(images, hasLength(8));
+      expect(images.every((i) => i.image != null), isTrue);
+      expect(
+        find.descendant(of: logos, matching: find.byType(Icon)),
+        findsNothing,
+      );
+      expect(requests, hasLength(before));
+    });
+  }
 }

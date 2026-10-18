@@ -67,6 +67,9 @@ void main() {
           1,
         ),
       ]) {
+        // «Copa Argentina» no tiene un nombre más corto: a 360, con el
+        // logo, la temporada baja a los filtros (y sigue ≤ 200 px).
+        final seasonInBar = !(width == 360 && name.contains('Copa Argentina'));
         testWidgets('$name: ≤ 200 px de controles', (tester) async {
           await pumpApp(tester, size, now: continentalRecordingTime);
           await goTo(tester, location, wait: Duration(minutes: minutes));
@@ -75,7 +78,8 @@ void main() {
           // ignore: avoid_print
           print('E4 · $name a ${width.toInt()} px: ${height.round()} px');
           expect(height, lessThanOrEqualTo(200));
-          expect(inBar(season), findsOne);
+          expect(inBar(season), seasonInBar ? findsOne : findsNothing);
+          expect(season, findsOne);
           await expectGuidelines(tester);
         });
       }

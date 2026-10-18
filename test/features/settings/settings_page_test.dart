@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/platform/external_actions.dart';
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/favorites/data/repositories/favorites_repository_impl.dart';
 import 'package:futbol_argentino/features/favorites/domain/entities/favorite_team.dart';
@@ -14,6 +15,7 @@ import 'package:futbol_argentino/features/settings/presentation/pages/settings_p
 import 'package:sembast/sembast_memory.dart';
 
 import '../../helpers/fake_clock.dart';
+import '../../helpers/fake_external_actions.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/favorites.dart';
 import '../../helpers/recorded_api.dart';
@@ -187,5 +189,91 @@ void main() {
     expect(left.primera2025, isEmpty);
     expect(left.primera2026, hasLength(30));
     expect(left.boca, isTrue);
+  });
+
+  group('Fuente', () {
+    Future<FakeExternalActions> pumpSettings(
+      WidgetTester tester, {
+      bool linkOpens = true,
+      double textScale = 1,
+    }) async {
+      tester.view
+        ..physicalSize = const Size(360, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      if (textScale != 1) {
+        tester.platformDispatcher.textScaleFactorTestValue = textScale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      }
+      final data = await outsideFakeAsync(tester, storedData);
+      final actions = FakeExternalActions(linkOpens: linkOpens);
+      await tester.pumpWidget(
+        MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<MatchRepository>.value(value: data.api.matches),
+            RepositoryProvider<Clock>.value(value: FixedClock(now)),
+            RepositoryProvider<ExternalActions>.value(value: actions),
+          ],
+          child: BlocProvider(
+            create: (context) =>
+                SettingsBloc(settings: data.settings)
+                  ..add(const SettingsSubscribed()),
+            child: const MaterialApp(home: SettingsPage()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return actions;
+    }
+
+    final source = find.widgetWithText(
+      ListTile,
+      'Datos e imágenes: TheSportsDB',
+    );
+
+    testWidgets('menciona TheSportsDB y abre su sitio', (tester) async {
+      final actions = await pumpSettings(tester);
+
+      expect(find.text('Fuente'), findsOne);
+      expect(source, findsOne);
+      expect(find.text('www.thesportsdb.com'), findsOne);
+      expect(
+        find.text(
+          'Los logos de las competiciones y los escudos de los equipos '
+          'pertenecen a sus dueños.',
+        ),
+        findsOne,
+      );
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+
+      await tester.tap(source);
+      await tester.pumpAndSettle();
+      expect(actions.links, [Uri.parse('https://www.thesportsdb.com/')]);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('si no se puede abrir, lo avisa con la dirección', (
+      tester,
+    ) async {
+      final actions = await pumpSettings(tester, linkOpens: false);
+
+      await tester.tap(source);
+      await tester.pumpAndSettle();
+      expect(actions.links, hasLength(1));
+      expect(
+        find.text('No se pudo abrir el enlace: www.thesportsdb.com'),
+        findsOne,
+      );
+    });
+
+    testWidgets('texto al 200 %: sin desbordes', (tester) async {
+      await pumpSettings(tester, textScale: 2);
+      await tester.scrollUntilVisible(source, 200);
+      await tester.pumpAndSettle();
+      expect(source, findsOne);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

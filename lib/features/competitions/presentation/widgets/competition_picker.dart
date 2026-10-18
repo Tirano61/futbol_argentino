@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../domain/catalog/competition_catalog.dart';
+import 'competition_logo.dart';
 
 /// Selector de competición en el título de la barra superior (Hito E,
 /// decisión E-D8): el nombre de la competición con una flecha. En un
@@ -11,12 +12,17 @@ import '../../domain/catalog/competition_catalog.dart';
 ///
 /// La categoría se deriva de la competición elegida (no es estado propio ni
 /// va en la URL): solo agrupa la lista.
+///
+/// Cada competición lleva su logo (`CompetitionLogo`) en el título, la hoja
+/// y el menú; en el título se oculta solo si ni el nombre corto entra con él
+/// ([CompetitionTitleLayout]).
 class CompetitionPicker extends StatelessWidget {
   const CompetitionPicker({
     super.key,
     required this.selected,
     required this.onSelected,
     this.shortName = false,
+    this.showLogo = true,
     this.catalog = CompetitionCatalog.all,
   });
 
@@ -30,6 +36,9 @@ class CompetitionPicker extends StatelessWidget {
   /// Mostrar el nombre corto («Libertadores»): el completo no entra.
   final bool shortName;
 
+  /// Logo al lado del nombre en el título.
+  final bool showLogo;
+
   final List<CompetitionDefinition> catalog;
 
   static const tooltip = 'Elegir competición';
@@ -39,8 +48,12 @@ class CompetitionPicker extends StatelessWidget {
   static const titleMaxTextScale = 1.34;
 
   /// Ancho que necesita el selector con [name], con la fuente y la escala
-  /// de texto reales: texto, relleno y flecha.
-  static double widthFor(BuildContext context, String name) {
+  /// de texto reales: logo (si va), texto, relleno y flecha.
+  static double widthFor(
+    BuildContext context,
+    String name, {
+    bool logo = true,
+  }) {
     final scaler = MediaQuery.textScalerOf(
       context,
     ).clamp(maxScaleFactor: titleMaxTextScale);
@@ -52,10 +65,17 @@ class CompetitionPicker extends StatelessWidget {
     )..layout();
     final width = painter.width.ceilToDouble();
     painter.dispose();
-    return width + 2 * AppSpacing.sm + _arrowSize;
+    return (logo ? CompetitionLogo.size + AppSpacing.sm : 0) +
+        width +
+        2 * AppSpacing.sm +
+        _arrowSize;
   }
 
   static const _arrowSize = 24.0;
+
+  static final _menuItemStyle = MenuItemButton.styleFrom(
+    visualDensity: VisualDensity.standard,
+  );
 
   static TextStyle _style(BuildContext context) {
     final theme = Theme.of(context);
@@ -110,6 +130,10 @@ class CompetitionPicker extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (showLogo) ...[
+                    CompetitionLogo(competition: selected),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
                   Flexible(
                     child: Text(
                       shortName ? selected.shortName : selected.name,
@@ -129,32 +153,65 @@ class CompetitionPicker extends StatelessWidget {
     );
 
     if (Breakpoints.isCompact(context)) {
-      return button(() => _openSheet(context));
+      return _PrecacheLogos(child: button(() => _openSheet(context)));
     }
-    return MenuAnchor(
-      alignmentOffset: const Offset(0, AppSpacing.xs),
-      menuChildren: [
-        for (final MapEntry(key: category, value: competitions)
-            in CompetitionCatalog.byCategory(catalog).entries) ...[
-          _MenuHeader(category.label),
-          for (final c in competitions)
-            MenuItemButton(
-              leadingIcon: c.id == selected.id
-                  ? const Icon(Icons.check)
-                  : const SizedBox.square(dimension: _arrowSize),
-              onPressed: () => _select(c.id),
-              child: Semantics(
-                selected: c.id == selected.id,
-                child: Text(c.name),
+    return _PrecacheLogos(
+      child: MenuAnchor(
+        alignmentOffset: const Offset(0, AppSpacing.xs),
+        menuChildren: [
+          for (final MapEntry(key: category, value: competitions)
+              in CompetitionCatalog.byCategory(catalog).entries) ...[
+            _MenuHeader(category.label),
+            for (final c in competitions)
+              MenuItemButton(
+                // Filas de 48 también con el ratón (la densidad compacta del
+                // escritorio las deja en 40 y los recuadros de los logos
+                // quedan casi pegados).
+                style: _menuItemStyle,
+                leadingIcon: CompetitionLogo(competition: c),
+                trailingIcon: c.id == selected.id
+                    ? const Icon(Icons.check)
+                    : const SizedBox.square(dimension: _arrowSize),
+                onPressed: () => _select(c.id),
+                child: Semantics(
+                  selected: c.id == selected.id,
+                  child: Text(c.name),
+                ),
               ),
-            ),
+          ],
         ],
-      ],
-      builder: (context, controller, _) => button(
-        () => controller.isOpen ? controller.close() : controller.open(),
+        builder: (context, controller, _) => button(
+          () => controller.isOpen ? controller.close() : controller.open(),
+        ),
       ),
     );
   }
+}
+
+/// Carga los logos de todas las competiciones cuando aparece el selector
+/// (`CompetitionLogo.precacheAll`), una sola vez.
+class _PrecacheLogos extends StatefulWidget {
+  const _PrecacheLogos({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PrecacheLogos> createState() => _PrecacheLogosState();
+}
+
+class _PrecacheLogosState extends State<_PrecacheLogos> {
+  var _done = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_done) return;
+    _done = true;
+    CompetitionLogo.precacheAll(context);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Nombre de una categoría en el menú (encabezado, no se elige).
@@ -188,21 +245,24 @@ class _MenuHeader extends StatelessWidget {
 }
 
 /// Qué entra en la barra superior: el nombre completo de la competición o
-/// el corto, y si la temporada va al lado o baja a los filtros de la vista.
-/// Se mide con la fuente y la escala de texto reales sobre el ancho que le
-/// queda al título (no el de la pantalla: el riel, la búsqueda y las
-/// acciones lo achican).
+/// el corto, si la temporada va al lado o baja a los filtros de la vista y
+/// si va el logo. Se mide con la fuente y la escala de texto reales sobre el
+/// ancho que le queda al título (no el de la pantalla: el riel, la búsqueda
+/// y las acciones lo achican).
 ///
-/// Orden: completo y temporada; corto y temporada; completo solo; corto
-/// solo (si ni así entra, el nombre corto se recorta con «…»).
+/// Orden, siempre con el logo: completo y temporada; corto y temporada;
+/// completo solo; corto solo. Si ni el corto entra con el logo, el logo se
+/// oculta antes de recortar el nombre con «…».
 class CompetitionTitleLayout {
   const CompetitionTitleLayout({
     required this.shortName,
     required this.seasonInBar,
+    this.showLogo = true,
   });
 
   final bool shortName;
   final bool seasonInBar;
+  final bool showLogo;
 
   /// [seasonWidth]: ancho del selector de temporada en la barra; `null`
   /// mientras no hay temporada.
@@ -221,9 +281,17 @@ class CompetitionTitleLayout {
     if (short + season <= width) {
       return const CompetitionTitleLayout(shortName: true, seasonInBar: true);
     }
+    final seasonInBar = seasonWidth == null;
+    if (short <= width) {
+      return CompetitionTitleLayout(
+        shortName: full > width,
+        seasonInBar: seasonInBar,
+      );
+    }
     return CompetitionTitleLayout(
-      shortName: full > width,
-      seasonInBar: seasonWidth == null,
+      shortName: true,
+      seasonInBar: seasonInBar,
+      showLogo: false,
     );
   }
 }
@@ -285,6 +353,7 @@ class _CompetitionSheetState extends State<_CompetitionSheet> {
           for (final c in competitions)
             ListTile(
               key: c.id == selectedId ? _selectedKey : null,
+              leading: CompetitionLogo(competition: c),
               title: Text(c.name),
               selected: c.id == selectedId,
               trailing: c.id == selectedId ? const Icon(Icons.check) : null,
