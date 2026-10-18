@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/network/rate_limit_status.dart';
 import '../../core/time/argentina_time.dart';
 import '../../core/time/clock.dart';
+import '../../shared/presentation/widgets/info_banner.dart';
 
 /// Envuelve toda la app: mientras TheSportsDB tiene pausadas las consultas
 /// (HTTP 429), muestra arriba hasta qué hora; mientras una consulta espera
@@ -65,22 +66,19 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     // La pausa por 429 manda: es más larga y dice hasta qué hora.
     final notice = switch ((_pause.until, _throttle.until)) {
       (final until?, _) => (
         text:
             'TheSportsDB pidió esperar por el límite de consultas. Se sigue '
             'a las ${ArgentinaTime.formatTime(until)}.',
-        background: colors.tertiaryContainer,
-        foreground: colors.onTertiaryContainer,
+        tone: InfoTone.warning,
       ),
       (null, _?) => (
         text:
             'Muchas consultas seguidas: para no pasar el límite de '
             'TheSportsDB, se sigue en menos de un minuto.',
-        background: colors.secondaryContainer,
-        foreground: colors.onSecondaryContainer,
+        tone: InfoTone.info,
       ),
       (null, null) => null,
     };
@@ -89,32 +87,11 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
     return Column(
       children: [
         if (notice != null)
-          Material(
-            color: notice.background,
-            child: SafeArea(
-              bottom: false,
-              child: Semantics(
-                liveRegion: true,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.hourglass_top, color: notice.foreground),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          notice.text,
-                          style: TextStyle(color: notice.foreground),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          InfoBanner(
+            icon: Icons.hourglass_top,
+            text: notice.text,
+            tone: notice.tone,
+            band: true,
           ),
         Expanded(
           child: MediaQuery.removePadding(

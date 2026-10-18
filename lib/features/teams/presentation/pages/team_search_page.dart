@@ -8,6 +8,7 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../competitions/domain/catalog/competition_catalog.dart';
@@ -296,27 +297,12 @@ class _IndexNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final (:title, message: _) = failureMessage(failure);
-    return Semantics(
-      liveRegion: true,
-      child: Material(
-        color: hasTeams ? colors.tertiaryContainer : colors.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(
-            hasTeams
-                ? 'Se busca entre los equipos guardados. $title.'
-                : 'No se pudo cargar la lista de equipos. $title.',
-            style: TextStyle(
-              color: hasTeams
-                  ? colors.onTertiaryContainer
-                  : colors.onErrorContainer,
-            ),
-          ),
-        ),
-      ),
+    return InfoBanner(
+      tone: hasTeams ? InfoTone.offline : InfoTone.error,
+      text: hasTeams
+          ? 'Se busca entre los equipos guardados. $title.'
+          : 'No se pudo cargar la lista de equipos. $title.',
     );
   }
 }

@@ -7,6 +7,8 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
@@ -347,34 +349,16 @@ class _SyncStatus extends StatelessWidget {
     }
     if (failure == null) return const SizedBox.shrink();
 
-    final colors = theme.colorScheme;
     final (:title, message: _) = failureMessage(failure);
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Semantics(
-        liveRegion: true,
-        child: Material(
-          color: colors.tertiaryContainer,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-            child: Row(
-              children: [
-                Icon(Icons.cloud_off, color: colors.onTertiaryContainer),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'No se pudieron completar los partidos '
-                    '(${progress.done}/${progress.total}). $title. '
-                    'Se muestran los guardados.',
-                    style: TextStyle(color: colors.onTertiaryContainer),
-                  ),
-                ),
-                TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-              ],
-            ),
-          ),
-        ),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: InfoBanner(
+        tone: InfoTone.offline,
+        text:
+            'No se pudieron completar los partidos '
+            '(${progress.done}/${progress.total}). $title. '
+            'Se muestran los guardados.',
+        action: TextButton(onPressed: onRetry, child: const Text('Reintentar')),
       ),
     );
   }

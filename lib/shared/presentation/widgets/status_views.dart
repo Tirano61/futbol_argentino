@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/time/argentina_time.dart';
 import '../formatters/failure_messages.dart';
+import '../theme/app_spacing.dart';
+import 'info_banner.dart';
 
 /// Pantalla vacía informativa.
 class EmptyView extends StatelessWidget {
@@ -22,25 +24,33 @@ class EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final content = Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 56, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(height: 12),
+          Icon(icon, size: AppSizes.emptyIcon, color: colors.onSurfaceVariant),
+          const SizedBox(height: AppSpacing.md),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: colors.onSurface,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
-          if (action != null) ...[const SizedBox(height: 16), action!],
+          if (action != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            action!,
+          ],
         ],
       ),
     );
@@ -75,20 +85,22 @@ class ErrorView extends StatelessWidget {
             message: message,
             action: onRetry == null
                 ? null
-                : FilledButton.icon(
+                : FilledButton.tonalIcon(
                     onPressed: onRetry,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Reintentar'),
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: ExpansionTile(
               title: const Text('Detalle técnico'),
               children: [
                 SelectableText(
                   failure.detail,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                 ),
               ],
             ),
@@ -114,35 +126,18 @@ class StaleDataBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final (:title, message: _) = failureMessage(failure);
     final day = ArgentinaTime.formatDay(ArgentinaTime.dayOf(fetchedAt));
     final time = ArgentinaTime.formatTime(fetchedAt);
 
-    return Semantics(
-      liveRegion: true,
-      child: Material(
-        color: colors.tertiaryContainer,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-          child: Row(
-            children: [
-              Icon(Icons.cloud_off, color: colors.onTertiaryContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Mostrando datos guardados (actualizados el $day a las '
-                  '$time). $title.',
-                  style: TextStyle(color: colors.onTertiaryContainer),
-                ),
-              ),
-              if (onRetry != null)
-                TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-            ],
-          ),
-        ),
-      ),
+    return InfoBanner(
+      tone: InfoTone.offline,
+      text:
+          'Mostrando datos guardados (actualizados el $day a las '
+          '$time). $title.',
+      action: onRetry == null
+          ? null
+          : TextButton(onPressed: onRetry, child: const Text('Reintentar')),
     );
   }
 }

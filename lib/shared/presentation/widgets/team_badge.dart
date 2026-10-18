@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_spacing.dart';
 import 'badge_image_resolver.dart';
 
 /// Escudo de un equipo. Si no hay URL o la imagen no carga (sin red, sin
@@ -13,7 +14,7 @@ class TeamBadge extends StatelessWidget {
     super.key,
     required this.name,
     required this.url,
-    this.size = 32,
+    this.size = AppSizes.badgeHeader,
   });
 
   final String name;
@@ -74,13 +75,13 @@ class _Initials extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: colors.secondaryContainer,
+          color: colors.primaryContainer,
           shape: BoxShape.circle,
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: colors.onSecondaryContainer,
+            color: colors.onPrimaryContainer,
             fontSize: size * 0.36,
             fontWeight: FontWeight.w600,
           ),

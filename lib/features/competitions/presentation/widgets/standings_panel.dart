@@ -145,6 +145,7 @@ class _LoadedView extends StatelessWidget {
           if (view.zoneIssues.isNotEmpty) ...[
             const SizedBox(height: 8),
             InfoBanner(
+              tone: InfoTone.warning,
               icon: Icons.warning_amber,
               text: view.zoneNoun == 'grupo'
                   ? 'Grupos no verificados: las tablas de esos grupos no se '
@@ -211,6 +212,7 @@ class _SyncStatus extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: InfoBanner(
+        tone: InfoTone.offline,
         icon: Icons.cloud_off,
         text:
             'No se pudieron consultar todas las fechas '
