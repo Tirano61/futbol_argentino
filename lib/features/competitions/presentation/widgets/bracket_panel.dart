@@ -10,11 +10,15 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/layout/text_measure.dart';
+import '../../../../shared/presentation/theme/app_palette.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/theme/app_text.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/scroll_row.dart';
+import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../matches/domain/entities/knockout_tie.dart';
@@ -170,11 +174,16 @@ class _LoadedViewState extends State<_LoadedView> {
     final list = RefreshIndicator(
       onRefresh: widget.onRefresh,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(12, filters.isEmpty ? 8 : 0, 12, 24),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          filters.isEmpty ? AppSpacing.sm : 0,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
         children: [
           if (widget.isRefreshing) ...[
             const LinearProgressIndicator(),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
           ],
           _SyncStatus(progress: view.progress),
           if (bracket == null || !bracket.hasMatches)
@@ -238,12 +247,12 @@ class _LoadedViewState extends State<_LoadedView> {
     return [
       if (champion != null)
         Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.only(top: AppSpacing.md),
           child: _ChampionBanner(team: champion),
         ),
       if (shown.any((r) => r.pairingUnknown))
         const Padding(
-          padding: EdgeInsets.only(top: 12),
+          padding: EdgeInsets.only(top: AppSpacing.md),
           child: InfoBanner(
             tone: InfoTone.warning,
             icon: Icons.info_outline,
@@ -252,7 +261,7 @@ class _LoadedViewState extends State<_LoadedView> {
                 'algunas llaves van por fecha, sin unir.',
           ),
         ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.md),
       // Entra a lo ancho si hay lugar; si no, se desplaza.
       LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
@@ -260,61 +269,21 @@ class _LoadedViewState extends State<_LoadedView> {
           child: _BracketCanvas(
             rounds: shown,
             availableWidth: constraints.maxWidth,
+            now: now,
             explainUndecided: continental,
           ),
         ),
       ),
       for (final round in bracket.preliminary)
         if (round.hasMatches) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
-            child: Semantics(
-              header: true,
-              child: Text(round.label, style: theme.textTheme.titleMedium),
-            ),
+          SectionHeader(
+            title: round.label,
+            subtitle: 'Sus ganadores juegan los octavos de final.',
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Text(
-              'Sus ganadores juegan los octavos de final.',
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth < _BracketCanvas.maxColumnWidth
-                  ? constraints.maxWidth
-                  : _BracketCanvas.maxColumnWidth;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  for (final slot in round.slots)
-                    SizedBox(
-                      width: width,
-                      height: _BracketCanvas.cardHeight(context),
-                      child: _TieCard(
-                        slot: slot,
-                        round: round.label,
-                        explainUndecided: continental,
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          _TieList(round: round, now: now, explainUndecided: continental),
         ],
       if (bracket.unplaced.isNotEmpty) ...[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-          child: Semantics(
-            header: true,
-            child: Text(
-              'Sin ubicar en el cuadro',
-              style: theme.textTheme.titleMedium,
-            ),
-          ),
-        ),
+        const SectionHeader(title: 'Sin ubicar en el cuadro'),
         MatchGroup(
           children: [
             for (final m in bracket.unplaced)
@@ -327,7 +296,12 @@ class _LoadedViewState extends State<_LoadedView> {
         ),
       ],
       Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.xs,
+          0,
+        ),
         child: Text(
           rounds.any((r) => r.legs > 1)
               ? 'Las series de ida y vuelta las gana quien hace más goles en '
@@ -346,6 +320,8 @@ class _LoadedViewState extends State<_LoadedView> {
   }
 }
 
+/// El campeón: una fila compacta sobre la superficie de grupo (trofeo,
+/// escudo y nombre).
 class _ChampionBanner extends StatelessWidget {
   const _ChampionBanner({required this.team});
 
@@ -353,29 +329,29 @@ class _ChampionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
     return Semantics(
       label: 'Campeón: ${team.name}',
       excludeSemantics: true,
-      child: Card(
-        color: colors.primaryContainer,
+      child: Material(
+        color: AppPalette.of(context).group,
+        borderRadius: AppRadius.groupAll,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
               Icon(
                 Icons.emoji_events_outlined,
-                color: colors.onPrimaryContainer,
+                color: AppPalette.of(context).success,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               TeamBadge(name: team.name, url: team.badgeUrl),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   'Campeón: ${team.name}',
-                  style: text.titleMedium?.copyWith(
-                    color: colors.onPrimaryContainer,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -403,7 +379,7 @@ class _SyncStatus extends StatelessWidget {
         label: rounds,
         excludeSemantics: true,
         child: Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -412,7 +388,7 @@ class _SyncStatus extends StatelessWidget {
                     ? null
                     : progress.done / progress.total,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(rounds, style: Theme.of(context).textTheme.labelSmall),
             ],
           ),
@@ -422,7 +398,7 @@ class _SyncStatus extends StatelessWidget {
     if (failure == null) return const SizedBox.shrink();
     final (:title, message: _) = failureMessage(failure);
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: InfoBanner(
         tone: InfoTone.offline,
         icon: Icons.cloud_off,
@@ -442,52 +418,59 @@ class _SyncStatus extends StatelessWidget {
 /// El cuadro: una columna por ronda; cada llave queda a la altura de las
 /// dos que la alimentan y se une a ellas solo si hay evidencia
 /// (`BracketSlot.linkedToNext`).
+///
+/// Las tarjetas se miden con la escala de texto: la columna no baja de la
+/// palabra más ancha de los nombres y todas las tarjetas tienen el alto de
+/// la más alta (así los conectores quedan alineados). Con texto grande el
+/// cuadro se agranda y se desplaza; nunca recorta los datos de una llave.
 class _BracketCanvas extends StatelessWidget {
   const _BracketCanvas({
     required this.rounds,
     required this.availableWidth,
+    required this.now,
     this.explainUndecided = false,
   });
 
   final List<BracketRoundView> rounds;
   final double availableWidth;
+  final DateTime now;
   final bool explainUndecided;
 
-  static const _gap = 28.0;
+  /// Entre columnas: el lugar de los conectores.
+  static const _gap = AppSpacing.xl;
   static const _minColumnWidth = 208.0;
   static const maxColumnWidth = 264.0;
 
-  /// Lugar de una llave: dos renglones de equipo y uno de estado, con el
-  /// texto agrandado. Android agranda cada tamaño de letra por separado
-  /// (escala no lineal: las letras chicas crecen más), así que los
-  /// renglones se suman con su propio tamaño.
-  static double slotHeight(BuildContext context) {
-    final scaler = MediaQuery.textScalerOf(context);
-    final text = Theme.of(context).textTheme;
-    double line(TextStyle? style) =>
-        scaler.scale(style?.fontSize ?? 14) * (style?.height ?? 1.5);
-    final content = 2 * line(text.bodyMedium) + line(text.labelSmall);
-    // Relleno y separaciones de la tarjeta (22) y margen del lugar (8).
-    return math.max(scaler.scale(60) + 44, content + 30 + 4);
-  }
-
-  /// Alto de la tarjeta de una llave.
-  static double cardHeight(BuildContext context) => slotHeight(context) - 8;
-
   @override
   Widget build(BuildContext context) {
-    final scaler = MediaQuery.textScalerOf(context);
-    final columnWidth =
-        ((availableWidth - _gap * (rounds.length - 1)) / rounds.length).clamp(
-          _minColumnWidth,
-          maxColumnWidth,
-        );
-    final slotHeight = _BracketCanvas.slotHeight(context);
-    final title = Theme.of(context).textTheme.titleSmall;
-    final headerHeight =
-        scaler.scale(title?.fontSize ?? 14) * (title?.height ?? 1.5) + 12;
-    final height = rounds.first.slots.length * slotHeight;
     final theme = Theme.of(context);
+    final styles = _CardStyles.of(context);
+    final contents = [
+      for (final round in rounds)
+        [
+          for (final slot in round.slots)
+            _TieContent.of(slot, now, explainUndecided: explainUndecided),
+        ],
+    ];
+    final all = contents.expand((c) => c).toList();
+    final minWidth = math.max(_minColumnWidth, styles.minWidth(all));
+    final columnWidth =
+        ((availableWidth - _gap * (rounds.length - 1)) / rounds.length)
+            .clamp(minWidth, math.max(maxColumnWidth, minWidth))
+            .toDouble();
+    final cardHeight = styles.cardHeight(all, columnWidth);
+    final slotHeight = cardHeight + AppSpacing.sm;
+    final headerStyle = theme.textTheme.groupTitle.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final headerHeight =
+        rounds
+            .map(
+              (r) => styles.measure.height(r.label, headerStyle, columnWidth),
+            )
+            .fold(0.0, math.max) +
+        AppSpacing.md;
+    final height = rounds.first.slots.length * slotHeight;
 
     return CustomPaint(
       painter: _ConnectorPainter(
@@ -496,7 +479,8 @@ class _BracketCanvas extends StatelessWidget {
         gap: _gap,
         top: headerHeight,
         height: height,
-        color: theme.colorScheme.outline,
+        definedColor: theme.colorScheme.onSurfaceVariant,
+        pendingColor: theme.colorScheme.outline,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,22 +497,22 @@ class _BracketCanvas extends StatelessWidget {
                       header: true,
                       child: Text(
                         round.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall,
+                        textAlign: TextAlign.center,
+                        style: headerStyle,
                       ),
                     ),
                   ),
-                  for (final slot in round.slots)
+                  for (final (i, slot) in round.slots.indexed)
                     SizedBox(
                       height: height / round.slots.length,
                       child: Center(
                         child: SizedBox(
-                          height: cardHeight(context),
+                          height: cardHeight,
                           child: _TieCard(
                             slot: slot,
+                            content: contents[j][i],
                             round: round.label,
-                            explainUndecided: explainUndecided,
+                            styles: styles,
                           ),
                         ),
                       ),
@@ -543,6 +527,65 @@ class _BracketCanvas extends StatelessWidget {
   }
 }
 
+/// Llaves fuera del cuadro (Playoffs de la Sudamericana), una al lado de la
+/// otra si entran.
+class _TieList extends StatelessWidget {
+  const _TieList({
+    required this.round,
+    required this.now,
+    required this.explainUndecided,
+  });
+
+  final BracketRoundView round;
+  final DateTime now;
+  final bool explainUndecided;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final styles = _CardStyles.of(context);
+        final contents = [
+          for (final slot in round.slots)
+            _TieContent.of(slot, now, explainUndecided: explainUndecided),
+        ];
+        final width = math.max(
+          styles.minWidth(contents),
+          math.min(constraints.maxWidth, _BracketCanvas.maxColumnWidth),
+        );
+        final height = styles.cardHeight(contents, width);
+        final list = Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final (i, slot) in round.slots.indexed)
+              SizedBox(
+                width: width,
+                height: height,
+                child: _TieCard(
+                  slot: slot,
+                  content: contents[i],
+                  round: round.label,
+                  styles: styles,
+                ),
+              ),
+          ],
+        );
+        if (width <= constraints.maxWidth) return list;
+        // Con texto muy grande una tarjeta no entra a lo ancho: se desplaza
+        // como el cuadro, sin partir los nombres.
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(width: width, child: list),
+        );
+      },
+    );
+  }
+}
+
+/// Conectores entre rondas. Un cruce **definido** (se sabe quién avanzó)
+/// va con una línea llena y más gruesa; uno **pendiente**, punteado: la
+/// diferencia no depende solo del color. El primer codo es redondeado.
 class _ConnectorPainter extends CustomPainter {
   _ConnectorPainter({
     required this.rounds,
@@ -550,7 +593,8 @@ class _ConnectorPainter extends CustomPainter {
     required this.gap,
     required this.top,
     required this.height,
-    required this.color,
+    required this.definedColor,
+    required this.pendingColor,
   });
 
   final List<BracketRoundView> rounds;
@@ -558,14 +602,35 @@ class _ConnectorPainter extends CustomPainter {
   final double gap;
   final double top;
   final double height;
-  final Color color;
+  final Color definedColor;
+  final Color pendingColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
+    final defined = Paint()
+      ..color = definedColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = AppSizes.connectorDefined;
+    final pending = Paint()
+      ..color = pendingColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = AppSizes.connectorPending;
+    void draw(Path path, {required bool isDefined}) {
+      if (isDefined) {
+        canvas.drawPath(path, defined);
+        return;
+      }
+      const dash = AppSizes.connectorDash;
+      for (final metric in path.computeMetrics()) {
+        for (var d = 0.0; d < metric.length; d += 2 * dash) {
+          canvas.drawPath(
+            metric.extractPath(d, math.min(d + dash, metric.length)),
+            pending,
+          );
+        }
+      }
+    }
+
     for (var j = 0; j < rounds.length - 1; j++) {
       final slots = rounds[j].slots;
       final cell = height / slots.length;
@@ -573,17 +638,35 @@ class _ConnectorPainter extends CustomPainter {
       final x1 = j * (columnWidth + gap) + columnWidth;
       final xm = x1 + gap / 2;
       final x2 = x1 + gap;
+      // Llave de la ronda siguiente → si todas las que llegan a ella están
+      // definidas (el tramo final es compartido).
+      final into = <int, bool>{};
       for (final (i, slot) in slots.indexed) {
         if (!slot.linkedToNext) continue;
+        final isDefined = slot.outcome != null;
         final y1 = top + cell * (i + 0.5);
         final y2 = top + parentCell * (i ~/ 2 + 0.5);
-        canvas.drawPath(
+        final path = Path()..moveTo(x1, y1);
+        final dy = y2 - y1;
+        if (dy.abs() < 1) {
+          path.lineTo(xm, y1);
+        } else {
+          final r = math.min(AppRadius.connector, dy.abs() / 2);
+          path
+            ..lineTo(xm - r, y1)
+            ..quadraticBezierTo(xm, y1, xm, y1 + r * dy.sign)
+            ..lineTo(xm, y2);
+        }
+        draw(path, isDefined: isDefined);
+        into[i ~/ 2] = (into[i ~/ 2] ?? true) && isDefined;
+      }
+      for (final MapEntry(key: parent, value: isDefined) in into.entries) {
+        final y2 = top + parentCell * (parent + 0.5);
+        draw(
           Path()
-            ..moveTo(x1, y1)
-            ..lineTo(xm, y1)
-            ..lineTo(xm, y2)
+            ..moveTo(xm, y2)
             ..lineTo(x2, y2),
-          paint,
+          isDefined: isDefined,
         );
       }
     }
@@ -595,73 +678,66 @@ class _ConnectorPainter extends CustomPainter {
       old.columnWidth != columnWidth ||
       old.top != top ||
       old.height != height ||
-      old.color != color;
+      old.definedColor != definedColor ||
+      old.pendingColor != pendingColor;
 }
 
-/// Una llave: los dos equipos con sus goles (y la tanda), el ganador
-/// marcado, y el estado o el horario. En una serie, los goles son el
-/// global (lo jugado) y el renglón de estado dice cada pierna. Tocarla abre
-/// el partido (en una serie, la pierna en curso o la última).
-class _TieCard extends StatelessWidget {
-  const _TieCard({
-    required this.slot,
-    required this.round,
-    this.explainUndecided = false,
+enum _InfoTone { normal, live, undecided }
+
+/// Un renglón de equipo de una tarjeta.
+final class _LineContent {
+  const _LineContent({
+    required this.team,
+    this.goals,
+    this.penalties,
+    this.isWinner = false,
+    this.isLoser = false,
   });
 
-  final BracketSlot slot;
-  final String round;
+  /// `null`: «A definir».
+  final TeamRef? team;
+  final int? goals;
+  final int? penalties;
+  final bool isWinner;
+  final bool isLoser;
 
-  /// Una llave terminada sin evidencia de quién avanzó lo dice («Sin dato
-  /// de la definición»): copas internacionales.
-  final bool explainUndecided;
+  String get label => team?.name ?? 'A definir';
+}
 
-  static const _undecided = 'Sin dato de la definición';
+/// Lo que muestra la tarjeta de una llave: sirve para dibujarla y para
+/// medirla. En una serie, los goles son el global (lo jugado) y el renglón
+/// de estado dice cada pierna.
+final class _TieContent {
+  const _TieContent({
+    required this.lines,
+    required this.info,
+    this.tone = _InfoTone.normal,
+    this.hasTie = true,
+    this.hasGoals = false,
+    this.hasPenalties = false,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  factory _TieContent.of(
+    BracketSlot slot,
+    DateTime now, {
+    required bool explainUndecided,
+  }) {
     final tie = slot.tie;
     if (tie == null) {
       final teams = slot.qualified;
-      return Semantics(
-        label: [
-          round,
-          teams.isEmpty
-              ? 'A definir'
-              : '${teams.map((t) => t.name).join(' contra ')}, partido '
-                    'sin datos',
-        ].join('. '),
-        excludeSemantics: true,
-        child: Card(
-          margin: EdgeInsets.zero,
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < 2; i++)
-                  _PlaceholderLine(team: teams.elementAtOrNull(i)),
-                const SizedBox(height: 4),
-                Text(
-                  'Sin datos del partido',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall,
-                ),
-              ],
-            ),
-          ),
-        ),
+      return _TieContent(
+        lines: [
+          for (var i = 0; i < 2; i++)
+            _LineContent(team: teams.elementAtOrNull(i)),
+        ],
+        info: 'Sin datos del partido',
+        hasTie: false,
       );
     }
 
-    final outcome = slot.outcome;
-    final winner = outcome?.winner.id;
-    final now = context.read<Clock>().now();
-    final undecided = explainUndecided && outcome == null && tie.isComplete;
+    final winner = slot.outcome?.winner.id;
+    final undecided =
+        explainUndecided && slot.outcome == null && tie.isComplete;
     final goals = tie.isSeries
         ? tie.partialAggregate
         : tie.scoreOf(tie.decisive);
@@ -669,64 +745,42 @@ class _TieCard extends StatelessWidget {
     final (info, inPlay) = tie.isSeries
         ? _seriesInfo(tie, now, undecided: undecided)
         : _singleInfo(tie.decisive, now, undecided: undecided);
-
-    return Semantics(
-      button: true,
-      label: [
-        round,
-        if (tie.isSeries) ...[
-          '${tie.first.name} contra ${tie.second.name}, ida y vuelta',
-          for (final (i, leg) in tie.legs.indexed)
-            '${MatchLabels.leg(i)}: ${MatchLabels.semantics(leg)}',
-          ?MatchLabels.aggregate(tie),
-        ] else
-          MatchLabels.semantics(tie.decisive),
-        if (outcome != null) MatchLabels.tieAdvances(outcome, tie),
-        if (undecided) _undecided,
-      ].join('. '),
-      excludeSemantics: true,
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => context.push(AppRoutes.matchDetail(tie.current.id)),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _TeamLine(
-                  team: tie.first,
-                  goals: goals?.home,
-                  penalties: penalties?.home,
-                  isWinner: winner == tie.first.id,
-                  isLoser: winner != null && winner != tie.first.id,
-                ),
-                const SizedBox(height: 2),
-                _TeamLine(
-                  team: tie.second,
-                  goals: goals?.away,
-                  penalties: penalties?.away,
-                  isWinner: winner == tie.second.id,
-                  isLoser: winner != null && winner != tie.second.id,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  info,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: inPlay ? theme.colorScheme.error : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    _LineContent line(TeamRef team, int? goals, int? penalties) => _LineContent(
+      team: team,
+      goals: goals,
+      penalties: penalties,
+      isWinner: winner == team.id,
+      isLoser: winner != null && winner != team.id,
+    );
+    return _TieContent(
+      lines: [
+        line(tie.first, goals?.home, penalties?.home),
+        line(tie.second, goals?.away, penalties?.away),
+      ],
+      info: info,
+      tone: undecided
+          ? _InfoTone.undecided
+          : inPlay
+          ? _InfoTone.live
+          : _InfoTone.normal,
+      hasGoals: goals != null,
+      hasPenalties: penalties != null,
     );
   }
+
+  static const undecidedText = 'Sin dato de la definición';
+
+  /// Partes que no se separan en dos renglones («Ida 1-0»).
+  static String _keep(String text) => text.replaceAll(' ', '\u00A0');
+
+  final List<_LineContent> lines;
+  final String info;
+  final _InfoTone tone;
+
+  /// `false`: el partido no está en TheSportsDB (lugar «A definir»).
+  final bool hasTie;
+  final bool hasGoals;
+  final bool hasPenalties;
 
   /// Horario si no empezó; si no, el estado.
   static (String, bool) _singleInfo(
@@ -745,17 +799,18 @@ class _TieCard extends StatelessWidget {
       );
     }
     final status = MatchLabels.status(m.status) ?? '';
-    return (undecided ? '$status · $_undecided' : status, m.status.isInPlay);
+    return (undecided ? '$status · $undecidedText' : status, m.status.isInPlay);
   }
 
   /// Cada pierna jugada en el orden de la llave («Ida 1-0 · Vuelta 0-2»),
-  /// la que está en juego, o el horario de la próxima.
+  /// la que está en juego, o el horario de la próxima. Con texto grande se
+  /// parte entre piernas, nunca dentro de una.
   static (String, bool) _seriesInfo(
     KnockoutTie tie,
     DateTime now, {
     required bool undecided,
   }) {
-    if (undecided) return (_undecided, false);
+    if (undecided) return (undecidedText, false);
     for (final (i, leg) in tie.legs.indexed) {
       if (leg.status.isInPlay) return ('${MatchLabels.leg(i)} en juego', true);
       if (leg.status.isFinished) continue;
@@ -765,92 +820,336 @@ class _TieCard extends StatelessWidget {
     final played = [
       for (final (i, leg) in tie.legs.indexed)
         if (tie.scoreOf(leg) case final s?)
-          '${MatchLabels.leg(i)} ${s.home}-${s.away}',
+          _keep('${MatchLabels.leg(i)} ${s.home}-${s.away}'),
     ];
     if (tie.legs.length < tie.expectedLegs) {
-      played.add('${MatchLabels.leg(tie.legs.length)} sin datos');
+      played.add(_keep('${MatchLabels.leg(tie.legs.length)} sin datos'));
     }
     return (played.join(' · '), false);
   }
 }
 
-class _TeamLine extends StatelessWidget {
-  const _TeamLine({
-    required this.team,
-    required this.goals,
-    required this.penalties,
-    required this.isWinner,
-    required this.isLoser,
+/// Estilos y medidas de las tarjetas con la escala de texto.
+final class _CardStyles {
+  _CardStyles.of(BuildContext context)
+    : measure = TextMeasure.of(context),
+      name = Theme.of(context).textTheme.teamName.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      winner = Theme.of(context).textTheme.teamNameWinner.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      info = Theme.of(context).textTheme.statusLabel.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      icon = MediaQuery.textScalerOf(context).scale(AppSizes.statusIcon) {
+    goals = measure.width('00', winner);
+    penalties = measure.width('(00)', info);
+  }
+
+  final TextMeasure measure;
+
+  /// Nombre (y goles) de un equipo; el que avanza, en negrita.
+  final TextStyle name;
+  final TextStyle winner;
+
+  /// Renglón de estado, horario o piernas; también la tanda.
+  final TextStyle info;
+
+  /// ✓ del que avanza e ícono de «Sin dato de la definición».
+  final double icon;
+  late final double goals;
+  late final double penalties;
+
+  static const _padding = AppSpacing.sm + AppSizes.divider;
+
+  /// El nombre de un equipo y, si avanza, el ✓ en el mismo texto, como
+  /// carácter de la fuente de íconos: el espacio duro lo une a la última
+  /// palabra. (Con un `WidgetSpan`, el motor de texto puede dejarlo solo en
+  /// un renglón.) Sirve para dibujar y para medir.
+  static TextSpan nameSpan(
+    String name,
+    TextStyle style, {
+    bool check = false,
+    Color? checkColor,
+  }) => TextSpan(
+    text: name,
+    style: style,
+    children: [
+      if (check) ...[
+        const TextSpan(text: '\u00A0'),
+        TextSpan(
+          text: String.fromCharCode(Icons.check.codePoint),
+          style: TextStyle(
+            fontFamily: Icons.check.fontFamily,
+            package: Icons.check.fontPackage,
+            fontSize: AppSizes.statusIcon,
+            fontWeight: FontWeight.w400,
+            color: checkColor,
+          ),
+        ),
+      ],
+    ],
+  );
+
+  /// Lo que ocupa a la derecha del nombre: goles y tanda, alineados en
+  /// columnas dentro de la tarjeta.
+  double trailing(_TieContent c) =>
+      (c.hasGoals ? AppSpacing.xs + goals : 0) +
+      (c.hasPenalties ? AppSpacing.xs + penalties : 0);
+
+  /// Ancho de la tarjeta menos el nombre.
+  double _fixed(_TieContent c) =>
+      2 * _padding + AppSizes.badgeBracket + AppSpacing.sm + trailing(c);
+
+  /// Ancho mínimo para que ningún nombre se parta a mitad de palabra (el ✓
+  /// va pegado a la última palabra del que avanza).
+  double minWidth(Iterable<_TieContent> contents) =>
+      contents.fold(0, (width, c) {
+        var word = 0.0;
+        for (final l in c.lines) {
+          final style = l.isWinner ? winner : name;
+          word = math.max(word, measure.widestWord([l.label], style));
+          if (l.isWinner) {
+            final last = l.label.split(' ').last;
+            word = math.max(
+              word,
+              measure.spanSize(nameSpan(last, style, check: true)).width,
+            );
+          }
+        }
+        return math.max(width, _fixed(c) + word);
+      });
+
+  /// Alto de la tarjeta más alta de [contents] con ancho [width].
+  double cardHeight(Iterable<_TieContent> contents, double width) =>
+      contents.fold(0, (height, c) => math.max(height, _height(c, width)));
+
+  double _height(_TieContent c, double width) {
+    final nameWidth = width - _fixed(c);
+    double line(_LineContent l) => math.max(
+      AppSizes.badgeBracket,
+      measure
+          .spanSize(
+            nameSpan(l.label, l.isWinner ? winner : name, check: l.isWinner),
+            maxWidth: nameWidth,
+            maxLines: _TeamLine.maxLines,
+          )
+          .height,
+    );
+    final infoWidth =
+        width -
+        2 * _padding -
+        (c.tone == _InfoTone.undecided ? icon + AppSpacing.xs : 0);
+    return 2 * _padding +
+        line(c.lines[0]) +
+        AppSpacing.xs +
+        line(c.lines[1]) +
+        AppSpacing.xs +
+        measure.height(c.info, info, infoWidth);
+  }
+}
+
+/// Una llave: los dos equipos con sus goles (y la tanda), el que avanza
+/// en negrita con ✓, y el estado o el horario. Tocarla abre el partido (en
+/// una serie, la pierna en curso o la última). Sin partido en TheSportsDB,
+/// un lugar «A definir» en gris.
+class _TieCard extends StatelessWidget {
+  const _TieCard({
+    required this.slot,
+    required this.content,
+    required this.round,
+    required this.styles,
   });
 
-  final TeamRef team;
-  final int? goals;
-  final int? penalties;
-  final bool isWinner;
-  final bool isLoser;
+  final BracketSlot slot;
+  final _TieContent content;
+  final String round;
+  final _CardStyles styles;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = theme.textTheme.bodyMedium?.copyWith(
-      fontWeight: isWinner ? FontWeight.bold : null,
-      color: isLoser ? theme.colorScheme.onSurfaceVariant : null,
+    final colors = Theme.of(context).colorScheme;
+    final tie = slot.tie;
+    final body = Padding(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _TeamLine(line: content.lines[0], content: content, styles: styles),
+          const SizedBox(height: AppSpacing.xs),
+          _TeamLine(line: content.lines[1], content: content, styles: styles),
+          const SizedBox(height: AppSpacing.xs),
+          _InfoLine(content: content, styles: styles),
+        ],
+      ),
+    );
+    final card = Material(
+      color: tie == null
+          ? colors.surfaceContainerHigh
+          : AppPalette.of(context).group,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.groupAll,
+        side: BorderSide(color: colors.outlineVariant, width: AppSizes.divider),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: tie == null
+          ? body
+          : InkWell(
+              onTap: () => context.push(AppRoutes.matchDetail(tie.current.id)),
+              child: body,
+            ),
+    );
+
+    if (tie == null) {
+      final teams = slot.qualified;
+      return Semantics(
+        label: [
+          round,
+          teams.isEmpty
+              ? 'A definir'
+              : '${teams.map((t) => t.name).join(' contra ')}, partido '
+                    'sin datos',
+        ].join('. '),
+        excludeSemantics: true,
+        child: card,
+      );
+    }
+    final outcome = slot.outcome;
+    return Semantics(
+      button: true,
+      label: [
+        round,
+        if (tie.isSeries) ...[
+          '${tie.first.name} contra ${tie.second.name}, ida y vuelta',
+          for (final (i, leg) in tie.legs.indexed)
+            '${MatchLabels.leg(i)}: ${MatchLabels.semantics(leg)}',
+          ?MatchLabels.aggregate(tie),
+        ] else
+          MatchLabels.semantics(tie.decisive),
+        if (outcome != null) MatchLabels.tieAdvances(outcome, tie),
+        if (content.tone == _InfoTone.undecided) _TieContent.undecidedText,
+      ].join('. '),
+      excludeSemantics: true,
+      child: card,
+    );
+  }
+}
+
+class _TeamLine extends StatelessWidget {
+  const _TeamLine({
+    required this.line,
+    required this.content,
+    required this.styles,
+  });
+
+  /// Un nombre largo va en dos renglones (completo en la semántica y en el
+  /// detalle), como en las filas de partido.
+  static const maxLines = 2;
+
+  final _LineContent line;
+  final _TieContent content;
+  final _CardStyles styles;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final team = line.team;
+    final color = team == null || line.isLoser
+        ? colors.onSurfaceVariant
+        : colors.onSurface;
+    final style = (line.isWinner ? styles.winner : styles.name).copyWith(
+      color: color,
     );
     return Row(
       children: [
-        TeamBadge(name: team.name, url: team.badgeUrl, size: 20),
-        const SizedBox(width: 6),
+        if (team == null)
+          Icon(
+            Icons.help_outline,
+            size: AppSizes.badgeBracket,
+            color: colors.onSurfaceVariant,
+          )
+        else
+          TeamBadge(
+            name: team.name,
+            url: team.badgeUrl,
+            size: AppSizes.badgeBracket,
+          ),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
-            team.name,
-            maxLines: 1,
+          child: Text.rich(
+            _CardStyles.nameSpan(
+              line.label,
+              style,
+              check: line.isWinner,
+              checkColor: AppPalette.of(context).success,
+            ),
+            maxLines: maxLines,
             overflow: TextOverflow.ellipsis,
-            style: style,
           ),
         ),
-        if (isWinner)
-          Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-        if (goals != null) ...[
-          const SizedBox(width: 4),
-          Text('$goals', style: style),
+        if (content.hasTie) ...[
+          if (content.hasGoals) ...[
+            const SizedBox(width: AppSpacing.xs),
+            SizedBox(
+              width: styles.goals,
+              child: Text(
+                '${line.goals ?? ''}',
+                textAlign: TextAlign.end,
+                style: style,
+              ),
+            ),
+          ],
+          if (content.hasPenalties) ...[
+            const SizedBox(width: AppSpacing.xs),
+            SizedBox(
+              width: styles.penalties,
+              child: Text(
+                line.penalties == null ? '' : '(${line.penalties})',
+                style: styles.info.copyWith(
+                  fontWeight: FontWeight.w400,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         ],
-        if (penalties != null)
-          Text(' ($penalties)', style: theme.textTheme.labelSmall),
       ],
     );
   }
 }
 
-class _PlaceholderLine extends StatelessWidget {
-  const _PlaceholderLine({required this.team});
+/// Estado, horario o piernas. En juego, en el color de «en vivo» y en
+/// negrita; sin dato de la definición, con un ícono de ayuda.
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.content, required this.styles});
 
-  final TeamRef? team;
+  final _TieContent content;
+  final _CardStyles styles;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final t = team;
+    final colors = Theme.of(context).colorScheme;
+    final style = switch (content.tone) {
+      _InfoTone.live => styles.info.copyWith(
+        color: AppPalette.of(context).live,
+        fontWeight: FontWeight.w700,
+      ),
+      _ => styles.info.copyWith(color: colors.onSurfaceVariant),
+    };
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (t == null)
+        if (content.tone == _InfoTone.undecided) ...[
           Icon(
             Icons.help_outline,
-            size: 20,
-            color: theme.colorScheme.onSurfaceVariant,
-          )
-        else
-          TeamBadge(name: t.name, url: t.badgeUrl, size: 20),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            t?.name ?? 'A definir',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: t == null ? theme.colorScheme.onSurfaceVariant : null,
-            ),
+            size: styles.icon,
+            color: colors.onSurfaceVariant,
           ),
-        ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        Expanded(child: Text(content.info, style: style)),
       ],
     );
   }

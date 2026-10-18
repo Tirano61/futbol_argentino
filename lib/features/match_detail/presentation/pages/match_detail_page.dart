@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,22 +11,23 @@ import '../../../../core/platform/external_actions.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/layout/text_measure.dart';
+import '../../../../shared/presentation/theme/app_palette.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
-import '../../../../shared/presentation/widgets/match_status_chip.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
-import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../matches/domain/entities/kickoff.dart';
 import '../../../matches/domain/entities/knockout_tie.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../../matches/domain/entities/match_status.dart';
 import '../../../matches/domain/repositories/match_repository.dart';
 import '../../../matches/domain/services/match_grouping.dart';
-import '../../../matches/domain/services/tie_outcome.dart';
 import '../../domain/entities/match_detail.dart';
 import '../../domain/usecases/get_match_detail.dart';
 import '../bloc/match_detail_bloc.dart';
 import '../formatters/match_detail_texts.dart';
+import '../widgets/match_hero.dart';
 
 /// Detalle de un partido a pantalla completa (`/partidos/:id`).
 class MatchDetailPage extends StatelessWidget {
@@ -137,7 +140,12 @@ class _MatchDetailPanelView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xs,
+                AppSpacing.xs,
+                AppSpacing.xs,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -247,12 +255,12 @@ class _DetailBody extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             if (state.isRefreshing) const LinearProgressIndicator(),
             if (refreshError != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: StaleDataBanner(
                   fetchedAt: state.result.fetchedAt,
                   failure: refreshError,
@@ -261,30 +269,24 @@ class _DetailBody extends StatelessWidget {
                   ),
                 ),
               ),
-            Text(
-              detail.competitionName,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            if (MatchDetailTexts.phaseAndStage(detail) case final stage?)
-              Text(
-                stage,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
+            MatchHero(detail: detail, now: now),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: _ShareActions(
+                detail: detail,
+                now: now,
+                fetchedAt: state.result.fetchedAt,
               ),
-            const SizedBox(height: 16),
-            _Scoreboard(match: m, overdue: overdue),
-            const SizedBox(height: 16),
-            Card(
-              child: Column(
-                children: [
-                  _InfoTile(
-                    icon: Icons.calendar_today,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: _InfoGrid(
+                items: [
+                  _InfoItem(
                     label: 'Fecha',
                     value: MatchLabels.day(m.kickoff.argentinaDay),
                   ),
-                  _InfoTile(
-                    icon: Icons.schedule,
+                  _InfoItem(
                     label: 'Hora (Argentina)',
                     value: MatchLabels.kickoffTime(m.kickoff),
                     note: m.kickoff.certainty == KickoffCertainty.tentative
@@ -293,8 +295,7 @@ class _DetailBody extends StatelessWidget {
                         : null,
                   ),
                   if (m.previousKickoffUtc case final previous?)
-                    _InfoTile(
-                      icon: Icons.update,
+                    _InfoItem(
                       label: 'Reprogramado',
                       value:
                           'Antes: ${MatchLabels.day(ArgentinaTime.dayOf(previous))}'
@@ -302,8 +303,7 @@ class _DetailBody extends StatelessWidget {
                     ),
                   if (MatchLabels.status(m.status, overdue: overdue)
                       case final status?)
-                    _InfoTile(
-                      icon: Icons.flag_outlined,
+                    _InfoItem(
                       label: 'Estado',
                       value: status,
                       note:
@@ -313,63 +313,27 @@ class _DetailBody extends StatelessWidget {
                                 'penales.'
                           : null,
                     ),
+                  if (m.venue case final venue?)
+                    _InfoItem(label: 'Estadio', value: venue),
+                  // El global y quién avanza van en el héroe.
                   if (detail.tie case final tie? when tie.isSeries)
-                    _InfoTile(
-                      icon: Icons.compare_arrows,
+                    _InfoItem(
                       label: 'Serie de ida y vuelta',
                       value: _seriesText(tie),
-                    ),
-                  if (detail.advancement case final outcome?)
-                    _InfoTile(
-                      icon: Icons.check_circle_outline,
-                      label: 'Llave',
-                      value: switch (detail.tie) {
-                        final tie? => MatchLabels.tieAdvances(outcome, tie),
-                        null => MatchLabels.advances(outcome, m),
-                      },
-                      note: outcome.source != TieOutcomeSource.laterMatch
-                          ? null
-                          : detail.tie == null
-                          ? 'Según los partidos guardados de la ronda '
-                                'siguiente.'
-                          : 'Según los partidos guardados posteriores de la '
-                                'copa.',
-                    )
-                  else if (detail.tie case final tie? when tie.isComplete)
-                    const _InfoTile(
-                      icon: Icons.help_outline,
-                      label: 'Llave',
-                      value: 'Sin dato de la definición',
-                      note:
-                          'TheSportsDB no informa cómo se definió y ningún '
-                          'partido guardado posterior lo muestra.',
-                    ),
-                  if (m.venue case final venue?)
-                    _InfoTile(
-                      icon: Icons.stadium_outlined,
-                      label: 'Estadio',
-                      value: venue,
+                      wide: true,
                     ),
                   if (m.membership == MatchMembership.unconfirmed)
-                    const _InfoTile(
-                      icon: Icons.help_outline,
+                    const _InfoItem(
                       label: 'Aviso',
                       value: 'La API ya no lo lista en esta fecha.',
+                      wide: true,
                     ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _ShareActions(
-                detail: detail,
-                now: now,
-                fetchedAt: state.result.fetchedAt,
-              ),
-            ),
             if (m.videoUrl case final video?)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.only(top: AppSpacing.md),
                 child: FilledButton.tonalIcon(
                   onPressed: () => launchUrl(
                     Uri.parse(video),
@@ -381,9 +345,9 @@ class _DetailBody extends StatelessWidget {
               ),
             if (m.thumbUrl case final thumb?)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.only(top: AppSpacing.md),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppRadius.groupAll,
                   child: Image.network(
                     thumb,
                     fit: BoxFit.cover,
@@ -396,7 +360,7 @@ class _DetailBody extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
               child: Text(
                 'Actualizado el '
                 '${ArgentinaTime.formatDay(ArgentinaTime.dayOf(state.result.fetchedAt))}'
@@ -413,79 +377,8 @@ class _DetailBody extends StatelessWidget {
   }
 }
 
-class _Scoreboard extends StatelessWidget {
-  const _Scoreboard({required this.match, required this.overdue});
-
-  final Match match;
-  final bool overdue;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final score = match.score;
-    final showScore =
-        score != null && (match.status.isFinished || match.status.isInPlay);
-
-    Widget team(String name, String? badge) => Expanded(
-      child: Column(
-        children: [
-          TeamBadge(name: name, url: badge, size: 64),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleSmall,
-          ),
-        ],
-      ),
-    );
-
-    return Semantics(
-      label: MatchLabels.semantics(match, overdue: overdue),
-      excludeSemantics: true,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          team(match.home.name, match.home.badgeUrl),
-          SizedBox(
-            width: 120,
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Text(
-                  showScore
-                      ? '${score.home} – ${score.away}'
-                      : match.kickoff.isConfirmed
-                      ? MatchLabels.kickoffTime(match.kickoff)
-                      : 'vs',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: match.status.isInPlay
-                        ? theme.colorScheme.error
-                        : null,
-                  ),
-                ),
-                if (showScore && match.status.isFinished)
-                  if (MatchLabels.penalties(match) case final shootout?)
-                    Text(
-                      'Penales: $shootout',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                const SizedBox(height: 6),
-                MatchStatusChip(status: match.status, overdue: overdue),
-              ],
-            ),
-          ),
-          team(match.away.name, match.away.badgeUrl),
-        ],
-      ),
-    );
-  }
-}
-
-/// Las piernas de la serie («Ida: Fortaleza 0-0 Vélez Sarsfield») y el
-/// global, un renglón cada una.
+/// Las piernas de la serie («Ida: Fortaleza 0-0 Vélez Sarsfield»), un
+/// renglón cada una. El global va en el héroe.
 String _seriesText(KnockoutTie tie) {
   String legText(Match leg) {
     final score = leg.score;
@@ -507,29 +400,136 @@ String _seriesText(KnockoutTie tie) {
       '${MatchLabels.leg(i)}: ${legText(leg)}',
     if (tie.legs.length < tie.expectedLegs)
       '${MatchLabels.leg(tie.legs.length)}: sin datos en TheSportsDB',
-    ?MatchLabels.aggregate(tie),
   ].join('\n');
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
+/// Un dato del partido: etiqueta, valor y una nota opcional.
+final class _InfoItem {
+  const _InfoItem({
     required this.label,
     required this.value,
     this.note,
+    this.wide = false,
   });
 
-  final IconData icon;
   final String label;
   final String value;
   final String? note;
 
+  /// Ocupa todo el ancho aunque haya dos columnas (la serie, un aviso).
+  final bool wide;
+}
+
+/// Datos del partido en filas compactas etiqueta | valor, sobre la
+/// superficie de grupo con divisores. Con el ancho disponible de dos
+/// columnas (600 px) van de a dos por renglón; en el panel de 440 px y en
+/// los teléfonos, de a uno.
+///
+/// La columna de etiquetas se mide con la escala de texto: si alguna
+/// palabra no entra, cada etiqueta va arriba de su valor.
+class _InfoGrid extends StatelessWidget {
+  const _InfoGrid({required this.items});
+
+  final List<_InfoItem> items;
+
+  /// Ancho disponible desde el que van dos columnas.
+  static const twoColumnsFrom = 600.0;
+
+  /// Parte de la celda que puede ocupar la etiqueta.
+  static const _labelShare = 0.4;
+
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(value),
-      subtitle: Text(note == null ? label : '$label · $note'),
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final labelStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: colors.onSurfaceVariant,
+    );
+    final valueStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: colors.onSurface,
+    );
+
+    return Material(
+      color: AppPalette.of(context).group,
+      borderRadius: AppRadius.groupAll,
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= twoColumnsFrom ? 2 : 1;
+          final cellInner = constraints.maxWidth / columns - 2 * AppSpacing.md;
+          final measure = TextMeasure.of(context);
+          final labels = [for (final i in items) i.label];
+          final widestLabel = labels
+              .map((l) => measure.width(l, labelStyle))
+              .fold(0.0, math.max);
+          final labelWidth = math.min(widestLabel, cellInner * _labelShare);
+          final stacked = measure.widestWord(labels, labelStyle) > labelWidth;
+
+          Widget cell(_InfoItem item) {
+            final value = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.value, style: valueStyle),
+                if (item.note case final note?) Text(note, style: labelStyle),
+              ],
+            );
+            final label = Text(item.label, style: labelStyle);
+            return Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: stacked
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [label, value],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: labelWidth, child: label),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(child: value),
+                      ],
+                    ),
+            );
+          }
+
+          // Renglones: los datos anchos van solos; los demás, de a dos.
+          final lines = <List<_InfoItem>>[];
+          for (final item in items) {
+            final last = lines.lastOrNull;
+            if (columns == 2 &&
+                !item.wide &&
+                last != null &&
+                last.length == 1 &&
+                !last.single.wide) {
+              last.add(item);
+            } else {
+              lines.add([item]);
+            }
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, line) in lines.indexed) ...[
+                if (i > 0) const Divider(),
+                if (columns == 1 || line.length == 1 && line.single.wide)
+                  cell(line.first)
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: cell(line.first)),
+                      Expanded(
+                        child: line.length > 1
+                            ? cell(line[1])
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -591,16 +591,16 @@ class _ShareActions extends StatelessWidget {
     final event = MatchDetailTexts.calendarEvent(detail, now);
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           onPressed: () => _share(context),
           icon: const Icon(Icons.share_outlined),
           label: const Text('Compartir'),
         ),
         if (event != null)
-          OutlinedButton.icon(
+          FilledButton.tonalIcon(
             onPressed: () => _addToCalendar(context, event),
             icon: const Icon(Icons.event_outlined),
             label: Text(

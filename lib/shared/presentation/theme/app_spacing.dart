@@ -21,6 +21,9 @@ abstract final class AppRadius {
 
   /// Píldora («● En juego»): extremos redondos a cualquier escala de texto.
   static const pillAll = BorderRadius.all(Radius.circular(999));
+
+  /// Codo de un conector de llaves.
+  static const double connector = 6;
 }
 
 /// Medidas fijas de los componentes (Hito E, §4.3).
@@ -63,4 +66,10 @@ abstract final class AppSizes {
 
   /// Subrayado de la pestaña elegida (`ViewTabs`).
   static const double tabIndicator = 3;
+
+  /// Conectores de llaves: un cruce definido va lleno y más grueso; uno
+  /// pendiente, punteado (la diferencia no es solo el color).
+  static const double connectorDefined = 2;
+  static const double connectorPending = 1.5;
+  static const double connectorDash = 4;
 }
