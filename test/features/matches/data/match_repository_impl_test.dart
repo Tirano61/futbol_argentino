@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +43,35 @@ const round12 = RoundQuery(
   apiRound: 12,
   expectedMinimum: 15,
 );
+
+/// Final de la Sudamericana 2026: la ronda que se vio pedida dos veces en
+/// `bracket_budget_test` (HITO_E §26.5).
+const sud200 = RoundQuery(
+  competitionId: 4724,
+  season: '2026',
+  apiRound: 200,
+  expectedMinimum: 1,
+);
+
+/// Retiene una lectura de la vigencia hasta que se libera [gate]: la
+/// ventana entre la lectura de `syncRound`/`watchRound` y el scheduler.
+class GatedMetadata extends QueryMetadataStore {
+  GatedMetadata(super.db);
+
+  Completer<void>? gate;
+
+  @override
+  Future<QueryMetadata?> get(String key) async {
+    final snapshot = await super.get(key);
+    final g = gate;
+    if (g != null) {
+      gate = null;
+      await g.future;
+    }
+    return snapshot;
+  }
+}
+
 const round1 = RoundQuery(
   competitionId: 4406,
   season: '2026',
@@ -56,7 +86,10 @@ void main() {
   late List<Uri> requests;
   late Handler handler;
 
-  MatchRepositoryImpl build() {
+  MatchRepositoryImpl build({
+    QueryMetadataStore? metadata,
+    SyncScheduler? scheduler,
+  }) {
     final client = TheSportsDbClient(
       config: const AppConfig(apiKey: '123', enableDiagnostics: false),
       httpClient: MockClient((request) {
@@ -73,8 +106,8 @@ void main() {
     return MatchRepositoryImpl(
       remote: MatchRemoteDataSource(client),
       local: MatchLocalDataSource(db),
-      metadata: QueryMetadataStore(db),
-      scheduler: SyncScheduler(),
+      metadata: metadata ?? QueryMetadataStore(db),
+      scheduler: scheduler ?? SyncScheduler(),
       clock: clock,
     );
   }
@@ -309,6 +342,110 @@ void main() {
 
       expect(result.origin, DataOrigin.cache);
       expect(result.refreshError, isA<NetworkFailure>());
+    });
+  });
+  group('vigencia leída antes de que otro trabajo guarde la ronda', () {
+    late GatedMetadata metadata;
+    late SyncScheduler scheduler;
+    late Completer<void> release;
+
+    setUp(() {
+      metadata = GatedMetadata(db);
+      scheduler = SyncScheduler(clock: clock, delay: clock.delay);
+      release = Completer<void>();
+      // La primera petición queda en curso hasta [release].
+      handler = (request) async {
+        if (requests.length == 1) await release.future;
+        return fixtureHandler(request);
+      };
+    });
+
+    /// A (precarga del fixture, P1) está en curso; B lee la vigencia (sin
+    /// la ronda), A termina y la guarda, y recién entonces B llega al
+    /// scheduler. Devuelve lo que hizo B.
+    Future<T> raceAfterA<T>(
+      MatchRepositoryImpl repo,
+      Future<T> Function() startB,
+    ) async {
+      final a = repo.syncRound(sud200);
+      await pumpEventQueue();
+      expect(requests, hasLength(1));
+      final gate = metadata.gate = Completer<void>();
+      final b = startB();
+      await pumpEventQueue();
+      release.complete();
+      await a;
+      gate.complete();
+      return b;
+    }
+
+    test('syncRound: no vuelve a pedir la ronda', () async {
+      final repo = build(metadata: metadata, scheduler: scheduler);
+
+      final queried = await raceAfterA(
+        repo,
+        () => repo.syncRound(sud200, priority: SyncPriority.team),
+      );
+
+      expect(requests, hasLength(1), reason: '$requests');
+      // Como al sumarse a un trabajo ajeno: la ronda se actualizó.
+      expect(queried, isTrue);
+    });
+
+    test('watchRound: no vuelve a pedir la ronda', () async {
+      final repo = build(metadata: metadata, scheduler: scheduler);
+
+      final results = await raceAfterA(
+        repo,
+        () => repo.watchRound(sud200, priority: SyncPriority.team).toList(),
+      );
+
+      expect(requests, hasLength(1), reason: '$requests');
+      // La final 2026 todavía no tiene partidos: lo guardado por A.
+      expect(results.last.refreshError, isNull);
+    });
+
+    test(
+      'un refresco forzado que se suma a ese trabajo en cola sí pide',
+      () async {
+        final repo = build(metadata: metadata, scheduler: scheduler);
+        // B (P2) queda en cola con la app en segundo plano.
+        scheduler.pause();
+        late Future<bool> b;
+        await raceAfterA(repo, () async {
+          b = repo.syncRound(sud200, priority: SyncPriority.team);
+        });
+        await pumpEventQueue();
+        expect(scheduler.pending, 1);
+
+        // Pasó el intervalo mínimo del refresco manual desde lo que guardó A.
+        clock.advance(const Duration(seconds: 40));
+        final forced = await repo.syncRound(
+          sud200,
+          priority: SyncPriority.visible,
+          forceRefresh: true,
+        );
+        await b;
+
+        expect(forced, isTrue);
+        expect(requests, hasLength(2), reason: '$requests');
+      },
+    );
+
+    test('una ronda vencida en cola se pide al empezar el trabajo', () async {
+      final repo = build(metadata: metadata, scheduler: scheduler);
+      release.complete();
+      await repo.syncRound(sud200);
+      clock.advance(const Duration(days: 1));
+      scheduler.pause();
+
+      final b = repo.syncRound(sud200, priority: SyncPriority.team);
+      await pumpEventQueue();
+      expect(requests, hasLength(1));
+      scheduler.resume();
+
+      expect(await b, isTrue);
+      expect(requests, hasLength(2), reason: '$requests');
     });
   });
 }

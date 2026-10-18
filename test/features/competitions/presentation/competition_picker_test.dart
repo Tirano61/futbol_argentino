@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/competition_logo.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/competition_picker.dart';
+
+import 'package:futbol_argentino/shared/presentation/theme/app_spacing.dart';
 
 import '../../../helpers/real_fonts.dart';
 
@@ -44,6 +48,16 @@ Future<void> pumpPicker(
 }
 
 final picker = find.byType(CompetitionPicker);
+
+/// Ids de las competiciones de los logos dentro de [of], en orden.
+List<int> logoIds(WidgetTester tester, Finder of) => [
+  for (final logo in tester.widgetList<CompetitionLogo>(
+    find.descendant(of: of, matching: find.byType(CompetitionLogo)),
+  ))
+    logo.competition.id,
+];
+
+const _ids = [4406, 4616, 5215, 5524, 4500, 4501, 4724];
 
 Finder inPicker(String text) =>
     find.descendant(of: picker, matching: find.text(text));
@@ -100,11 +114,38 @@ void main() {
       find.descendant(of: picker, matching: find.byIcon(Icons.arrow_drop_down)),
       findsOne,
     );
+    // El logo a la izquierda del nombre, centrado con él.
+    expect(logoIds(tester, picker), [4501]);
+    final logo = tester.getRect(
+      find.descendant(of: picker, matching: find.byType(CompetitionLogo)),
+    );
+    final name = tester.getRect(inPicker('Libertadores'));
+    expect(logo.right, lessThan(name.left));
+    expect(logo.center.dy, moreOrLessEquals(name.center.dy, epsilon: 1));
     expect(find.byTooltip(CompetitionPicker.tooltip), findsOne);
     expect(find.bySemanticsLabel('Competición: Copa Libertadores'), findsOne);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
   });
+
+  for (final width in [360.0, 1280.0]) {
+    testWidgets('${width.toInt()} px: al aparecer, el selector carga los '
+        'logos de las siete competiciones', (tester) async {
+      PaintingBinding.instance.imageCache.clear();
+      await pumpPicker(tester, width: width, selections: <int>[]);
+
+      for (final path in CompetitionLogo.assets.values) {
+        final key = (await tester.runAsync(
+          () => AssetImage(path).obtainKey(ImageConfiguration.empty),
+        ))!;
+        expect(
+          PaintingBinding.instance.imageCache.statusForKey(key).tracked,
+          isTrue,
+          reason: path,
+        );
+      }
+    });
+  }
 
   group('teléfono (< 600 px): hoja inferior', () {
     testWidgets('la hoja agrupa por categoría y marca la actual', (
@@ -126,6 +167,12 @@ void main() {
           .map((t) => ((t.title! as Text).data, t.selected))
           .toList();
       expect(tiles, [for (final n in _names) (n, n == 'Primera División')]);
+      // Cada una con su logo al principio de la fila.
+      expect(logoIds(tester, find.byType(BottomSheet)), _ids);
+      expect([
+        for (final t in tester.widgetList<ListTile>(find.byType(ListTile)))
+          (t.leading! as CompetitionLogo).competition.id,
+      ], _ids);
       // Encabezados en orden, cada uno antes de sus competiciones.
       double top(Finder f) => tester.getTopLeft(f).dy;
       expect(
@@ -220,6 +267,13 @@ void main() {
                       .data
                 : null,
         ], _names);
+        // Cada una con su logo; la tilde, al final.
+        expect([
+          for (final e in items.evaluate())
+            ((e.widget as MenuItemButton).leadingIcon! as CompetitionLogo)
+                .competition
+                .id,
+        ], _ids);
         // Solo la actual lleva la tilde (y la semántica de elegida).
         final check = find.descendant(
           of: items,
@@ -232,6 +286,10 @@ void main() {
             matching: find.widgetWithText(MenuItemButton, 'Primera Nacional'),
           ),
           findsOne,
+        );
+        expect(
+          tester.getRect(check).left,
+          greaterThan(tester.getRect(find.text('Primera Nacional').last).right),
         );
         // Cada categoría antes de sus competiciones.
         double top(Finder f) => tester.getTopLeft(f).dy;
@@ -250,6 +308,34 @@ void main() {
         await expectLater(tester, meetsGuideline(textContrastGuideline));
       });
     }
+
+    testWidgets('en escritorio (densidad compacta), filas de 48 con los '
+        'logos separados', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        await pumpPicker(tester, width: 1280, selections: <int>[]);
+        await tester.tap(picker);
+        await tester.pumpAndSettle();
+
+        final items = find.byType(MenuItemButton);
+        for (final e in items.evaluate()) {
+          expect(tester.getSize(find.byWidget(e.widget)).height, 48);
+        }
+        final logos = tester
+            .widgetList<CompetitionLogo>(
+              find.descendant(
+                of: items,
+                matching: find.byType(CompetitionLogo),
+              ),
+            )
+            .map((l) => tester.getRect(find.byWidget(l)))
+            .toList();
+        // Primera Nacional, B Metro y Primera C van seguidas.
+        expect(logos[2].top - logos[1].bottom, AppSpacing.md);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
 
     testWidgets('elegir en el menú: una sola elección, se cierra y el '
         'título cambia', (tester) async {
@@ -343,7 +429,28 @@ void main() {
 
     String describe(CompetitionTitleLayout l) =>
         '${l.shortName ? 'corto' : 'completo'}, temporada '
-        '${l.seasonInBar ? 'en la barra' : 'abajo'}';
+        '${l.seasonInBar ? 'en la barra' : 'abajo'}'
+        '${l.showLogo ? '' : ', sin logo'}';
+
+    /// Ancho del selector con [name] (logo incluido salvo [logo] falso).
+    Future<double> measure(
+      WidgetTester tester,
+      String name, {
+      bool logo = true,
+    }) async {
+      late double width;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              width = CompetitionPicker.widthFor(context, name, logo: logo);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      return width;
+    }
 
     testWidgets('con lugar: el nombre completo y la temporada', (tester) async {
       final l = await resolve(
@@ -366,7 +473,7 @@ void main() {
       final l = await resolve(
         tester,
         competition: CompetitionCatalog.copaLibertadores,
-        width: 280,
+        width: 324,
         seasonWidth: 80,
       );
       expect(describe(l), 'corto, temporada en la barra');
@@ -377,7 +484,7 @@ void main() {
       final l = await resolve(
         tester,
         competition: CompetitionCatalog.copaLibertadores,
-        width: 260,
+        width: 304,
         seasonWidth: 200,
       );
       expect(describe(l), 'completo, temporada abajo');
@@ -388,7 +495,7 @@ void main() {
       final l = await resolve(
         tester,
         competition: CompetitionCatalog.primeraBMetropolitana,
-        width: 150,
+        width: 194,
         seasonWidth: 80,
       );
       expect(describe(l), 'corto, temporada abajo');
@@ -398,9 +505,45 @@ void main() {
       final l = await resolve(
         tester,
         competition: CompetitionCatalog.copaSudamericana,
-        width: 150,
+        width: 240,
       );
       expect(describe(l), 'corto, temporada en la barra');
+    });
+
+    testWidgets('el logo cuenta en el ancho del selector', (tester) async {
+      final withLogo = await measure(tester, 'Copa Libertadores');
+      final without = await measure(tester, 'Copa Libertadores', logo: false);
+      expect(withLogo - without, AppSizes.competitionLogoTile + AppSpacing.sm);
+    });
+
+    testWidgets('si ni el corto entra con el logo: el logo se oculta antes '
+        'de recortar el nombre', (tester) async {
+      final competition = CompetitionCatalog.copaSudamericana;
+      final short = await measure(tester, competition.shortName);
+      final bare = await measure(tester, competition.shortName, logo: false);
+
+      // El corto entra justo con el logo: lo conserva.
+      var l = await resolve(
+        tester,
+        competition: competition,
+        width: short,
+        seasonWidth: 80,
+      );
+      expect(describe(l), 'corto, temporada abajo');
+
+      // Un píxel menos: sin logo, el nombre corto entero.
+      l = await resolve(
+        tester,
+        competition: competition,
+        width: short - 1,
+        seasonWidth: 80,
+      );
+      expect(describe(l), 'corto, temporada abajo, sin logo');
+      expect(bare, lessThanOrEqualTo(short - 1));
+
+      // Sin lugar ni para el corto solo: sin logo (el nombre se recorta).
+      l = await resolve(tester, competition: competition, width: bare - 1);
+      expect(describe(l), 'corto, temporada en la barra, sin logo');
     });
   });
 }

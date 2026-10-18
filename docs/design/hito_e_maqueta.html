@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maqueta Hito E</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: documento de revisión (ancho de lectura) con marcos de dispositivo
+   a tamaño real; la página usa la misma paleta que propone para la app. */
+:root {
+  /* Paleta propuesta (§4.1) — claro */
+  --primary: #1E6BB8; --on-primary: #FFFFFF;
+  --primary-container: #D6E8F7; --on-primary-container: #0B2E4F;
+  --bg: #F3F5F8; --group: #FFFFFF; --high: #E8ECF1;
+  --outline: #7D8792; --divider: #E1E5EA;
+  --fg: #15191E; --fg2: #5A6470;
+  --live: #C8203A; --live-container: #FDE3E6;
+  --warning: #8A5A00; --warning-container: #FFF1D6;
+  --success: #1B7F3B; --error: #BA1A1A;
+  --initials-bg: #D6E8F7; --initials-fg: #0B2E4F;
+  --font: "Roboto", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "Roboto Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #7DB8EC; --on-primary: #06243F;
+    --primary-container: #1C3A57; --on-primary-container: #D6E8F7;
+    --bg: #0F1215; --group: #171B20; --high: #232931;
+    --outline: #6B7580; --divider: #2A3038;
+    --fg: #E6E9ED; --fg2: #9AA4AF;
+    --live: #FF6B78; --live-container: #4A1A20;
+    --warning: #F2B84B; --warning-container: #3D2E10;
+    --success: #5CCB82; --error: #FFB4AB;
+    --initials-bg: #1C3A57; --initials-fg: #D6E8F7;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --primary: #7DB8EC; --on-primary: #06243F;
+  --primary-container: #1C3A57; --on-primary-container: #D6E8F7;
+  --bg: #0F1215; --group: #171B20; --high: #232931;
+  --outline: #6B7580; --divider: #2A3038;
+  --fg: #E6E9ED; --fg2: #9AA4AF;
+  --live: #FF6B78; --live-container: #4A1A20;
+  --warning: #F2B84B; --warning-container: #3D2E10;
+  --success: #5CCB82; --error: #FFB4AB;
+  --initials-bg: #1C3A57; --initials-fg: #D6E8F7;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 15px/1.5 var(--font);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+a { color: var(--primary); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ---------- Documento ---------- */
+.doc { max-width: 1240px; margin: 0 auto; display: grid; gap: 48px; }
+.masthead { padding-top: 32px; display: grid; gap: 12px; }
+.masthead h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.masthead p { margin: 0; max-width: 68ch; color: var(--fg2); }
+.notice {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--warning-container); color: var(--fg);
+  border-radius: 8px; padding: 12px 16px; max-width: 80ch;
+}
+.notice strong { color: var(--warning); }
+.toolbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 10px;
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+  border-bottom: 1px solid var(--divider);
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.toolbar nav { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.toolbar nav a { text-decoration: none; font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--outline); border-radius: 8px; overflow: hidden; }
+.seg button {
+  font: 500 13px var(--font); color: var(--fg); background: transparent;
+  border: 0; padding: 6px 12px; min-height: 36px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--outline); }
+.seg button[aria-pressed="true"] { background: var(--primary-container); color: var(--on-primary-container); font-weight: 700; }
+.ctl { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--fg2); }
+
+section.block { display: grid; gap: 20px; scroll-margin-top: 72px; }
+section.block > header { display: grid; gap: 6px; max-width: 80ch; }
+section.block h2 { font-size: 22px; font-weight: 700; }
+section.block > header p { margin: 0; color: var(--fg2); }
+.eyebrow { font: 600 12px var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); }
+.cols { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.cols > * { min-width: 0; }
+.caption { font-size: 13px; color: var(--fg2); max-width: 60ch; margin: 0; }
+.caption b { color: var(--fg); }
+.tag {
+  display: inline-block; font: 600 11px var(--font); letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 4px; background: var(--high); color: var(--fg2);
+}
+.tag.after { background: var(--primary-container); color: var(--on-primary-container); }
+.figure { display: grid; gap: 8px; justify-items: start; }
+.shot { max-width: 100%; border: 1px solid var(--divider); border-radius: 8px; display: block; }
+.scroll-x { overflow-x: auto; max-width: 100%; padding-bottom: 8px; }
+.notes { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 80ch; }
+.notes li::marker { color: var(--fg2); }
+.measure { font: 700 34px var(--font); font-variant-numeric: tabular-nums; }
+.measure small { font-size: 14px; font-weight: 500; color: var(--fg2); }
+
+/* ---------- Paleta ---------- */
+.palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.pal { border-radius: 12px; padding: 16px; display: grid; gap: 10px; }
+.pal h3 { font-size: 15px; }
+.sw { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.sw i { width: 36px; height: 28px; border-radius: 6px; display: block; border: 1px solid rgba(127,127,127,.35); }
+.sw code { font: 12px var(--mono); }
+.contrast { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.contrast th, .contrast td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+.contrast th { font-weight: 600; color: var(--fg2); font-size: 12px; }
+.contrast td.num { text-align: right; white-space: nowrap; }
+.ok { color: var(--success); font-weight: 700; }
+.bad { color: var(--error); font-weight: 700; }
+
+/* Tipografía */
+.typescale { display: grid; gap: 0; background: var(--group); border-radius: 12px; overflow: hidden; }
+.typescale div { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--divider); align-items: baseline; }
+.typescale div:last-child { border-bottom: 0; }
+.typescale span:first-child { font-size: 12px; color: var(--fg2); }
+.spacing { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.spacing div { display: grid; gap: 4px; justify-items: center; font-size: 12px; color: var(--fg2); font-variant-numeric: tabular-nums; }
+.spacing b { display: block; background: var(--primary); height: 12px; border-radius: 2px; }
+
+/* ---------- Marcos de dispositivo (la "app") ---------- */
+.device {
+  --s: 1;                      /* escala de texto: 1 = 100 %, 2 = 200 % */
+  font-size: calc(14px * var(--s));
+  width: 360px; max-width: 100%;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--outline); border-radius: 18px;
+  overflow: hidden; position: relative;
+  font-family: var(--font); line-height: 1.35;
+}
+.device.wide { width: 1280px; max-width: none; border-radius: 10px; }
+.device.w800 { width: 800px; max-width: none; }
+.fold {
+  position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed var(--live); z-index: 3; pointer-events: none;
+}
+.fold span { position: absolute; right: 6px; top: 2px; font: 600 10px var(--font); color: var(--live); background: var(--bg); padding: 0 4px; }
+
+.appbar { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 0 4px 0 16px; }
+.appbar .title { font-size: 1.57em; font-weight: 400; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon { width: 48px; height: 48px; display: inline-grid; place-items: center; color: var(--fg); flex: none; }
+.icon svg { width: 24px; height: 24px; }
+.navbar { display: flex; justify-content: space-around; background: var(--group); border-top: 1px solid var(--divider); padding: 8px 0 10px; }
+.navbar div { display: grid; justify-items: center; gap: 4px; font-size: 0.86em; color: var(--fg2); }
+.navbar div.on { color: var(--fg); font-weight: 600; }
+.navbar .pill { width: 56px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+.navbar div.on .pill { background: var(--primary-container); }
+.navbar svg { width: 22px; height: 22px; }
+
+.content { padding: 0 16px 16px; display: grid; gap: 24px; }
+.section-title { font-size: 1.14em; font-weight: 700; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.section-title small { font-size: 0.86em; font-weight: 400; color: var(--fg2); }
+.stack { display: grid; gap: 12px; }
+.dayhead { font-size: 0.93em; font-weight: 600; color: var(--primary); padding: 4px 4px 0; }
+
+/* Grupo de partidos */
+.group { background: var(--group); border-radius: 12px; overflow: hidden; }
+.ghead {
+  display: flex; align-items: center; gap: 8px; min-height: 40px;
+  padding: 6px 12px; background: var(--high); font-size: 1em; font-weight: 600;
+}
+.ghead .sub { font-weight: 400; color: var(--fg2); }
+.ghead .chev { margin-left: auto; color: var(--fg2); }
+.ghead .agg { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.row {
+  display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  align-items: center; gap: 8px; min-height: 56px; padding: 8px 12px;
+  border-top: 1px solid var(--divider); position: relative;
+}
+.group > .row:first-child, .ghead + .row { border-top: 0; }
+.row.selected { background: var(--primary-container); }
+.row.selected::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary); }
+.row .ctx { grid-column: 1 / -1; font-size: 0.86em; color: var(--fg2); margin-bottom: -2px; }
+.team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.team.home { justify-content: flex-end; text-align: right; }
+.team .name { font-size: 1em; overflow-wrap: break-word; hyphens: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.team.win .name { font-weight: 700; }
+.badge {
+  width: 2em; height: 2em; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 0.86em; font-weight: 600;
+  background: var(--initials-bg); color: var(--initials-fg);
+}
+.center { display: grid; justify-items: center; gap: 2px; min-width: 4.4em; text-align: center; }
+.score { font-size: 1.29em; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: 0.01em; }
+.score.live { color: var(--live); }
+.time { font-size: 1em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tbc { font-size: 0.79em; color: var(--fg2); line-height: 1.2; }
+.st { font-size: 0.79em; font-weight: 600; color: var(--fg2); white-space: nowrap; }
+.pen { font-size: 0.79em; color: var(--fg2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill-live {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px;
+  background: var(--live-container); color: var(--live); font-size: 0.79em; font-weight: 700; white-space: nowrap;
+}
+.pill-live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.st-warn { display: inline-flex; gap: 4px; align-items: center; color: var(--warning); font-size: 0.79em; font-weight: 600; white-space: nowrap; }
+.st-err { display: inline-flex; gap: 4px; align-items: center; color: var(--error); font-size: 0.79em; font-weight: 600; white-space: nowrap; }
+.st-warn svg, .st-err svg, .note svg { width: 1.1em; height: 1.1em; flex: none; }
+.notes-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; }
+.note { display: inline-flex; gap: 4px; align-items: center; font-size: 0.86em; color: var(--fg2); }
+.note.adv { color: var(--success); font-weight: 600; }
+.gfoot { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--divider); font-size: 0.93em; }
+.gfoot.adv { color: var(--success); font-weight: 600; }
+.gfoot.nodata { color: var(--fg2); }
+.gfoot svg { width: 1.15em; height: 1.15em; flex: none; }
+.example-flag { font-size: 0.79em; color: var(--fg2); font-style: italic; padding: 4px 12px 8px; }
+
+/* Inicio */
+.search {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 16px;
+  border-radius: 24px; background: var(--group); border: 1px solid var(--divider); color: var(--fg2);
+}
+.search svg { width: 20px; height: 20px; }
+.shortcuts { display: flex; gap: 8px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+.shortcuts::-webkit-scrollbar { display: none; }
+.cat { font-size: 0.79em; font-weight: 600; color: var(--fg2); white-space: nowrap; letter-spacing: 0.02em; }
+.cat:not(:first-child) { padding-left: 8px; border-left: 1px solid var(--divider); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; white-space: nowrap;
+  border-radius: 8px; border: 1px solid var(--divider); background: var(--group); font-size: 0.93em; font-weight: 500; color: var(--fg);
+}
+.chip.on { background: var(--primary-container); color: var(--on-primary-container); border-color: transparent; font-weight: 700; }
+.fav { background: var(--group); border-radius: 12px; overflow: hidden; }
+.fav .fhead { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; font-weight: 600; }
+.fav .fhead .badge { width: 2.3em; height: 2.3em; }
+.fav .fhead .chev { margin-left: auto; color: var(--fg2); }
+.fav .row { border-top: 1px solid var(--divider); }
+.foot { font-size: 0.79em; color: var(--fg2); text-align: center; }
+
+/* Escritorio */
+.desk { display: grid; grid-template-columns: 256px 1px 1fr; min-height: 760px; }
+.rail { padding: 8px 12px; display: grid; align-content: start; gap: 4px; }
+.rail div { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-radius: 22px; font-size: 0.93em; }
+.rail div.on { background: var(--primary-container); font-weight: 600; }
+.rail svg { width: 22px; height: 22px; }
+.vdiv { background: var(--divider); }
+.deskmain { min-width: 0; }
+.deskbar { display: flex; align-items: center; gap: 8px; min-height: 64px; padding: 0 12px 0 24px; }
+.deskbar .title { font-size: 1.57em; flex: 1; }
+.deskbar .search { width: 280px; min-height: 44px; }
+.deskcols { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; padding: 0 24px 24px; max-width: 1200px; }
+
+/* Competiciones (cabecera HTML interactiva) */
+.tabs { display: flex; border-bottom: 1px solid var(--divider); padding: 0 8px; }
+.tabs button {
+  flex: 1; min-height: 48px; border: 0; background: none; font: 600 1em var(--font); color: var(--fg2);
+  position: relative; padding: 0 12px; white-space: nowrap; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { color: var(--primary); }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--primary); }
+.lvl3 { display: grid; gap: 4px; padding: 6px 0; }
+.lvl3 .chips { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px; scrollbar-width: none; }
+.lvl3 .chips::-webkit-scrollbar { display: none; }
+.roundnav { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: 0 8px; }
+.roundnav span { text-align: center; font-weight: 600; }
+.selector-btn {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 48px; padding: 0 8px; border: 0; background: none;
+  font: 400 1.57em var(--font); color: var(--fg); cursor: pointer; border-radius: 8px; min-width: 0;
+}
+.selector-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.season-btn { display: inline-flex; align-items: center; gap: 2px; min-height: 48px; padding: 0 8px; border: 0; background: none; font: 600 1em var(--font); color: var(--fg); }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--group);
+  border-radius: 20px 20px 0 0; padding: 8px 0 12px; box-shadow: 0 -4px 24px rgba(0,0,0,.25);
+}
+.sheet .handle { width: 32px; height: 4px; border-radius: 2px; background: var(--outline); margin: 6px auto 10px; }
+.sheet h4 { margin: 0; padding: 8px 16px 4px; color: var(--primary); font-size: 0.93em; font-weight: 600; }
+.sheet button {
+  display: flex; width: 100%; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 16px;
+  border: 0; background: none; font: 400 1.07em var(--font); color: var(--fg); cursor: pointer; text-align: left;
+}
+.scrim { position: absolute; inset: 0; background: rgba(0,0,0,.35); z-index: 3; }
+
+/* Tablas */
+.table { background: var(--group); border-radius: 12px; overflow: hidden; font-variant-numeric: tabular-nums; }
+.thead, .trow { display: grid; align-items: center; gap: 0; padding: 0 8px 0 0; }
+.thead { min-height: 32px; font-size: 0.79em; font-weight: 600; color: var(--fg2); border-bottom: 1px solid var(--divider); }
+.trow { min-height: 48px; border-top: 1px solid var(--divider); }
+.thead + .trow { border-top: 0; }
+.trow.fav { background: color-mix(in srgb, var(--primary-container) 60%, var(--group)); }
+.pos { display: flex; align-items: stretch; height: 100%; min-height: inherit; }
+.pos i { width: 3px; background: transparent; }
+.pos.q i { background: var(--success); }
+.pos b { flex: 1; display: grid; place-items: center; font-weight: 700; }
+.tteam { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tteam .badge { width: 1.7em; height: 1.7em; font-size: 0.79em; }
+.tteam .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tteam .star { color: var(--primary); font-size: 0.86em; }
+.n { text-align: right; padding-right: 4px; }
+.pts { text-align: right; font-weight: 700; padding: 0 6px; align-self: stretch; display: grid; place-items: center end; background: color-mix(in srgb, var(--high) 55%, transparent); }
+.thead .pts { font-weight: 600; background: transparent; }
+.tmeta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.86em; color: var(--fg2); padding: 0 4px; }
+.tmeta .okline { color: var(--success); font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
+.tmeta svg { width: 1.1em; height: 1.1em; }
+.legend { display: flex; gap: 8px; align-items: flex-start; font-size: 0.86em; color: var(--fg2); padding: 0 4px; }
+.legend i { width: 3px; align-self: stretch; min-height: 1.2em; background: var(--success); flex: none; border-radius: 2px; }
+.tnotes { display: grid; gap: 4px; font-size: 0.79em; color: var(--fg2); padding: 8px 4px 0; border-top: 1px solid var(--divider); }
+.tnotes p { margin: 0; }
+
+/* Calendario */
+.cal { background: var(--group); border-radius: 12px; padding: 8px 8px 12px; }
+.calhead { display: flex; align-items: center; padding: 0 0 0 8px; }
+.calhead b { flex: 1; font-size: 1.14em; }
+.calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.calgrid .wd { font-size: 0.79em; color: var(--fg2); font-weight: 600; padding: 4px 0; }
+.day { min-height: 48px; display: grid; align-content: center; justify-items: center; gap: 2px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+.day .d { font-size: 0.93em; color: var(--fg2); }
+.day.has .d { color: var(--fg); font-weight: 700; }
+.day .c { font-size: 0.71em; font-weight: 700; color: var(--primary); display: inline-flex; align-items: center; gap: 3px; }
+.day .c::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.day.today { box-shadow: inset 0 0 0 1.5px var(--primary); }
+.day.sel { background: var(--primary); }
+.day.sel .d, .day.sel .c { color: var(--on-primary); }
+
+/* Llaves */
+.bracket { display: grid; grid-template-columns: 230px 40px 230px; align-items: center; }
+.tie { background: var(--group); border: 1px solid var(--divider); border-radius: 10px; padding: 8px 10px; display: grid; gap: 3px; font-variant-numeric: tabular-nums; }
+.tie .l { display: grid; grid-template-columns: 1.4em 1fr auto auto; gap: 6px; align-items: center; font-size: 0.93em; }
+.tie .l .badge { width: 1.4em; height: 1.4em; font-size: 0.64em; }
+.tie .l.lose { color: var(--fg2); }
+.tie .l.win { font-weight: 700; }
+.tie .l .ck { color: var(--success); width: 1em; }
+.tie .info { font-size: 0.79em; color: var(--fg2); }
+.tcol { display: grid; gap: 14px; }
+.champion { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--group); border-radius: 12px; font-weight: 600; font-size: 1.07em; }
+.champion svg { color: var(--success); width: 22px; height: 22px; }
+
+/* Detalle */
+.hero { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 8px 0 4px; }
+.hero .comp { font-size: 0.93em; color: var(--fg2); }
+.hero .teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: start; width: 100%; }
+.hero .teams .side { display: grid; justify-items: center; gap: 8px; font-weight: 600; font-size: 1.07em; }
+.hero .teams .badge { width: 4.4em; height: 4.4em; font-size: 1em; }
+.hero .big { font-size: 2.57em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.hero .advline { color: var(--success); font-weight: 600; display: inline-flex; gap: 6px; align-items: center; font-size: 0.93em; }
+.facts { background: var(--group); border-radius: 12px; display: grid; }
+.facts div { display: grid; grid-template-columns: 8.5em 1fr; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--divider); font-size: 0.93em; }
+.facts div:first-child { border-top: 0; }
+.facts dt, .facts span.k { color: var(--fg2); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.btn-tonal { min-height: 40px; padding: 0 16px; border-radius: 20px; border: 0; background: var(--primary-container); color: var(--on-primary-container); font: 600 0.93em var(--font); display: inline-flex; align-items: center; gap: 6px; }
+.btn-tonal svg { width: 18px; height: 18px; }
+
+@media (max-width: 720px) {
+  .masthead h1 { font-size: 24px; }
+  .typescale div { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58ZM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2Z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3Z"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path fill="currentColor" d="M19 5h-2V3H7v2H5a2 2 0 0 0-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7a2 2 0 0 0-2-2ZM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8Zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Zm0 2.18 7 3.12V11c0 4.52-2.98 8.69-7 9.93C7.98 19.69 5 15.52 5 11V6.3l7-3.12Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="m22 9.24-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24ZM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z"/></symbol>
+    <symbol id="i-checkc" viewBox="0 0 24 24"><path fill="currentColor" d="M16.59 7.58 10 14.17l-3.59-3.58L5 12l5 5 8-8-1.41-1.42ZM12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><path fill="currentColor" d="M11 18h2v-2h-2v2Zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm0-14a4 4 0 0 0-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5a4 4 0 0 0-4-4Z"/></symbol>
+    <symbol id="i-busy" viewBox="0 0 24 24"><path fill="currentColor" d="M9.31 17l2.44-2.44L14.19 17l1.06-1.06-2.44-2.44 2.44-2.44L14.19 10l-2.44 2.44L9.31 10l-1.06 1.06 2.44 2.44-2.44 2.44L9.31 17ZM19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 16H5V8h14v11Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16h2V8H9v8Zm3-14a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm1-4h2V8h-2v8Z"/></symbol>
+    <symbol id="i-block" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20ZM4 12a8 8 0 0 1 12.9-6.31L5.69 16.9A7.9 7.9 0 0 1 4 12Zm8 8a7.9 7.9 0 0 1-4.9-1.69L18.31 7.1A7.9 7.9 0 0 1 20 12a8 8 0 0 1-8 8Z"/></symbol>
+    <symbol id="i-hourglass" viewBox="0 0 24 24"><path fill="currentColor" d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6Zm10 14.5V20H8v-3.5l4-4 4 4Zm-4-5-4-4V4h8v3.5l-4 4Z"/></symbol>
+    <symbol id="i-update" viewBox="0 0 24 24"><path fill="currentColor" d="M21 10.12h-6.78l2.74-2.82a7.04 7.04 0 0 0-9.88-.1 6.88 6.88 0 0 0 0 9.8 7.04 7.04 0 0 0 9.88 0A6.5 6.5 0 0 0 19 12.1h2a8.67 8.67 0 0 1-2.64 6.36 9.04 9.04 0 0 1-12.72 0 8.84 8.84 0 0 1-.02-12.58 9 9 0 0 1 12.65 0L21 3v7.12ZM12.5 8v4.25l3.5 2.08-.72 1.21L11 13V8h1.5Z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="currentColor" d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6Z"/></symbol>
+    <symbol id="i-chevl" viewBox="0 0 24 24"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59Z"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path fill="currentColor" d="m7 10 5 5 5-5H7Z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11A2.99 2.99 0 0 0 21 5a3 3 0 1 0-5.91.7L8.04 9.81A3 3 0 1 0 8.04 14.2l7.12 4.16c-.05.21-.08.43-.08.65A2.92 2.92 0 1 0 18 16.08Z"/></symbol>
+    <symbol id="i-event" viewBox="0 0 24 24"><path fill="currentColor" d="M17 12h-5v5h5v-5ZM16 1v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2Zm3 18H5V8h14v11Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="doc">
+
+<header class="masthead">
+  <span class="eyebrow">Fútbol Argentino · Hito E · Fase E1</span>
+  <h1>Propuesta visual para revisar</h1>
+  <p>Paleta, tipografía, filas de partido, Inicio, cabecera de Competiciones y tablas tal como se proponen en el plan (§4–§11 de <code>docs/HITO_E.md</code>), junto al diseño actual de cada pantalla.</p>
+  <div class="notice" role="note">
+    <span><strong>Maqueta ilustrativa: no es una captura de la app.</strong> Está dibujada en HTML. Los partidos, resultados y tablas son <b>reales</b>, de las grabaciones del 11/10/2026 y del 14/10/2026 (<code>test/fixtures/api/</code>). Los escudos se ven como iniciales (el respaldo que ya usa la app); en la app se ven los escudos reales. Las imágenes rotuladas «Antes» y «Prototipo Flutter» sí son renders reales de Flutter.</span>
+  </div>
+</header>
+
+<div class="toolbar" role="toolbar" aria-label="Controles de la maqueta">
+  <div class="ctl">Tema
+    <div class="seg" id="theme-seg">
+      <button type="button" id="theme-system" data-theme-choice="system" aria-pressed="true">Sistema</button>
+      <button type="button" id="theme-light" data-theme-choice="light" aria-pressed="false">Claro</button>
+      <button type="button" id="theme-dark" data-theme-choice="dark" aria-pressed="false">Oscuro</button>
+    </div>
+  </div>
+  <div class="ctl">Texto
+    <div class="seg" id="scale-seg">
+      <button type="button" id="scale-100" data-scale="1" aria-pressed="true">100 %</button>
+      <button type="button" id="scale-200" data-scale="2" aria-pressed="false">200 %</button>
+    </div>
+  </div>
+  <nav aria-label="Secciones">
+    <a href="#paleta">Paleta</a><a href="#tipografia">Tipografía</a><a href="#partidos">Partidos</a><a href="#inicio">Inicio</a><a href="#competiciones">Competiciones</a><a href="#tablas">Tablas</a><a href="#calendario">Calendario y llaves</a><a href="#detalle">Detalle</a>
+  </nav>
+</div>
+
+<!-- ============ PALETA ============ -->
+<section class="block" id="paleta">
+  <header>
+    <span class="eyebrow">§4.1 · Decisiones E-D1 y E-D2</span>
+    <h2>Paleta</h2>
+    <p>Un solo color de marca (el celeste, más profundo para que se lea como texto) y superficies neutras. Los otros cuatro colores solo aparecen cuando significan algo: en vivo, aviso, avanza o clasifica, y error. Los dos temas se ven acá juntos, sin importar el tema elegido arriba.</p>
+  </header>
+  <div class="palette" id="palette"></div>
+  <div class="scroll-x">
+    <table class="contrast" id="contrast">
+      <thead><tr><th>Par de colores (uso)</th><th>Mínimo WCAG</th><th class="num">Claro</th><th class="num">Oscuro</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="caption">Relaciones calculadas en esta página con la fórmula de WCAG 2.1. Dos tonos del borrador fallaban y ya están corregidos: el rojo «en vivo» del tema claro (de <code>#D7263D</code> a <code>#C8203A</code>, por su píldora) y el gris de conectores y bordes (de <code>#8A949F</code> a <code>#7D8792</code>). El detalle está en <code>docs/evidence/e1_contrastes.md</code>.</p>
+</section>
+
+<!-- ============ TIPOGRAFÍA ============ -->
+<section class="block" id="tipografia">
+  <header>
+    <span class="eyebrow">§4.2–4.3</span>
+    <h2>Tipografía y espaciado</h2>
+    <p>La misma Roboto de la app, sin fuentes nuevas. Las cifras van tabulares para que los marcadores, las horas y las columnas de las tablas queden alineados. El marcador es lo que más pesa en cada fila.</p>
+  </header>
+  <div class="typescale">
+    <div><span>Título de pantalla · 22 / 400</span><span style="font-size:22px">Primera División</span></div>
+    <div><span>Título de sección · 16 / 700</span><span style="font-size:16px;font-weight:700">Hoy <small style="font-weight:400;color:var(--fg2);font-size:13px">Domingo 11/10/2026</small></span></div>
+    <div><span>Encabezado de grupo · 14 / 600</span><span style="font-size:14px;font-weight:600">Primera División <span style="font-weight:400;color:var(--fg2)">· Clausura · Fecha 12</span></span></div>
+    <div><span>Encabezado de día · 13 / 600, marca</span><span style="font-size:13px;font-weight:600;color:var(--primary)">Sábado 10/10/2026</span></div>
+    <div><span>Equipo · 14 / 400, ganador 700</span><span style="font-size:14px"><b>San Lorenzo</b> · Deportivo Riestra</span></div>
+    <div><span>Marcador en lista · 18 / 700</span><span style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums">1 – 0</span></div>
+    <div><span>Marcador en el detalle · 36 / 700</span><span style="font-size:36px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1">3 – 2</span></div>
+    <div><span>Hora · 14 / 600</span><span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">19:15</span></div>
+    <div><span>Estadística de tabla · 14 / 400, Pts 700</span><span style="font-size:14px;font-variant-numeric:tabular-nums">12 &nbsp; +9 &nbsp; <b>26</b></span></div>
+    <div><span>Etiqueta de estado · 11 / 600</span><span style="font-size:11px;font-weight:600;color:var(--fg2)">Final (penales)</span></div>
+    <div><span>Secundario · 12 / 400</span><span style="font-size:12px;color:var(--fg2)">Calculada por la app con los partidos de TheSportsDB: no es la tabla oficial.</span></div>
+  </div>
+  <div class="spacing" aria-label="Escala de espaciado">
+    <div><b style="width:4px"></b>4</div><div><b style="width:8px"></b>8</div><div><b style="width:12px"></b>12</div><div><b style="width:16px"></b>16</div><div><b style="width:24px"></b>24</div><div><b style="width:32px"></b>32</div>
+  </div>
+  <p class="caption">Escala de espaciado: 4 · 8 · 12 · 16 · 24 · 32. Margen lateral: 16 en teléfono y 24 desde 600 px. Radios: 12 (grupos) y 8 (chips, píldoras, avisos). Escudos: 20 (llaves), 24 (tabla), 28 (filas), 32 (encabezados), 72 (ficha y detalle).</p>
+</section>
+
+<!-- ============ PARTIDOS ============ -->
+<section class="block" id="partidos">
+  <header>
+    <span class="eyebrow">§5 · Decisiones E-D3, E-D4 y E-D5 · prioridad alta</span>
+    <h2>Filas de partido</h2>
+    <p>Los partidos pasan de una tarjeta elevada cada uno a filas dentro de un grupo, con divisores finos y el contexto («Primera División · Clausura · Fecha 12») una sola vez. El ganador va en negrita. «Final» queda como texto gris; la píldora es solo para en juego y entretiempo. Las anomalías llevan ícono y texto, así el estado nunca depende solo del color. La altura sale del contenido: probá con el texto al 200 %.</p>
+  </header>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Propuesta · 360 px</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="stack">
+            <div class="section-title">Hoy <small>Domingo 11/10/2026</small></div>
+            <div class="group">
+              <div class="ghead">Primera División <span class="sub">· Clausura · Fecha 12</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+              <div class="row"><div class="team home win"><span class="name">San Lorenzo</span><span class="badge">SL</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">DR</span><span class="name">Deportivo Riestra</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Platense</span><span class="badge">P</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">AJ</span><span class="name">Argentinos Juniors</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Racing Club</span><span class="badge">RC</span></div><div class="center"><span class="time">19:15</span></div><div class="team"><span class="badge">B</span><span class="name">Belgrano</span></div></div>
+            </div>
+            <div class="group">
+              <div class="ghead">Primera Nacional <span class="sub">· Fecha 33</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+              <div class="row"><div class="team home"><span class="name">Gimnasia y Esgrima de Jujuy</span><span class="badge">GJ</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">Entretiempo</span></div><div class="team"><span class="badge">GT</span><span class="name">Gimnasia y Tiro</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Deportivo Madryn</span><span class="badge">DM</span></div><div class="center"><span class="score">1 – 2</span><span class="st">Final</span></div><div class="team win"><span class="badge">CF</span><span class="name">Chaco For Ever</span></div></div>
+            </div>
+
+            <div class="dayhead">Sábado 10/10/2026 · nombres largos</div>
+            <div class="group">
+              <div class="row"><div class="team home"><span class="name">Central Córdoba de Santiago del Estero</span><span class="badge">CC</span></div><div class="center"><span class="score">2 – 2</span><span class="st">Final</span></div><div class="team"><span class="badge">EP</span><span class="name">Estudiantes de La Plata</span></div></div>
+            </div>
+
+            <div class="dayhead">Partido único por penales y alargue · Apertura 2026</div>
+            <div class="group">
+              <div class="row"><div class="team home"><span class="name">Argentinos Juniors</span><span class="badge">AJ</span></div><div class="center"><span class="score">1 – 1</span><span class="pen">(3-4 pen.)</span><span class="st">Final (penales)</span></div><div class="team win"><span class="badge">B</span><span class="name">Belgrano</span></div><div class="notes-row"><span class="note adv"><svg><use href="#i-checkc"/></svg>Avanza Belgrano (3-4 en penales)</span></div></div>
+              <div class="row"><div class="team home win"><span class="name">Argentinos Juniors</span><span class="badge">AJ</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final (alargue)</span></div><div class="team"><span class="badge">H</span><span class="name">Huracán</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="figure">
+      <span class="tag after">Propuesta · series de ida y vuelta</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="stack">
+            <div class="section-title">Copa Libertadores 2026 <small>Cuartos de final</small></div>
+            <div class="group">
+              <div class="ghead">LDU Quito – Palmeiras<span class="agg">Global 3-3</span></div>
+              <div class="row"><span class="ctx">Ida · Miércoles 09/09/2026</span><div class="team home win"><span class="name">Palmeiras</span><span class="badge">P</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">LQ</span><span class="name">LDU Quito</span></div></div>
+              <div class="row"><span class="ctx">Vuelta · Miércoles 16/09/2026</span><div class="team home"><span class="name">LDU Quito</span><span class="badge">LQ</span></div><div class="center"><span class="score">3 – 2</span><span class="pen">(3-4 pen.)</span><span class="st">Final (penales)</span></div><div class="team win"><span class="badge">P</span><span class="name">Palmeiras</span></div></div>
+              <div class="gfoot adv"><svg><use href="#i-checkc"/></svg>Avanza Palmeiras (4-3 en penales)</div>
+            </div>
+            <div class="section-title">Semifinales <small>al 14/10/2026, 21:45</small></div>
+            <div class="group">
+              <div class="ghead">Fluminense – Palmeiras<span class="agg" style="font-weight:400;color:var(--fg2)">Global parcial 0-0</span></div>
+              <div class="row"><span class="ctx">Ida · Miércoles 14/10/2026</span><div class="team home"><span class="name">Fluminense</span><span class="badge">F</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">P</span><span class="name">Palmeiras</span></div></div>
+              <div class="row"><span class="ctx">Vuelta · Miércoles 21/10/2026</span><div class="team home"><span class="name">Palmeiras</span><span class="badge">P</span></div><div class="center"><span class="time">21:30</span></div><div class="team"><span class="badge">F</span><span class="name">Fluminense</span></div></div>
+            </div>
+            <div class="section-title">Sudamericana 2025 <small>Final</small></div>
+            <div class="group">
+              <div class="row"><div class="team home"><span class="name">Lanús</span><span class="badge">L</span></div><div class="center"><span class="score">0 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">AM</span><span class="name">Atlético Mineiro</span></div></div>
+              <div class="gfoot nodata"><svg><use href="#i-help"/></svg>Sin dato de la definición</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="figure">
+      <span class="tag after">Propuesta · estados especiales</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="stack">
+            <div class="section-title">Estados <small>sin partido grabado</small></div>
+            <div class="group">
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="score">–</span><span class="st-warn"><svg><use href="#i-busy"/></svg>Postergado</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="score">1 – 0</span><span class="st-warn"><svg><use href="#i-pause"/></svg>Suspendido</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="score">0 – 0</span><span class="st-warn"><svg><use href="#i-pause"/></svg>Interrumpido</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="score">–</span><span class="st-err"><svg><use href="#i-block"/></svg>Cancelado</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="time" style="color:var(--fg2)">15:00</span><span class="st-warn"><svg><use href="#i-hourglass"/></svg>Resultado pendiente</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Equipo local</span><span class="badge">L</span></div><div class="center"><span class="tbc">Horario por<br>confirmar</span></div><div class="team"><span class="badge">V</span><span class="name">Equipo visitante</span></div><div class="notes-row"><span class="note"><svg><use href="#i-update"/></svg>Reprogramado</span><span class="note"><svg><use href="#i-help"/></svg>La API ya no lo lista en esta fecha</span></div></div>
+              <div class="example-flag">Las grabaciones no tienen partidos postergados, suspendidos ni cancelados: estas filas solo muestran el tratamiento de cada estado, con equipos genéricos.</div>
+            </div>
+            <div class="section-title">Fila seleccionada <small>panel de detalle abierto</small></div>
+            <div class="group">
+              <div class="row selected"><div class="team home win"><span class="name">San Lorenzo</span><span class="badge">SL</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">DR</span><span class="name">Deportivo Riestra</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 360 px</span>
+      <img class="shot" src="../../test/visual/goldens/fixture_primera_360_claro.png" width="360" alt="Fixture de Primera División a 360 px con el diseño actual: tarjetas elevadas, nombres partidos a mitad de palabra." loading="lazy">
+      <p class="caption"><b>Hoy:</b> una tarjeta elevada por partido, la píldora «Final» repetida en cada una, y nombres partidos a mitad de palabra («Sarmient o», «Gimnasia y Esgri…») porque el centro mide 104 px fijos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INICIO ============ -->
+<section class="block" id="inicio">
+  <header>
+    <span class="eyebrow">§6 · Decisiones E-D6 y E-D7</span>
+    <h2>Inicio</h2>
+    <p>En un teléfono, hoy los accesos ocupan cuatro títulos y cuatro filas de chips, y «Hoy» empieza recién a los ~600 px. La propuesta junta los accesos en una sola fila desplazable con la categoría como etiqueta, quita el ícono de búsqueda que duplicaba el campo y agrupa los partidos por competición. La línea roja marca el borde de la pantalla de un teléfono de 780 px de alto.</p>
+  </header>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Propuesta · 360 px</span>
+      <div class="device" data-scalable id="home-phone">
+        <div class="fold" style="top:780px"><span>780 px</span></div>
+        <div class="appbar"><span class="title">Fútbol Argentino</span><span class="icon"><svg><use href="#i-refresh"/></svg></span><span class="icon"><svg><use href="#i-settings"/></svg></span></div>
+        <div class="content">
+          <div class="search"><svg><use href="#i-search"/></svg>Buscar equipo</div>
+          <div class="shortcuts" aria-label="Competiciones">
+            <span class="cat">Primera División</span><span class="chip">Primera División</span>
+            <span class="cat">Ascenso</span><span class="chip">Primera Nacional</span><span class="chip">Primera B Metropolitana</span><span class="chip">Primera C</span>
+            <span class="cat">Copas nacionales</span><span class="chip">Copa Argentina</span>
+            <span class="cat">Copas internacionales</span><span class="chip">Copa Libertadores</span><span class="chip">Copa Sudamericana</span>
+          </div>
+          <div class="stack">
+            <div class="section-title">Tus equipos</div>
+            <div class="fav">
+              <div class="fhead"><span class="badge">BJ</span>Boca Juniors<svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+              <div class="row"><span class="ctx">Próximo · Domingo 18/10/2026 · Primera División · Clausura · Fecha 13</span><div class="team home"><span class="name">Boca Juniors</span><span class="badge">BJ</span></div><div class="center"><span class="time">17:00</span></div><div class="team"><span class="badge">TC</span><span class="name">Talleres de Córdoba</span></div></div>
+              <div class="row"><span class="ctx">Último · Viernes 09/10/2026 · Primera División · Clausura · Fecha 12</span><div class="team home"><span class="name">Instituto</span><span class="badge">I</span></div><div class="center"><span class="score">2 – 2</span><span class="st">Final</span></div><div class="team"><span class="badge">BJ</span><span class="name">Boca Juniors</span></div></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="section-title">Hoy <small>Domingo 11/10/2026</small></div>
+            <div class="group">
+              <div class="ghead">Primera División <span class="sub">· Clausura · Fecha 12</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+              <div class="row"><div class="team home win"><span class="name">San Lorenzo</span><span class="badge">SL</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">DR</span><span class="name">Deportivo Riestra</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Platense</span><span class="badge">P</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">AJ</span><span class="name">Argentinos Juniors</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Rosario Central</span><span class="badge">RC</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">IR</span><span class="name">Independiente Rivadavia</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Racing Club</span><span class="badge">RC</span></div><div class="center"><span class="time">19:15</span></div><div class="team"><span class="badge">B</span><span class="name">Belgrano</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Talleres de Córdoba</span><span class="badge">TC</span></div><div class="center"><span class="time">21:30</span></div><div class="team"><span class="badge">I</span><span class="name">Independiente</span></div></div>
+            </div>
+            <div class="group">
+              <div class="ghead">Primera Nacional <span class="sub">· Fecha 33</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+              <div class="row"><div class="team home win"><span class="name">Atlanta</span><span class="badge">A</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">SM</span><span class="name">San Martín de Tucumán</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Deportivo Madryn</span><span class="badge">DM</span></div><div class="center"><span class="score">1 – 2</span><span class="st">Final</span></div><div class="team win"><span class="badge">CF</span><span class="name">Chaco For Ever</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Almirante Brown</span><span class="badge">AB</span></div><div class="center"><span class="score live">1 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">SM</span><span class="name">San Miguel</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Gimnasia y Esgrima de Jujuy</span><span class="badge">GJ</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">Entretiempo</span></div><div class="team"><span class="badge">GT</span><span class="name">Gimnasia y Tiro</span></div></div>
+              <div class="example-flag">En la maqueta se cortan acá los 12 partidos de la fecha; la app los muestra todos.</div>
+            </div>
+          </div>
+        </div>
+        <div class="navbar"><div class="on"><span class="pill"><svg><use href="#i-home"/></svg></span>Inicio</div><div><span class="pill"><svg><use href="#i-trophy"/></svg></span>Competiciones</div><div><span class="pill"><svg><use href="#i-shield"/></svg></span>Equipos</div><div><span class="pill"><svg><use href="#i-star"/></svg></span>Favoritos</div></div>
+      </div>
+    </div>
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 360 × 780</span>
+      <img class="shot" src="../../test/visual/goldens/inicio_360_claro.png" width="360" alt="Inicio actual a 360 px: búsqueda, cuatro bloques de accesos por categoría y Tus equipos; Hoy empieza al final de la pantalla." loading="lazy">
+      <p class="caption"><b>Hoy:</b> tarjeta de búsqueda (además del ícono en la barra), cuatro bloques de accesos y «Tus equipos» antes de «Hoy», que empieza a los ~600 px de 780. En la propuesta, con un favorito, a 780 px ya se ven el favorito y los primeros partidos de hoy.</p>
+    </div>
+  </div>
+
+  <div class="figure">
+    <span class="tag after">Propuesta · escritorio 1280 px (dos columnas, como hoy)</span>
+    <div class="scroll-x" style="width:100%">
+      <div class="device wide">
+        <div class="desk">
+          <div class="rail">
+            <div class="on"><svg><use href="#i-home"/></svg>Inicio</div>
+            <div><svg><use href="#i-trophy"/></svg>Competiciones</div>
+            <div><svg><use href="#i-shield"/></svg>Equipos</div>
+            <div><svg><use href="#i-star"/></svg>Favoritos</div>
+          </div>
+          <div class="vdiv"></div>
+          <div class="deskmain">
+            <div class="deskbar"><span class="title">Fútbol Argentino</span><div class="search"><svg><use href="#i-search"/></svg>Buscar equipo</div><span class="icon"><svg><use href="#i-refresh"/></svg></span><span class="icon"><svg><use href="#i-settings"/></svg></span></div>
+            <div class="deskcols">
+              <div class="stack">
+                <div class="section-title">Hoy <small>Domingo 11/10/2026</small></div>
+                <div class="group">
+                  <div class="ghead">Primera División <span class="sub">· Clausura · Fecha 12</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+                  <div class="row"><div class="team home win"><span class="name">San Lorenzo</span><span class="badge">SL</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">DR</span><span class="name">Deportivo Riestra</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Platense</span><span class="badge">P</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">AJ</span><span class="name">Argentinos Juniors</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Rosario Central</span><span class="badge">RC</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">IR</span><span class="name">Independiente Rivadavia</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Racing Club</span><span class="badge">RC</span></div><div class="center"><span class="time">19:15</span></div><div class="team"><span class="badge">B</span><span class="name">Belgrano</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Talleres de Córdoba</span><span class="badge">TC</span></div><div class="center"><span class="time">21:30</span></div><div class="team"><span class="badge">I</span><span class="name">Independiente</span></div></div>
+                </div>
+                <div class="group">
+                  <div class="ghead">Primera Nacional <span class="sub">· Fecha 33</span><svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+                  <div class="row"><div class="team home win"><span class="name">Atlanta</span><span class="badge">A</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">SM</span><span class="name">San Martín de Tucumán</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Almirante Brown</span><span class="badge">AB</span></div><div class="center"><span class="score live">1 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">SM</span><span class="name">San Miguel</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Defensores de Belgrano</span><span class="badge">DB</span></div><div class="center"><span class="score live">0 – 3</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">A</span><span class="name">Acassuso</span></div></div>
+                </div>
+              </div>
+              <div class="stack" style="align-content:start">
+                <div class="section-title">Competiciones</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                  <span class="cat">Primera División</span><span class="chip">Primera División</span>
+                  <span class="cat">Ascenso</span><span class="chip">Primera Nacional</span><span class="chip">Primera B Metropolitana</span><span class="chip">Primera C</span>
+                  <span class="cat">Copas nacionales</span><span class="chip">Copa Argentina</span>
+                  <span class="cat">Copas internacionales</span><span class="chip">Copa Libertadores</span><span class="chip">Copa Sudamericana</span>
+                </div>
+                <div class="section-title" style="margin-top:12px">Tus equipos</div>
+                <div class="fav">
+                  <div class="fhead"><span class="badge">BJ</span>Boca Juniors<svg class="chev" width="18" height="18"><use href="#i-chev"/></svg></div>
+                  <div class="row"><span class="ctx">Próximo · Domingo 18/10/2026 · Clausura · Fecha 13</span><div class="team home"><span class="name">Boca Juniors</span><span class="badge">BJ</span></div><div class="center"><span class="time">17:00</span></div><div class="team"><span class="badge">TC</span><span class="name">Talleres de Córdoba</span></div></div>
+                </div>
+                <div class="section-title" style="margin-top:12px">Recientes <small>Partidos de ayer</small></div>
+                <div class="group">
+                  <div class="ghead">Primera Nacional <span class="sub">· Fecha 33</span></div>
+                  <div class="row"><div class="team home win"><span class="name">Almagro</span><span class="badge">A</span></div><div class="center"><span class="score">2 – 1</span><span class="st">Final</span></div><div class="team"><span class="badge">CJ</span><span class="name">Chacarita Juniors</span></div></div>
+                  <div class="row"><div class="team home"><span class="name">Colegiales</span><span class="badge">C</span></div><div class="center"><span class="score">0 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">TS</span><span class="name">Tristán Suárez</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Mismas dos columnas y mismo orden que hoy (los tests de layout lo verifican). Cambia el peso: grupos en lugar de tarjetas sueltas y accesos en un bloque compacto.</p>
+  </div>
+  <div class="figure">
+    <span class="tag">Antes · render real de Flutter, 1280 px</span>
+    <img class="shot" src="../../test/visual/goldens/inicio_1280_claro.png" width="1280" style="width:min(100%,1280px)" alt="Inicio actual a 1280 px en dos columnas con tarjetas elevadas por partido." loading="lazy">
+  </div>
+</section>
+
+<!-- ============ COMPETICIONES ============ -->
+<section class="block" id="competiciones">
+  <header>
+    <span class="eyebrow">§7 · Decisiones E-D8 y E-D9 · prototipo pedido para E1</span>
+    <h2>Cabecera de Competiciones</h2>
+    <p>Tres niveles. El nombre de la competición es el selector (abre la hoja en un teléfono o un menú agrupado por categoría desde 600 px) y la temporada va al lado. Debajo, las vistas como pestañas con subrayado, y una fila de filtros de la vista. Las imágenes de esta sección son el <b>prototipo en Flutter</b>, dibujado con el shell real de la app (navegación, riel, buscador de la barra) y la paleta propuesta; el contenido de la vista queda como un recuadro rotulado.</p>
+  </header>
+  <div class="cols" style="align-items:center">
+    <div><div class="measure">272 <small>px de controles hoy, a 360</small></div></div>
+    <div><div class="measure" style="color:var(--primary)">152 <small>px en el prototipo (156 al 200 %)</small></div></div>
+    <p class="caption">Medido en los tests: desde el borde inferior de la barra hasta el comienzo del contenido, en Copa Libertadores (eliminatorias). El objetivo del plan era 200 px o menos.</p>
+  </div>
+
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Prototipo interactivo HTML · 360 px</span>
+      <div class="device" data-scalable id="comp-phone" style="height:520px">
+        <div class="appbar" style="padding-left:8px">
+          <button type="button" class="selector-btn" id="comp-open" aria-haspopup="dialog" title="Elegir competición"><span id="comp-name">Libertadores</span><svg width="24" height="24"><use href="#i-drop"/></svg></button>
+          <span style="flex:1"></span>
+          <span class="season-btn">2026<svg width="22" height="22"><use href="#i-drop"/></svg></span>
+          <span class="icon"><svg><use href="#i-refresh"/></svg></span>
+        </div>
+        <div class="tabs" role="tablist" id="comp-tabs">
+          <button type="button" role="tab" id="tab-fixture" aria-selected="true">Fixture</button>
+          <button type="button" role="tab" id="tab-tabla" aria-selected="false">Tabla</button>
+          <button type="button" role="tab" id="tab-cal" aria-selected="false">Calendario</button>
+          <button type="button" role="tab" id="tab-llaves" aria-selected="false">Llaves</button>
+        </div>
+        <div class="lvl3">
+          <div class="chips" id="comp-phases"></div>
+          <div class="roundnav"><span class="icon"><svg><use href="#i-chevl"/></svg></span><span id="comp-round">Semifinales ▾</span><span class="icon"><svg><use href="#i-chev"/></svg></span></div>
+        </div>
+        <div style="padding:12px 16px"><div style="border:2px dashed var(--divider);border-radius:12px;height:220px;display:grid;place-items:center;color:var(--fg2);text-align:center;font-size:0.93em">Contenido de la vista<br>(fuera del prototipo)</div></div>
+        <div class="scrim" id="comp-scrim" hidden></div>
+        <div class="sheet" id="comp-sheet" role="dialog" aria-label="Elegir competición" hidden></div>
+      </div>
+      <p class="caption">Tocá el nombre para abrir la hoja. Las competiciones y categorías son las del catálogo real. Si el nombre completo no entra junto a la temporada, se usa el corto («Libertadores», «B Metro»).</p>
+    </div>
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 360 px</span>
+      <img class="shot" src="../../test/visual/goldens/fixture_libertadores_series_360_claro.png" width="360" alt="Fixture actual de Libertadores a 360 px: selector de vistas, botón de competición, temporada, chips de fase cortados y navegador de ronda antes del primer partido." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · 360 px</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_360_claro.png" width="360" alt="Prototipo Flutter de la cabecera a 360 px." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · hoja abierta</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_360_hoja_claro.png" width="360" alt="Prototipo Flutter con la hoja de competiciones agrupada por categoría." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · texto al 200 %</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_360_200_claro.png" width="360" alt="Prototipo Flutter con texto al 200 %: la temporada baja a la fila de filtros." loading="lazy">
+      <p class="caption">Al 200 % la temporada baja a la fila de filtros y las pestañas se desplazan sin partir etiquetas.</p>
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · nombre largo</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_360_nombre_largo_claro.png" width="360" alt="Prototipo Flutter con Primera B Metropolitana: título corto B Metro." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · oscuro</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_360_oscuro.png" width="360" alt="Prototipo Flutter a 360 px en tema oscuro." loading="lazy">
+    </div>
+  </div>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · tablet vertical 800 px</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_800_menu_claro.png" width="800" style="width:min(100%,520px)" alt="Prototipo Flutter en tablet vertical con el menú agrupado por categoría abierto." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · tablet horizontal 1280 px con panel</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_1280_panel_menu_claro.png" width="1280" style="width:min(100%,760px)" alt="Prototipo Flutter a 1280 px con riel extendido, buscador en la barra, menú abierto y panel de detalle." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · 1280 px con panel, texto al 200 %</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_1280_panel_200_claro.png" width="1280" style="width:min(100%,760px)" alt="Prototipo Flutter a 1280 px con texto al 200 %." loading="lazy">
+    </div>
+    <div class="figure">
+      <span class="tag after">Prototipo Flutter · escritorio 1920 px</span>
+      <img class="shot" src="../../test/visual/goldens/prototipo_1920_panel_claro.png" width="1920" style="width:min(100%,960px)" alt="Prototipo Flutter a 1920 px: título, temporada, buscador y panel de detalle." loading="lazy">
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>Shell:</b> el prototipo corre dentro del <code>AdaptiveShell</code> real. La navegación inferior, el riel y el riel extendido no cambian, y tocar «Inicio» y volver a «Competiciones» funciona (test).</li>
+    <li><b>Buscador y acciones:</b> desde 1200 px el campo «Buscar equipo» y «Actualizar» comparten la barra con el selector y la temporada sin superponerse, también con el panel de detalle abierto.</li>
+    <li><b>Enlaces y URL:</b> el selector llama a la misma navegación que el selector actual. No cambian las rutas ni los parámetros (<code>temporada</code>, <code>fase</code>, <code>ronda</code>, <code>vista</code>…), y conserva la clave <code>competition-selector</code> que usan los tests (verificado).</li>
+    <li><b>Accesibilidad:</b> las pautas de objetivo táctil (48 px), etiquetas y contraste pasan en 360, 800, 1280 y 1920, y al 200 % en 360 y 1280.</li>
+    <li><b>A resolver en E4:</b> al 200 % solo entran dos pestañas y el resto queda fuera de la vista. Hoy pasa lo mismo, pero ahora se nota menos porque no hay borde. También: el chip de la fase elegida ahora se desplaza solo hasta quedar visible.</li>
+  </ul>
+</section>
+
+<!-- ============ TABLAS ============ -->
+<section class="block" id="tablas">
+  <header>
+    <span class="eyebrow">§8 · Decisiones E-D10 y E-D11</span>
+    <h2>Tablas de posiciones</h2>
+    <p>Sin cebra: divisores finos dentro de un grupo, Pts en negrita sobre una columna apenas sombreada y cifras tabulares. La cobertura pasa a una línea junto al título y las notas quedan visibles como pie. El favorito se resalta con un fondo tenue y una estrella. Las reglas y los desempates no cambian.</p>
+  </header>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Propuesta · 360 px · Clausura 2026 Zona A (11/10)</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="stack">
+            <div class="section-title">Clausura 2026 · Zona A</div>
+            <div class="tmeta"><span class="okline"><svg><use href="#i-checkc"/></svg>Todos los partidos guardados están sumados</span></div>
+            <div class="table" id="tbl-zona"></div>
+            <div class="tnotes"><p>Puntos de las 16 fechas (3/1/0), interzonales incluidos (art. 15).</p><p>Desempate: diferencia de gol, goles a favor, partidos entre los empatados (art. 16). Fair Play y sorteo no se calculan: «posición compartida».</p><p>Calculada por la app con los partidos de TheSportsDB: no es la tabla oficial.</p></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Boca aparece resaltado como ejemplo de favorito. A 360 px se muestran PJ, DG y Pts, como hoy.</p>
+    </div>
+    <div class="figure">
+      <span class="tag after">Propuesta · Libertadores 2026 Grupo A con marcador</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="stack">
+            <div class="section-title">Fase de grupos 2026 · Grupo A</div>
+            <div class="tmeta"><span class="okline"><svg><use href="#i-checkc"/></svg>6 de 6 fechas · 12 de 12 partidos</span></div>
+            <div class="table" id="tbl-grupo"></div>
+            <div class="legend"><i></i><span><b style="color:var(--fg)">Sigue en competencia.</b> Los dos primeros de cada grupo pasan a octavos de final y el tercero, a los playoffs de octavos de la Copa Sudamericana. Posiciones actuales, no definitivas.</span></div>
+            <div class="tnotes"><p>Desempate: partidos entre los empatados (una sola vez), diferencia de gol, goles a favor (2.4.2); tarjetas y sorteo no se calculan.</p><p>Calculada por la app con los partidos de TheSportsDB: no es la tabla oficial.</p></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption"><b>E-D10, para confirmar:</b> el marcador sale de <code>advancingPlaces</code> (Libertadores 3, Sudamericana 2), verificado contra los Manuales de Clubes. Es un solo nivel, porque el dato no distingue octavos de playoffs; la leyenda es el texto literal del catálogo. Primera y Nacional no llevan marcador.</p>
+    </div>
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 360 px</span>
+      <img class="shot" src="../../test/visual/goldens/tabla_zona_360_claro.png" width="360" alt="Tabla actual de Clausura Zona A a 360 px." loading="lazy">
+    </div>
+  </div>
+  <div class="figure">
+    <span class="tag after">Propuesta · columnas según el ancho disponible (aquí 720 px)</span>
+    <div class="scroll-x" style="width:100%">
+      <div class="device w800" style="width:720px">
+        <div class="content" style="padding-top:16px">
+          <div class="table" id="tbl-zona-wide"></div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Las columnas dependen del ancho que de verdad tiene la tabla, no del ancho de la pantalla: con el panel de detalle abierto se ajustan solas. Orden de prioridad: Pts, PJ, DG, PG, PE, PP, GF, GC.</p>
+  </div>
+</section>
+
+<!-- ============ CALENDARIO Y LLAVES ============ -->
+<section class="block" id="calendario">
+  <header>
+    <span class="eyebrow">§9–§10 · menor prioridad en E1</span>
+    <h2>Calendario y llaves</h2>
+    <p>Calendario: el mes a la izquierda con los dos chevrons juntos, un punto con la cantidad debajo del día, hoy con anillo y el día elegido relleno. Llaves: tarjetas planas con borde fino, el ✓ del que avanza en verde, conectores más marcados donde el cruce está definido y el campeón en una fila compacta.</p>
+  </header>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Propuesta · Primera División, octubre 2026</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="cal">
+            <div class="calhead"><b>Octubre 2026</b><span class="icon"><svg><use href="#i-chevl"/></svg></span><span class="icon"><svg><use href="#i-chev"/></svg></span></div>
+            <div class="calgrid" id="calgrid"></div>
+          </div>
+          <div class="stack">
+            <div class="dayhead">Domingo 11/10/2026</div>
+            <div class="group">
+              <div class="ghead">Clausura <span class="sub">· Fecha 12</span></div>
+              <div class="row"><div class="team home win"><span class="name">San Lorenzo</span><span class="badge">SL</span></div><div class="center"><span class="score">1 – 0</span><span class="st">Final</span></div><div class="team"><span class="badge">DR</span><span class="name">Deportivo Riestra</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Platense</span><span class="badge">P</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">AJ</span><span class="name">Argentinos Juniors</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Rosario Central</span><span class="badge">RC</span></div><div class="center"><span class="score live">0 – 0</span><span class="pill-live">En juego</span></div><div class="team"><span class="badge">IR</span><span class="name">Independiente Rivadavia</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Racing Club</span><span class="badge">RC</span></div><div class="center"><span class="time">19:15</span></div><div class="team"><span class="badge">B</span><span class="name">Belgrano</span></div></div>
+              <div class="row"><div class="team home"><span class="name">Talleres de Córdoba</span><span class="badge">TC</span></div><div class="center"><span class="time">21:30</span></div><div class="team"><span class="badge">I</span><span class="name">Independiente</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">Cantidades por día de los partidos de Primera grabados para octubre de 2026. Hoy (11) también es el día elegido.</p>
+    </div>
+    <div class="figure">
+      <span class="tag after">Propuesta · Libertadores 2025, octavos → cuartos</span>
+      <div class="scroll-x" style="max-width:100%">
+        <div class="device" data-scalable style="width:540px;max-width:none">
+          <div class="content" style="padding-top:16px">
+            <div class="champion"><svg><use href="#i-trophy"/></svg><span class="badge">F</span>Campeón: Flamengo</div>
+            <div class="bracket">
+              <div class="tcol">
+                <div class="tie">
+                  <div class="l lose"><span class="badge">B</span><span>Botafogo</span><span class="ck"></span><span>1</span></div>
+                  <div class="l win"><span class="badge">LQ</span><span>LDU Quito</span><svg class="ck"><use href="#i-check"/></svg><span>2</span></div>
+                  <div class="info">Ida 1-0 · Vuelta 0-2</div>
+                </div>
+                <div class="tie">
+                  <div class="l lose"><span class="badge">AN</span><span>Atlético Nacional</span><span class="ck"></span><span>1</span></div>
+                  <div class="l win"><span class="badge">SP</span><span>São Paulo</span><svg class="ck"><use href="#i-check"/></svg><span>1</span></div>
+                  <div class="info">Ida 0-0 · Vuelta 1-1</div>
+                </div>
+              </div>
+              <svg viewBox="0 0 40 200" width="40" height="200" preserveAspectRatio="none" aria-hidden="true" style="height:100%;width:40px">
+                <path d="M0 50 H18 Q20 50 20 52 V98 Q20 100 22 100 H40" fill="none" stroke="var(--fg2)" stroke-width="1.5"/>
+                <path d="M0 150 H18 Q20 150 20 148 V102" fill="none" stroke="var(--fg2)" stroke-width="1.5"/>
+              </svg>
+              <div class="tcol">
+                <div class="tie">
+                  <div class="l win"><span class="badge">LQ</span><span>LDU Quito</span><svg class="ck"><use href="#i-check"/></svg><span>3</span></div>
+                  <div class="l lose"><span class="badge">SP</span><span>São Paulo</span><span class="ck"></span><span>0</span></div>
+                  <div class="info">Ida 2-0 · Vuelta 1-0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 1280 px</span>
+      <img class="shot" src="../../test/visual/goldens/llaves_libertadores_2025_1280_claro.png" width="1280" style="width:min(100%,640px)" alt="Llaves actuales de Libertadores 2025." loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- ============ DETALLE ============ -->
+<section class="block" id="detalle">
+  <header>
+    <span class="eyebrow">§11.2 · variante héroe</span>
+    <h2>Detalle de partido</h2>
+    <p>Escudos grandes, marcador de 36 y quién avanza en una línea propia. Los datos pasan de bloques de 72 px a filas etiqueta | valor, con los mismos textos que hoy.</p>
+  </header>
+  <div class="cols">
+    <div class="figure">
+      <span class="tag after">Propuesta · 360 px</span>
+      <div class="device" data-scalable>
+        <div class="content" style="padding-top:16px">
+          <div class="hero">
+            <span class="comp">Copa Libertadores · Eliminatorias · Cuartos de final</span>
+            <div class="teams">
+              <div class="side"><span class="badge">LQ</span>LDU Quito</div>
+              <div style="display:grid;justify-items:center;gap:4px"><span class="big">3 – 2</span><span class="st">Final (penales)</span><span class="pen" style="font-size:0.93em">Penales 3-4</span></div>
+              <div class="side"><span class="badge">P</span>Palmeiras</div>
+            </div>
+            <span class="advline"><svg width="18" height="18"><use href="#i-checkc"/></svg>Avanza Palmeiras (4-3 en penales)</span>
+          </div>
+          <div class="actions"><span class="btn-tonal"><svg><use href="#i-share"/></svg>Compartir</span></div>
+          <div class="facts">
+            <div><span class="k">Fecha</span><span>Miércoles 16/09/2026</span></div>
+            <div><span class="k">Hora (Argentina)</span><span>19:00</span></div>
+            <div><span class="k">Serie de ida y vuelta</span><span>Ida: Palmeiras 1-0 LDU Quito<br>Vuelta: LDU Quito 3-2 Palmeiras (3-4 en penales)<br>Global Palmeiras 3-3 LDU Quito</span></div>
+            <div><span class="k">Estadio</span><span>Estadio Rodrigo Paz Delgado</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="figure">
+      <span class="tag">Antes · render real de Flutter, 360 px, oscuro</span>
+      <img class="shot" src="../../test/visual/goldens/detalle_serie_penales_360_oscuro.png" width="360" alt="Detalle actual de LDU Quito contra Palmeiras a 360 px en tema oscuro." loading="lazy">
+    </div>
+  </div>
+</section>
+
+<footer class="caption" style="max-width:none">
+  Todas las capturas «antes» (69 imágenes, en claro y oscuro, de 360 a 1920 px) están en <code>test/visual/goldens/</code>; las de Web con escudos reales, en <code>docs/evidence/e1_web_*</code>. Plan completo en <code>docs/HITO_E.md</code>.
+</footer>
+
+</div>
+
+<script>
+(function () {
+  // ---- Tema y escala ----
+  const root = document.documentElement;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+  function setTheme(choice) {
+    if (choice === 'system') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', choice);
+    document.querySelectorAll('#theme-seg button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.themeChoice === choice)));
+    store.set('hito-e-theme', choice);
+  }
+  function setScale(s) {
+    document.querySelectorAll('[data-scalable]').forEach(d => d.style.setProperty('--s', s));
+    document.querySelectorAll('#scale-seg button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.scale === String(s))));
+    // La línea del pliegue solo vale al 100 %.
+    document.querySelectorAll('.fold').forEach(f => f.hidden = String(s) !== '1');
+  }
+  document.querySelectorAll('#theme-seg button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeChoice)));
+  document.querySelectorAll('#scale-seg button').forEach(b => b.addEventListener('click', () => setScale(b.dataset.scale)));
+  setTheme(store.get('hito-e-theme') || 'system');
+  setScale(1);
+
+  // ---- Paleta y contrastes ----
+  const P = {
+    claro: { primary:'#1E6BB8', onPrimary:'#FFFFFF', primaryContainer:'#D6E8F7', onPrimaryContainer:'#0B2E4F', surface:'#F3F5F8', group:'#FFFFFF', high:'#E8ECF1', outline:'#7D8792', outlineVariant:'#E1E5EA', onSurface:'#15191E', onSurfaceVariant:'#5A6470', live:'#C8203A', liveContainer:'#FDE3E6', warning:'#8A5A00', warningContainer:'#FFF1D6', success:'#1B7F3B', error:'#BA1A1A' },
+    oscuro: { primary:'#7DB8EC', onPrimary:'#06243F', primaryContainer:'#1C3A57', onPrimaryContainer:'#D6E8F7', surface:'#0F1215', group:'#171B20', high:'#232931', outline:'#6B7580', outlineVariant:'#2A3038', onSurface:'#E6E9ED', onSurfaceVariant:'#9AA4AF', live:'#FF6B78', liveContainer:'#4A1A20', warning:'#F2B84B', warningContainer:'#3D2E10', success:'#5CCB82', error:'#FFB4AB' },
+  };
+  const roles = [
+    ['primary','Marca: selección, pestaña activa, encabezado de día'],
+    ['primaryContainer','Contenedor de marca: chip elegido, fila seleccionada'],
+    ['surface','Fondo de pantalla'],
+    ['group','Superficie de grupo: partidos, tabla, llaves'],
+    ['high','Superficie secundaria: encabezado de grupo, avisos'],
+    ['outlineVariant','Divisores'],
+    ['outline','Conectores y bordes'],
+    ['onSurface','Texto principal'],
+    ['onSurfaceVariant','Texto secundario'],
+    ['live','En vivo'],
+    ['warning','Aviso: postergado, suspendido'],
+    ['success','Avanza, campeón, clasifica'],
+    ['error','Error, cancelado'],
+  ];
+  const pal = document.getElementById('palette');
+  for (const [name, colors] of Object.entries(P)) {
+    const box = document.createElement('div');
+    box.className = 'pal';
+    box.style.background = colors.surface;
+    box.style.color = colors.onSurface;
+    box.innerHTML = '<h3>Tema ' + name + '</h3>' + roles.map(([k, label]) =>
+      '<div class="sw"><i style="background:' + colors[k] + '"></i><span>' + label + '</span><code style="color:' + colors.onSurfaceVariant + '">' + colors[k] + '</code></div>').join('');
+    pal.appendChild(box);
+  }
+  function lum(hex) {
+    const v = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function ratio(a, b) { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); }
+  const pairs = [
+    ['Texto principal sobre fondo','onSurface','surface',4.5],
+    ['Texto principal sobre grupo','onSurface','group',4.5],
+    ['Texto secundario sobre fondo','onSurfaceVariant','surface',4.5],
+    ['Texto secundario sobre grupo','onSurfaceVariant','group',4.5],
+    ['Texto secundario sobre superficie secundaria','onSurfaceVariant','high',4.5],
+    ['Texto sobre fila seleccionada o favorito','onSurface','primaryContainer',4.5],
+    ['Marca sobre fondo (encabezado de día, pestaña)','primary','surface',4.5],
+    ['Marca sobre grupo','primary','group',4.5],
+    ['Texto sobre relleno de marca (día elegido)','onPrimary','primary',4.5],
+    ['Texto sobre chip elegido','onPrimaryContainer','primaryContainer',4.5],
+    ['Marcador en vivo sobre grupo','live','group',4.5],
+    ['«En juego» sobre su píldora','live','liveContainer',4.5],
+    ['Aviso sobre grupo','warning','group',4.5],
+    ['Aviso sobre su contenedor','warning','warningContainer',4.5],
+    ['Avanza / campeón sobre grupo','success','group',4.5],
+    ['Error / cancelado sobre grupo','error','group',4.5],
+    ['Conectores y bordes sobre fondo (no texto)','outline','surface',3],
+    ['Conectores sobre grupo (no texto)','outline','group',3],
+    ['Marcador de clasificación (no texto)','success','group',3],
+    ['Subrayado de pestaña (no texto)','primary','surface',3],
+  ];
+  const tbody = document.querySelector('#contrast tbody');
+  for (const [label, a, b, min] of pairs) {
+    const cells = ['claro', 'oscuro'].map(t => {
+      const r = ratio(P[t][a], P[t][b]);
+      const ok = r >= min;
+      return '<td class="num"><span class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + '</span> ' + r.toFixed(2) + ':1</td>';
+    }).join('');
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + label + '</td><td>≥ ' + String(min).replace('.', ',') + ':1</td>' + cells;
+    tbody.appendChild(tr);
+  }
+
+  // ---- Tablas (datos reales de las grabaciones) ----
+  const initials = n => n.split(/\s+/).filter(w => w && !['de','del','la','las','los','y','el'].includes(w.toLowerCase())).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  function table(el, rows, cols, opts) {
+    const tmpl = '2.4em minmax(0,1fr) ' + cols.map(c => c === 'Pts' ? '3em' : '2.5em').join(' ');
+    let html = '<div class="thead" style="grid-template-columns:' + tmpl + '"><span style="text-align:center">#</span><span>Equipo</span>' +
+      cols.map(c => '<span class="' + (c === 'Pts' ? 'pts' : 'n') + '">' + c + '</span>').join('') + '</div>';
+    rows.forEach((r, i) => {
+      const q = opts.advancing && r.pos <= opts.advancing;
+      const fav = opts.favorite === r.team;
+      html += '<div class="trow' + (fav ? ' fav' : '') + '" style="grid-template-columns:' + tmpl + '">' +
+        '<span class="pos' + (q ? ' q' : '') + '"><i></i><b>' + r.pos + '</b></span>' +
+        '<span class="tteam"><span class="badge">' + initials(r.team) + '</span><span class="name">' + r.team + '</span>' + (fav ? '<span class="star" aria-label="favorito">★</span>' : '') + '</span>' +
+        cols.map(c => '<span class="' + (c === 'Pts' ? 'pts' : 'n') + '">' + r[c] + '</span>').join('') + '</div>';
+    });
+    el.innerHTML = html;
+  }
+  const zona = [
+    ['Instituto',12,8,2,2,19,10,'+9',26], ['Defensa y Justicia',12,7,3,2,18,11,'+7',24], ['Boca Juniors',12,5,6,1,19,13,'+6',21],
+    ['Vélez Sarsfield',11,5,6,0,17,11,'+6',21], ['Lanús',11,5,2,4,13,9,'+4',17], ['Newell’s Old Boys',11,4,5,2,11,8,'+3',17],
+    ['Gimnasia y Esgrima de Mendoza',11,5,2,4,14,12,'+2',17], ['Independiente',11,5,2,4,11,12,'-1',17], ['Estudiantes de La Plata',12,4,2,6,15,13,'+2',14],
+  ].map((r, i) => ({ pos: i + 1, team: r[0], PJ: r[1], PG: r[2], PE: r[3], PP: r[4], GF: r[5], GC: r[6], DG: r[7], Pts: r[8] }));
+  table(document.getElementById('tbl-zona'), zona, ['PJ', 'DG', 'Pts'], { favorite: 'Boca Juniors' });
+  table(document.getElementById('tbl-zona-wide'), zona, ['PJ','PG','PE','PP','GF','GC','DG','Pts'], { favorite: 'Boca Juniors' });
+  const grupo = [
+    ['Flamengo',6,5,1,0,14,2,'+12',16], ['Estudiantes de La Plata',6,2,3,1,6,5,'+1',9],
+    ['Independiente Medellín',6,2,1,3,6,11,'-5',7], ['Cusco',6,0,1,5,4,12,'-8',1],
+  ].map((r, i) => ({ pos: i + 1, team: r[0], PJ: r[1], PG: r[2], PE: r[3], PP: r[4], GF: r[5], GC: r[6], DG: r[7], Pts: r[8] }));
+  table(document.getElementById('tbl-grupo'), grupo, ['PJ', 'DG', 'Pts'], { advancing: 3 });
+
+  // ---- Calendario (cantidades reales, Primera octubre 2026) ----
+  const counts = { 2:3, 3:3, 4:4, 5:4, 9:4, 10:4, 11:5, 12:2, 14:1, 18:15, 25:15 };
+  const grid = document.getElementById('calgrid');
+  let cal = ['L','M','M','J','V','S','D'].map(d => '<span class="wd">' + d + '</span>').join('');
+  for (let i = 0; i < 3; i++) cal += '<span></span>'; // 1/10/2026 es jueves
+  for (let d = 1; d <= 31; d++) {
+    const c = counts[d];
+    const cls = ['day', c ? 'has' : '', d === 11 ? 'today sel' : ''].join(' ');
+    cal += '<span class="' + cls + '"><span class="d">' + d + '</span>' + (c ? '<span class="c">' + c + '</span>' : '<span class="c" style="visibility:hidden">0</span>') + '</span>';
+  }
+  grid.innerHTML = cal;
+
+  // ---- Prototipo HTML del selector ----
+  const catalog = [
+    ['Primera División', [['Primera División', 'Primera División', ['Apertura', 'Clausura'], 'Fecha 12']]],
+    ['Ascenso', [['Primera Nacional', 'Nacional', [], 'Fecha 33'], ['Primera B Metropolitana', 'B Metro', [], 'Fecha 40'], ['Primera C', 'Primera C', [], 'Fecha 1']]],
+    ['Copas nacionales', [['Copa Argentina', 'Copa Argentina', [], 'Semifinales']]],
+    ['Copas internacionales', [['Copa Libertadores', 'Libertadores', ['Fases previas', 'Fase de grupos', 'Eliminatorias'], 'Semifinales'], ['Copa Sudamericana', 'Sudamericana', ['Fases previas', 'Fase de grupos', 'Eliminatorias'], 'Semifinales']]],
+  ];
+  let current = 'Copa Libertadores';
+  const sheet = document.getElementById('comp-sheet');
+  const scrim = document.getElementById('comp-scrim');
+  const openBtn = document.getElementById('comp-open');
+  function find(name) { for (const [, list] of catalog) for (const c of list) if (c[0] === name) return c; }
+  function render() {
+    const c = find(current);
+    // A 360 px el nombre completo no entra junto a la temporada salvo los cortos.
+    document.getElementById('comp-name').textContent = c[0].length > 16 ? c[1] : c[0];
+    const phases = document.getElementById('comp-phases');
+    phases.innerHTML = c[2].map((p, i) => '<span class="chip' + (i === c[2].length - 1 ? ' on' : '') + '">' + p + '</span>').join('');
+    phases.hidden = c[2].length === 0;
+    document.getElementById('comp-round').textContent = c[3] + ' ▾';
+    const on = phases.querySelector('.on');
+    if (on) phases.scrollLeft = on.offsetLeft;
+  }
+  function openSheet() {
+    sheet.innerHTML = '<div class="handle"></div>' + catalog.map(([cat, list]) =>
+      '<h4>' + cat + '</h4>' + list.map(c => '<button type="button" data-c="' + c[0] + '">' + c[0] + (c[0] === current ? '<svg width="20" height="20"><use href="#i-check"/></svg>' : '') + '</button>').join('')).join('');
+    sheet.hidden = false; scrim.hidden = false;
+    sheet.querySelector('button').focus();
+  }
+  function closeSheet() { sheet.hidden = true; scrim.hidden = true; openBtn.focus(); }
+  openBtn.addEventListener('click', openSheet);
+  scrim.addEventListener('click', closeSheet);
+  sheet.addEventListener('click', e => {
+    const b = e.target.closest('button[data-c]');
+    if (!b) return;
+    current = b.dataset.c; render(); closeSheet();
+  });
+  sheet.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+  document.querySelectorAll('#comp-tabs button').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('#comp-tabs button').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  }));
+  render();
+})();
+</script>
+</body>
+</html>

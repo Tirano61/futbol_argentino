@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_router.dart';
+import '../../../../core/platform/external_actions.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
@@ -17,9 +18,10 @@ import '../../domain/usecases/stored_seasons.dart';
 import '../bloc/settings_bloc.dart';
 import '../bloc/stored_data_bloc.dart';
 
-/// Ajustes: el tema y los «Datos guardados» (temporadas guardadas en el
-/// dispositivo y su limpieza manual). Cada sección va en una superficie de
-/// grupo con divisores, como el resto de la app (Fase E7).
+/// Ajustes: el tema, los «Datos guardados» (temporadas guardadas en el
+/// dispositivo y su limpieza manual) y la fuente de los datos. Cada sección
+/// va en una superficie de grupo con divisores, como el resto de la app
+/// (Fase E7).
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -60,7 +62,11 @@ class SettingsPage extends StatelessWidget {
                 AppSpacing.md,
                 AppSpacing.xl,
               ),
-              children: const [_ThemeSection(), _StoredDataSection()],
+              children: const [
+                _ThemeSection(),
+                _StoredDataSection(),
+                _SourceSection(),
+              ],
             ),
           ),
         ),
@@ -270,6 +276,58 @@ class _StoredDataSection extends StatelessWidget {
           ),
         ),
     ];
+  }
+}
+
+/// De dónde salen los datos y las imágenes (condiciones de TheSportsDB:
+/// mencionar la fuente con un enlace; `docs/COMPETITION_LOGOS.md`).
+class _SourceSection extends StatelessWidget {
+  const _SourceSection();
+
+  static final site = Uri.parse('https://www.thesportsdb.com/');
+
+  Future<void> _open(BuildContext context) async {
+    final opened = await context.read<ExternalActions>().openLink(site);
+    if (opened || !context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir el enlace: www.thesportsdb.com'),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(title: 'Fuente'),
+        MatchGroup(
+          children: [
+            ListTile(
+              title: const Text('Datos e imágenes: TheSportsDB'),
+              subtitle: const Text('www.thesportsdb.com'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => _open(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Text(
+            'Los logos de las competiciones y los escudos de los equipos '
+            'pertenecen a sus dueños.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

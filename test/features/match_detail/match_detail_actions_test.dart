@@ -7,37 +7,9 @@ import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/match_detail/presentation/pages/match_detail_page.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 
+import '../../helpers/fake_external_actions.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/fixture_matches.dart';
-
-/// Registra lo que la pantalla pide compartir o agendar y responde con
-/// [shareOutcome] / [calendarOutcome].
-class FakeExternalActions implements ExternalActions {
-  FakeExternalActions({
-    this.shareOutcome = ShareOutcome.shared,
-    this.calendarOutcome = CalendarOutcome.opened,
-  });
-
-  final ShareOutcome shareOutcome;
-  final CalendarOutcome calendarOutcome;
-  final shared = <({String text, String? subject})>[];
-  final events = <({CalendarEvent event, String fileName})>[];
-
-  @override
-  Future<ShareOutcome> share(String text, {String? subject}) async {
-    shared.add((text: text, subject: subject));
-    return shareOutcome;
-  }
-
-  @override
-  Future<CalendarOutcome> addToCalendar(
-    CalendarEvent event, {
-    required String fileName,
-  }) async {
-    events.add((event: event, fileName: fileName));
-    return calendarOutcome;
-  }
-}
 
 void main() {
   Future<void> pumpPage(

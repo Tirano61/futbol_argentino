@@ -2,6 +2,7 @@ import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../calendar/calendar_event.dart';
 import '../calendar/ics_builder.dart';
@@ -35,10 +36,15 @@ enum CalendarOutcome {
   failed,
 }
 
-/// Acciones que salen de la app: compartir y agregar al calendario. Las
-/// pantallas la reciben por `RepositoryProvider` (en los tests, una falsa).
+/// Acciones que salen de la app: compartir, agregar al calendario y abrir
+/// un enlace. Las pantallas la reciben por `RepositoryProvider` (en los
+/// tests, una falsa).
 abstract interface class ExternalActions {
   Future<ShareOutcome> share(String text, {String? subject});
+
+  /// Abre [uri] en el navegador (en Web, en otra pestaña). `false` si no se
+  /// pudo.
+  Future<bool> openLink(Uri uri);
 
   /// [fileName]: nombre del `.ics` en Web.
   Future<CalendarOutcome> addToCalendar(
@@ -76,6 +82,16 @@ class PlatformExternalActions implements ExternalActions {
     } catch (e) {
       debugPrint('Copiar: $e');
       return ShareOutcome.failed;
+    }
+  }
+
+  @override
+  Future<bool> openLink(Uri uri) async {
+    try {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Abrir enlace: $e');
+      return false;
     }
   }
 

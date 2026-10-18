@@ -65,6 +65,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.warning,
     required this.warningContainer,
     required this.success,
+    required this.logoBackdrop,
+    required this.onLogoBackdrop,
   });
 
   /// Grupos de partidos, tablas y tarjetas de llave. En oscuro es más clara
@@ -82,6 +84,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// Quién avanza, campeón, marcador de clasificación.
   final Color success;
 
+  /// Recuadro de los logos de competiciones (`CompetitionLogo`), oscuro y
+  /// neutro, **igual en los dos temas**: casi todos los logos tienen partes
+  /// blancas que en un fondo claro desaparecen, y no se pueden modificar.
+  final Color logoBackdrop;
+
+  /// Ícono de reemplazo sobre [logoBackdrop] (sin logo).
+  final Color onLogoBackdrop;
+
   static const light = AppPalette(
     group: Color(0xFFFFFFFF),
     live: Color(0xFFC8203A),
@@ -89,6 +99,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     warning: Color(0xFF8A5A00),
     warningContainer: Color(0xFFFFF1D6),
     success: Color(0xFF1B7F3B),
+    logoBackdrop: _logoBackdrop,
+    onLogoBackdrop: _onLogoBackdrop,
   );
 
   static const dark = AppPalette(
@@ -98,7 +110,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
     warning: Color(0xFFF2B84B),
     warningContainer: Color(0xFF3D2E10),
     success: Color(0xFF5CCB82),
+    logoBackdrop: _logoBackdrop,
+    onLogoBackdrop: _onLogoBackdrop,
   );
+
+  static const _logoBackdrop = Color(0xFF2A3038);
+  static const _onLogoBackdrop = Color(0xFFE6E9ED);
 
   static AppPalette forBrightness(Brightness brightness) =>
       brightness == Brightness.dark ? dark : light;
@@ -118,6 +135,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? warning,
     Color? warningContainer,
     Color? success,
+    Color? logoBackdrop,
+    Color? onLogoBackdrop,
   }) => AppPalette(
     group: group ?? this.group,
     live: live ?? this.live,
@@ -125,6 +144,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     warning: warning ?? this.warning,
     warningContainer: warningContainer ?? this.warningContainer,
     success: success ?? this.success,
+    logoBackdrop: logoBackdrop ?? this.logoBackdrop,
+    onLogoBackdrop: onLogoBackdrop ?? this.onLogoBackdrop,
   );
 
   @override
@@ -141,6 +162,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
         t,
       )!,
       success: Color.lerp(success, other.success, t)!,
+      logoBackdrop: Color.lerp(logoBackdrop, other.logoBackdrop, t)!,
+      onLogoBackdrop: Color.lerp(onLogoBackdrop, other.onLogoBackdrop, t)!,
     );
   }
 }

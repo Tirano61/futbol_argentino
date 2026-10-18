@@ -397,6 +397,7 @@ class _Scene {
           now: continental ? continentalRecordingTime : null,
           seed: seed,
         );
+        await precacheCompetitionLogos(tester);
         await open(tester);
         await expectScreen(tester, file);
       });

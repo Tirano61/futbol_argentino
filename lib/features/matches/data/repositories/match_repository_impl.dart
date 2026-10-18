@@ -40,6 +40,9 @@ class MatchRepositoryImpl implements MatchRepository {
   final SyncScheduler _scheduler;
   final Clock _clock;
 
+  /// Refrescos forzados que esperan cada ronda (ver [_refreshRoundIfNeeded]).
+  final _forcedWaiters = <String, int>{};
+
   static String roundKey(RoundQuery q) =>
       'round:${q.competitionId}:${q.season}:${q.apiRound}';
 
@@ -66,7 +69,7 @@ class MatchRepositoryImpl implements MatchRepository {
     }
 
     try {
-      await _scheduler.run(key, priority, () => _refreshRound(query, key));
+      await _runRound(query, key, priority, force: forceRefresh);
     } on Failure catch (failure) {
       if (meta == null) rethrow;
       yield DataResult(
@@ -107,13 +110,52 @@ class MatchRepositoryImpl implements MatchRepository {
     if (meta != null && !meta.needsRefresh(_clock.now(), force: forceRefresh)) {
       return false;
     }
-    await _scheduler.run(
+    await _runRound(
+      query,
       key,
       priority,
-      () => _refreshRound(query, key),
+      force: forceRefresh,
       cancelToken: cancelToken,
     );
     return true;
+  }
+
+  Future<void> _runRound(
+    RoundQuery query,
+    String key,
+    SyncPriority priority, {
+    required bool force,
+    CancelToken? cancelToken,
+  }) async {
+    if (force) _forcedWaiters.update(key, (n) => n + 1, ifAbsent: () => 1);
+    try {
+      await _scheduler.run(
+        key,
+        priority,
+        () => _refreshRoundIfNeeded(query, key),
+        cancelToken: cancelToken,
+      );
+    } finally {
+      if (force) {
+        final n = _forcedWaiters[key]! - 1;
+        if (n == 0) {
+          _forcedWaiters.remove(key);
+        } else {
+          _forcedWaiters[key] = n;
+        }
+      }
+    }
+  }
+
+  /// Segunda comprobación de la vigencia, ya dentro del trabajo: entre la
+  /// lectura de quien lo encoló y su llegada al scheduler (que solo une
+  /// trabajos en cola o en curso) otro trabajo pudo guardar la ronda. Con un
+  /// refresco forzado esperando, vale la regla del refresco manual.
+  Future<void> _refreshRoundIfNeeded(RoundQuery query, String key) async {
+    final meta = await _metadata.get(key);
+    final force = _forcedWaiters.containsKey(key);
+    if (meta != null && !meta.needsRefresh(_clock.now(), force: force)) return;
+    await _refreshRound(query, key);
   }
 
   @override

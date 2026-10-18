@@ -549,6 +549,7 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
                         key: FixtureSelectors.competitionSelectorKey,
                         selected: definition,
                         shortName: layout!.shortName,
+                        showLogo: layout.showLogo,
                         onSelected: (id) =>
                             bloc.add(FixtureCompetitionChanged(id)),
                       ),

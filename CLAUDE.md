@@ -15,7 +15,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Se trabaja **por fases**. Dentro de una fase se avanza tarea por tarea; **al terminar cada fase**: validar, informar, actualizar docs y **esperar aprobación** antes de la siguiente.
 - No implementar nada fuera del alcance de la fase actual. No avanzar si falla una validación crítica.
 - Cada tarea termina con `flutter analyze` sin issues y sus tests verdes.
-- Probar UI en la tablet Android (`SOP10X2501001122`, SKY PAD10MAX) y en Chrome.
+- Probar UI en la tablet Android de pruebas (SKY PAD10MAX, densidad 160) y en Chrome.
 - **Nunca** datos simulados presentados como reales. Los tests usan JSON reales de `test/fixtures/api/` (no editarlos a mano).
 - No implementar proxies ni servicios externos sin aprobación.
 
@@ -53,7 +53,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Series de ida y vuelta (D25, Fase D5): `KnockoutTie` (piernas emparejadas por los dos equipos dentro de la etapa con `TiePairing`; más de 2 con el mismo par → sin ubicar) y `TieOutcome.ofTie`: global → tanda de la vuelta (`PEN` con tanda) → el único que juega un partido **posterior** de la copa y temporada (`KnockoutTie.isBefore`); un `PEN` contradictorio (en la ida o con el global distinto) solo admite lo último. Partido único: `ofTie` = `TieOutcome.of` (Primera y Copa sin cambios). Copas: cuadro octavos → final (`ContinentalCupRules.bracket`, `BracketRound.legs`), Playoffs de la Sudamericana como lista (`preliminarySeries`: etapas de eliminatorias fuera del cuadro), las previas solo en el Fixture (agrupado por serie). Llaves en frío: Libertadores 4, Sudamericana 5 (`bracketApiRounds`), en caliente 0. Una llave completa sin evidencia: «Sin dato de la definición» (final de la Sudamericana 2025).
 - Un stream de ronda no se transforma con una espera por emisión (`asyncMap`): el cierre del stream de la ronda se demora y en los widget tests la precarga queda colgada. Leer antes lo que haga falta y mapear sincrónico (`WatchStageMatches._withSeries`).
 - En vivo (D11): `MatchGrouping.isLive` (la misma regla que la clase `live` de `RoundCachePolicy`). `LiveAutoRefresh` avisa cada 2 min 5 s solo con la pantalla visible (`TickerMode`), la app en primer plano y partidos en vivo; el aviso (`…LiveTick`) es una carga **sin forzar** (la vigencia decide). No avisar con la pantalla cargando: en un BLoC `restartable` cancelaría la carga. Presupuesto en `test/app/live_refresh_test.dart`.
-- Compartir y calendario: siempre por `ExternalActions` (`core/platform`, inyectado; en tests uno falso). `IcsBuilder` en `core/calendar` (Dart puro). Solo se agenda un partido programado que no empezó; hora sin confirmar → día completo. Android, día completo: de medianoche a medianoche **de Argentina** (Google Calendar toma la zona del dispositivo y el fin exclusivo).
+- Compartir, calendario y enlaces: siempre por `ExternalActions` (`core/platform`, inyectado; `openLink` para abrir un sitio; en tests `FakeExternalActions` de `test/helpers/fake_external_actions.dart`). `IcsBuilder` en `core/calendar` (Dart puro). Solo se agenda un partido programado que no empezó; hora sin confirmar → día completo. Android, día completo: de medianoche a medianoche **de Argentina** (Google Calendar toma la zona del dispositivo y el fin exclusivo).
 
 ## Diseño visual (Hito E)
 - Tokens en `lib/shared/presentation/theme/`: colores del `ColorScheme` o de `AppPalette` (`group`, `live`, `warning`, `success`), espacios y medidas de `AppSpacing`/`AppRadius`/`AppSizes`, estilos de `AppText`. **Sin colores, tamaños de letra ni radios literales** en pantallas ni widgets compartidos.
@@ -91,6 +91,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Los tests de la app completa pasan `badgeImages: const NetworkBadgeImages()` a `AppDependencies.create`: la caché en disco necesita `path_provider` (en tests da `MissingPluginException`).
 - La `Image` lleva `key: ValueKey(url)`: en Web, el `<img>` del fallback no cambia si una imagen montada recibe otra URL (las filas de una tabla que se reordena quedaban con el escudo de otro equipo).
 - Variantes de tamaño: `/tiny` (listas), `/small` (fichas).
+- Logos de competiciones (D29): **assets locales** `assets/competitions/<idLeague>.png` = el `strBadge` `/small` de TheSportsDB **sin modificar** (sus términos: logos «as is»; procedencia en `docs/COMPETITION_LOGOS.md`). Siempre con `CompetitionLogo` (mapa de assets en presentación, no en el dominio): logo 28 en recuadro oscuro de 36 igual en los dos temas, ícono de la categoría si falta. Solo en el selector (título, hoja y menú); el título oculta el logo solo antes de recortar el nombre (`CompetitionTitleLayout.showLogo`). Los tests de imágenes de assets necesitan `tester.runAsync` + `precacheImage` (goldens: `precacheCompetitionLogos`). Antes de publicar en tiendas: verificar derechos de cada logo (la atribución de Ajustes no alcanza).
 
 ## Horarios
 - Mostrar siempre en `America/Argentina/Buenos_Aires` = UTC−3 fijo. Nunca usar la zona del dispositivo.
@@ -102,12 +103,13 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Cada semestre: actualizar en `CompetitionCatalog` (`lib/features/competitions/domain/catalog/competition_catalog.dart`) las ventanas de Primera **a partir de datos reales grabados** en `test/fixtures/api/`. Pendiente: cierre y eliminatorias del Clausura 2026 (hoy «en curso»), temporada 2027.
 - Al cerrar una ventana, el test `competition_catalog_test.dart` verifica que cada partido grabado caiga en un solo torneo.
 - Revisar los pendientes V2–V7 y V15 de `docs/API.md` cuando haya datos nuevos.
+- Cada temporada, al grabar `lookupleague` de nuevo: si cambió el `strBadge` de una liga, `competition_logo_test.dart` falla; reemplazar el asset por la variante `/small` nueva (sin modificarla) y actualizar `docs/COMPETITION_LOGOS.md`.
 - Cada temporada, Libertadores y Sudamericana en `ContinentalCupRules` desde las grabaciones: etapas (ronda + ventana de días argentinos; los códigos cambian entre años), `bracket` y `preliminarySeries`; `competition_catalog_test.dart` verifica que cada partido grabado caiga en exactamente una etapa. Pendiente: tarea D-F (semis y finales 2026, cierre de las ventanas 2026; `docs/HITO_D.md`).
 - Cada temporada: zonas con `idTeam` y reglamento (desempates) de Primera y de Nacional, y grupos con `idTeam` + Manual de Clubes de Libertadores y Sudamericana (sin texto oficial verificado, la temporada queda sin tabla), verificados contra los partidos grabados (ver V12/V14 en `docs/API.md`), cargados en `standingsBySeason` del catálogo; los tests `table_builders_test.dart`, `nacional_tables_test.dart` y `group_tables_test.dart` los validan con `ZoneValidator`.
 
 ## Comandos
 - `flutter analyze` · `flutter test`
-- `flutter run -d SOP10X2501001122` (tablet) · `flutter run -d chrome`
+- `flutter run -d <id de la tablet>` (ver `flutter devices`) · `flutter run -d chrome`
 - Web release con diagnóstico: `flutter build web --dart-define=DIAGNOSTICS=true`; probar en la tablet con `adb reverse tcp:8080 tcp:8080` y `http://localhost:8080/`.
 - La pantalla de diagnóstico está en `/diagnostico` (botón 🐞 en Inicio, solo en debug o con `DIAGNOSTICS=true`).
 - Sin API (caída de TheSportsDB): `tool/recorded_app/main.dart` arma la app con las respuestas grabadas (base en memoria, reloj de la grabación de D1, banda «DATOS GRABADOS»). Android: `adb push test/fixtures/api/. /sdcard/Android/data/com.example.futbol_argentino/files/fixtures/` + `chmod 755` de esa carpeta, y `flutter build apk --release -t tool/recorded_app/main.dart`. Web: `flutter build web --release -t tool/recorded_app/main.dart` y copiar los JSON a `build/web/fixtures/`. Reinstalar después el APK normal y borrar `build/web/fixtures/`.
@@ -119,6 +121,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - sembast: archivo en Android, IndexedDB en Web (`lib/core/storage/local_database.dart`). Tests: `newDatabaseFactoryMemory()`.
 - Ajustes (tema): store `settings`, `SettingsBloc` global; `main` los lee antes de `runApp` para que el tema no parpadee.
 - Los repositorios son stale-while-revalidate; los TTL están en `CacheClass`. Todo refresco pasa por `SyncScheduler` (P0 visible, P1 contexto, P2 equipo: 10/min, de a uno, en pausa con la app oculta, cancelable con `CancelToken`).
+- El scheduler une pedidos de una clave solo mientras el trabajo está en cola o en curso: la vigencia leída antes de `run` puede quedar vieja. Las rondas la vuelven a comprobar dentro del trabajo (`MatchRepositoryImpl._refreshRoundIfNeeded`, con la regla del refresco manual si un forzado espera); tests en `match_repository_impl_test.dart` (HITO_E §27).
 - Cuidado con `whenComplete(() => map.remove(key))`: si devuelve el Future quitado, `whenComplete` lo espera y se bloquea. Usar cuerpo de bloque.
 
 ## Contrato de red y errores

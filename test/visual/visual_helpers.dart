@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/competition_logo.dart';
 import 'package:go_router/go_router.dart';
 
 /// Carga Roboto (todos los pesos) y los íconos de Material desde el SDK de
@@ -86,6 +87,19 @@ Future<void> withRealShadows(Future<void> Function() body) async {
   } finally {
     debugDisableShadows = true;
   }
+}
+
+/// Decodifica los logos de las competiciones (assets): en un test, una
+/// imagen solo se decodifica fuera del tiempo simulado. Ya en la caché de
+/// imágenes, se dibujan en el primer cuadro, como en el dispositivo.
+Future<void> precacheCompetitionLogos(WidgetTester tester) async {
+  final context = tester.element(find.byType(MaterialApp).first);
+  await tester.runAsync(() async {
+    for (final path in CompetitionLogo.assets.values) {
+      await precacheImage(AssetImage(path), context);
+    }
+  });
+  await tester.pumpAndSettle();
 }
 
 /// Compara la pantalla completa con `goldens/<name>.png`.

@@ -49,6 +49,11 @@ abstract final class AppSizes {
   static const double badgeHeader = 32;
   static const double badgeHero = 72;
 
+  /// Logo de una competición (`CompetitionLogo`) y su recuadro: el mismo
+  /// tamaño en la barra, la hoja y el menú; no crece con el texto.
+  static const double competitionLogo = 28;
+  static const double competitionLogoTile = 36;
+
   /// Punto fijo de «en vivo» (sin animación: trabaría `pumpAndSettle`).
   static const double liveDot = 6;
 
