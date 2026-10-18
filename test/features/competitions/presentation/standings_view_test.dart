@@ -11,6 +11,7 @@ import 'package:futbol_argentino/features/competitions/presentation/bloc/competi
 import 'package:futbol_argentino/features/competitions/presentation/pages/competitions_page.dart';
 import 'package:futbol_argentino/features/competitions/presentation/routing/fixture_route.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/standings_panel.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/standings_table_view.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/view_tabs.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:go_router/go_router.dart';
@@ -144,9 +145,13 @@ void main() {
     expect(find.text('Tabla Anual 2026'), findsWidgets);
     expect(tableRows, findsNWidgets(30));
     expect(
-      find.text('Fechas consultadas 16 de 16 · 413 de 480 partidos sumados'),
+      find.textContaining(
+        'Fechas consultadas 16 de 16 · 413 de 480 partidos sumados',
+      ),
       findsOne,
     );
+    // La línea de cobertura empieza con el estado (Hito E, E5).
+    expect(find.textContaining('Tabla parcial · Fechas consultadas'), findsOne);
     expect(find.text('Partidos sin sumar (67)'), findsOne);
     expect(find.textContaining('art. 24 del'), findsOne);
     expect(find.textContaining('la app no los define'), findsOne);
@@ -194,22 +199,8 @@ void main() {
     expect(find.text('Fecha 12'), findsOne);
   });
 
-  for (final (width, visible, hidden) in [
-    (360.0, ['PJ', 'DG', 'Pts'], ['PG', 'GF']),
-    (900.0, ['PJ', 'PG', 'PE', 'PP', 'DG', 'Pts'], ['GF', 'GC']),
-    (1280.0, ['PJ', 'PG', 'PE', 'PP', 'GF', 'GC', 'DG', 'Pts'], <String>[]),
-  ]) {
-    testWidgets('${width.toInt()} px: columnas según el ancho', (tester) async {
-      await pumpTable(tester, width: width);
-
-      for (final c in visible) {
-        expect(find.text(c), findsOne, reason: c);
-      }
-      for (final c in hidden) {
-        expect(find.text(c), findsNothing, reason: c);
-      }
-    });
-  }
+  // Las columnas según el ancho disponible se prueban con la fuente real
+  // en `test/app/standings_layout_test.dart` (Hito E, E5).
 
   testWidgets('tocar un equipo abre su ficha', (tester) async {
     await pumpTable(tester, table: 'apertura-a');
@@ -260,7 +251,9 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Zona B'), findsOne);
     expect(find.textContaining('Tabla Anual'), findsNothing);
     expect(
-      find.text('Fechas consultadas 36 de 36 · 307 de 342 partidos sumados'),
+      find.textContaining(
+        'Fechas consultadas 36 de 36 · 307 de 342 partidos sumados',
+      ),
       findsOne,
     );
     expect(find.textContaining('art. 112 del Reglamento General'), findsOne);
@@ -362,7 +355,9 @@ void main() {
     );
     expect(find.bySemanticsLabel(RegExp(r'^Posición 2: Mirassol\.')), findsOne);
     expect(
-      find.text('Fechas consultadas 6 de 6 · 12 de 12 partidos sumados'),
+      find.textContaining(
+        'Fechas consultadas 6 de 6 · 12 de 12 partidos sumados',
+      ),
       findsOne,
     );
     expect(

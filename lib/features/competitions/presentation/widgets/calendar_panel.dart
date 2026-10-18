@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +11,13 @@ import '../../../../core/time/calendar_month.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
-import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_palette.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/theme/app_text.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
+import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../domain/calendar/month_calendar.dart';
 import '../../domain/usecases/watch_competition_calendar.dart';
@@ -101,39 +107,51 @@ class _CalendarPanelState extends State<CalendarPanel> {
     final overview = <Widget>[
       if (isRefreshing) ...[
         const LinearProgressIndicator(),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
       _CoverageStatus(view: view),
       Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Column(
-            children: [
-              _MonthHeader(
-                month: month,
-                onPrevious: month.isAfter(range.first)
-                    ? () => _changeMonth(month.addMonths(-1))
-                    : null,
-                onNext: month.isBefore(range.last)
-                    ? () => _changeMonth(month.addMonths(1))
-                    : null,
+          constraints: const BoxConstraints(maxWidth: _gridMaxWidth),
+          child: Material(
+            color: AppPalette.of(context).group,
+            borderRadius: AppRadius.groupAll,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.sm,
+                0,
+                AppSpacing.xs,
+                AppSpacing.sm,
               ),
-              _MonthGrid(
-                calendar: calendar,
-                today: today,
-                selected: day,
-                onSelected: (day) => setState(() {
-                  _day = day;
-                  _undated = false;
-                }),
+              child: Column(
+                children: [
+                  _MonthHeader(
+                    month: month,
+                    onPrevious: month.isAfter(range.first)
+                        ? () => _changeMonth(month.addMonths(-1))
+                        : null,
+                    onNext: month.isBefore(range.last)
+                        ? () => _changeMonth(month.addMonths(1))
+                        : null,
+                  ),
+                  _MonthGrid(
+                    calendar: calendar,
+                    today: today,
+                    selected: day,
+                    onSelected: (day) => setState(() {
+                      _day = day;
+                      _undated = false;
+                    }),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
       if (undated.isNotEmpty)
         Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
           child: Wrap(
             children: [
               ChoiceChip(
@@ -156,55 +174,129 @@ class _CalendarPanelState extends State<CalendarPanel> {
     final matches = <Widget>[
       if (dayMatches.isEmpty)
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.lg,
+            AppSpacing.xs,
+            0,
+          ),
           child: Text(
             'No hay partidos guardados en '
             '${MatchLabels.month(month).toLowerCase()}.',
             textAlign: TextAlign.center,
           ),
         )
-      else
-        ...matchDayItems(
-          matches: dayMatches,
-          now: now,
-          subtitle: (m) => switch (view.labels[m.id]) {
-            final label? => [?label.phase, label.stage].join(' · '),
-            null => null,
-          },
-          onTap: (m) => context.push(AppRoutes.matchDetail(m.id)),
-        ),
+      else ...[
+        DayHeader(day: showUndated ? null : day),
+        // El contexto (fase · etapa) una vez, en el encabezado del grupo.
+        for (final (i, group) in _byStage(dayMatches, view.labels).indexed) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.md),
+          MatchGroup(
+            header: switch (group.label) {
+              (phase: final String phase, :final stage) => MatchGroupHeader(
+                title: phase,
+                detail: stage,
+                detailInline: true,
+              ),
+              (phase: null, :final stage) => MatchGroupHeader(title: stage),
+              null => null,
+            },
+            children: [
+              for (final m in group.matches)
+                MatchCard(
+                  key: ValueKey(m.id),
+                  match: m,
+                  now: now,
+                  onTap: () => context.push(AppRoutes.matchDetail(m.id)),
+                ),
+            ],
+          ),
+        ],
+      ],
       Padding(
-        padding: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.only(top: AppSpacing.lg),
         child: Text(
           'Partidos guardados en este dispositivo · Horarios de Argentina',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.labelSmall,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     ];
 
-    const padding = EdgeInsets.fromLTRB(8, 8, 8, 24);
+    const padding = EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      AppSpacing.sm,
+      AppSpacing.md,
+      AppSpacing.xl,
+    );
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
-      child: Breakpoints.isExpanded(context)
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 480,
-                  child: ListView(padding: padding, children: overview),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                    children: matches,
+      // Con el ancho de la vista (no el de la pantalla) y la escala de
+      // texto: dos paneles solo si la lista también entra cómoda.
+      child: LayoutBuilder(
+        builder: (context, constraints) =>
+            splitsAt(constraints.maxWidth, MediaQuery.textScalerOf(context))
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: calendarWidth,
+                    child: ListView(padding: padding, children: overview),
                   ),
-                ),
-              ],
-            )
-          : ListView(padding: padding, children: [...overview, ...matches]),
+                  const VerticalDivider(width: AppSizes.divider),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.xl,
+                      ),
+                      children: matches,
+                    ),
+                  ),
+                ],
+              )
+            : ListView(padding: padding, children: [...overview, ...matches]),
+      ),
     );
+  }
+
+  /// Ancho máximo de la grilla del mes.
+  static const _gridMaxWidth = 560.0;
+
+  /// Columna del calendario con los dos paneles.
+  static const calendarWidth = 480.0;
+
+  /// Desde este ancho disponible se ponen el mes y la lista lado a lado
+  /// (§9 de `docs/HITO_E.md`)…
+  static const splitMinWidth = 900.0;
+
+  /// …si a la lista le quedan al menos estos píxeles a escala 1 (con texto
+  /// grande, más).
+  static const listMinWidth = 400.0;
+
+  /// Si en [width] van el mes y la lista lado a lado.
+  static bool splitsAt(double width, TextScaler scaler) =>
+      width >= splitMinWidth &&
+      width - calendarWidth - AppSizes.divider >= scaler.scale(listMinWidth);
+
+  /// Los partidos del día por fase · etapa, en el orden del primero de cada
+  /// una (dentro de cada grupo, por hora).
+  static List<({CalendarMatchLabel? label, List<Match> matches})> _byStage(
+    List<Match> matches,
+    Map<int, CalendarMatchLabel> labels,
+  ) {
+    final groups = <CalendarMatchLabel?, List<Match>>{};
+    for (final m in matches) {
+      groups.putIfAbsent(labels[m.id], () => []).add(m);
+    }
+    return [
+      for (final MapEntry(:key, :value) in groups.entries)
+        (label: key, matches: value),
+    ];
   }
 }
 
@@ -227,7 +319,7 @@ class _CoverageStatus extends StatelessWidget {
         label: rounds,
         excludeSemantics: true,
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -236,7 +328,7 @@ class _CoverageStatus extends StatelessWidget {
                     ? null
                     : progress.done / progress.total,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(rounds, style: Theme.of(context).textTheme.labelSmall),
             ],
           ),
@@ -247,7 +339,7 @@ class _CoverageStatus extends StatelessWidget {
     if (progress.failure case final failure?) {
       final (:title, message: _) = failureMessage(failure);
       return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
         child: InfoBanner(
           tone: InfoTone.offline,
           icon: Icons.cloud_off,
@@ -263,7 +355,7 @@ class _CoverageStatus extends StatelessWidget {
     }
     if (view.roundsPending == 0) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: InfoBanner(
         icon: Icons.event_note,
         text: view.roundsStored == 0
@@ -277,7 +369,7 @@ class _CoverageStatus extends StatelessWidget {
   }
 }
 
-/// «‹ Octubre 2026 ›».
+/// «Octubre 2026» a la izquierda y los dos chevrons juntos a la derecha.
 class _MonthHeader extends StatelessWidget {
   const _MonthHeader({required this.month, this.onPrevious, this.onNext});
 
@@ -286,31 +378,38 @@ class _MonthHeader extends StatelessWidget {
   final VoidCallback? onNext;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      IconButton(
-        tooltip: 'Mes anterior',
-        onPressed: onPrevious,
-        icon: const Icon(Icons.chevron_left),
-      ),
-      Expanded(
-        child: Semantics(
-          header: true,
-          liveRegion: true,
-          child: Text(
-            MatchLabels.month(month),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.xs),
+            child: Semantics(
+              header: true,
+              liveRegion: true,
+              child: Text(
+                MatchLabels.month(month),
+                style: theme.textTheme.sectionTitle.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
           ),
         ),
-      ),
-      IconButton(
-        tooltip: 'Mes siguiente',
-        onPressed: onNext,
-        icon: const Icon(Icons.chevron_right),
-      ),
-    ],
-  );
+        IconButton(
+          tooltip: 'Mes anterior',
+          onPressed: onPrevious,
+          icon: const Icon(Icons.chevron_left),
+        ),
+        IconButton(
+          tooltip: 'Mes siguiente',
+          onPressed: onNext,
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    );
+  }
 }
 
 /// Grilla del mes, de lunes a domingo. Solo se pueden elegir los días con
@@ -328,52 +427,82 @@ class _MonthGrid extends StatelessWidget {
   final CalendarDay? selected;
   final ValueChanged<CalendarDay> onSelected;
 
-  static const _cellHeight = 56.0;
+  /// Separa las celdas: el anillo de hoy no se pega al día elegido.
+  static const _cellGap = 1.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final styles = _DayStyles.of(theme.textTheme);
+    final scaler = MediaQuery.textScalerOf(context);
+    double line(TextStyle s) => scaler.scale(s.fontSize!) * (s.height ?? 1.5);
+    // El alto crece con el texto (nunca menos que el área táctil).
+    final height = math.max(
+      AppSizes.tapTarget,
+      line(styles.number) + line(styles.count) + AppSpacing.sm,
+    );
     return Column(
       children: [
         ExcludeSemantics(
-          child: Row(
-            children: [
-              for (final initial in MatchLabels.weekdayInitials)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      initial,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Row(
+              children: [
+                for (final initial in MatchLabels.weekdayInitials)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        initial,
+                        style: theme.textTheme.tableHeader.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 4),
         for (final week in calendar.month.weeks)
           Row(
             children: [
               for (final day in week)
                 Expanded(
-                  child: day == null
-                      ? const SizedBox(height: _cellHeight)
-                      : _DayCell(
-                          day: day,
-                          count: calendar.matchesOn(day).length,
-                          isToday: day == today,
-                          isSelected: day == selected,
-                          height: _cellHeight,
-                          onTap: () => onSelected(day),
-                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(_cellGap),
+                    child: day == null
+                        ? SizedBox(height: height)
+                        : _DayCell(
+                            day: day,
+                            count: calendar.matchesOn(day).length,
+                            isToday: day == today,
+                            isSelected: day == selected,
+                            height: height,
+                            onTap: () => onSelected(day),
+                          ),
+                  ),
                 ),
             ],
           ),
       ],
     );
   }
+}
+
+/// Número del día (tabular) y cantidad de partidos.
+final class _DayStyles {
+  const _DayStyles({required this.number, required this.count});
+
+  final TextStyle number;
+  final TextStyle count;
+
+  factory _DayStyles.of(TextTheme text) => _DayStyles(
+    number: text.tableStat,
+    count: text.statusLabel.copyWith(
+      fontWeight: FontWeight.w700,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  );
 }
 
 class _DayCell extends StatelessWidget {
@@ -393,15 +522,27 @@ class _DayCell extends StatelessWidget {
   final double height;
   final VoidCallback onTap;
 
+  /// Anillo de hoy (maqueta de E1). Elegido y hoy a la vez: el anillo va
+  /// en el color del texto, así sigue a la vista.
+  static const _todayRing = 1.5;
+
+  /// Punto delante de la cantidad.
+  static const _dot = 5.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final styles = _DayStyles.of(theme.textTheme);
     final hasMatches = count > 0;
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: AppRadius.controlAll,
       side: isToday
-          ? BorderSide(color: colors.primary, width: 1.5)
+          ? BorderSide(
+              color: isSelected ? colors.onPrimary : colors.primary,
+              width: _todayRing,
+              strokeAlign: BorderSide.strokeAlignInside,
+            )
           : BorderSide.none,
     );
     final matches = switch (count) {
@@ -409,6 +550,19 @@ class _DayCell extends StatelessWidget {
       1 => '1 partido',
       _ => '$count partidos',
     };
+    final countColor = isSelected ? colors.onPrimary : colors.primary;
+    final countRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: _dot,
+          height: _dot,
+          decoration: BoxDecoration(color: countColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text('$count', style: styles.count.copyWith(color: countColor)),
+      ],
+    );
 
     return Semantics(
       button: hasMatches,
@@ -416,7 +570,7 @@ class _DayCell extends StatelessWidget {
       excludeSemantics: true,
       label: '${MatchLabels.day(day)}${isToday ? ', hoy' : ''}: $matches',
       child: Material(
-        color: isSelected ? colors.primaryContainer : Colors.transparent,
+        color: isSelected ? colors.primary : Colors.transparent,
         shape: shape,
         child: InkWell(
           customBorder: shape,
@@ -424,7 +578,8 @@ class _DayCell extends StatelessWidget {
           child: SizedBox(
             height: height,
             child: Center(
-              // Con texto grande se achica en vez de desbordar.
+              // Solo si la celda es más angosta que el número (texto muy
+              // grande en un teléfono): se achica en vez de desbordar.
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Column(
@@ -433,44 +588,25 @@ class _DayCell extends StatelessWidget {
                     Text(
                       '${day.day}',
                       style: hasMatches
-                          ? theme.textTheme.titleSmall?.copyWith(
+                          ? styles.number.copyWith(
                               fontWeight: FontWeight.w700,
                               color: isSelected
-                                  ? colors.onPrimaryContainer
-                                  : null,
+                                  ? colors.onPrimary
+                                  : colors.onSurface,
                             )
-                          : theme.textTheme.bodySmall?.copyWith(
+                          : styles.number.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
                     ),
-                    const SizedBox(height: 2),
-                    if (hasMatches)
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colors.primary
-                              : colors.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          child: Text(
-                            '$count',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: isSelected
-                                  ? colors.onPrimary
-                                  : colors.onSecondaryContainer,
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      SizedBox(
-                        height: theme.textTheme.labelSmall?.fontSize ?? 11,
-                      ),
+                    // Sin partidos: el lugar queda, así los números se
+                    // alinean.
+                    Visibility(
+                      visible: hasMatches,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: countRow,
+                    ),
                   ],
                 ),
               ),

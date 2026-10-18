@@ -73,6 +73,16 @@ void main() {
       ),
       continental: true,
     ),
+    // Fase E5: Boca como favorito en su zona (fila resaltada y estrella).
+    _Scene(
+      'tabla_favorito',
+      (tester) => goTo(
+        tester,
+        '/competiciones/4406?temporada=2026&vista=tabla&tabla=apertura-a',
+        wait: const Duration(minutes: 2),
+      ),
+      seed: _saveBoca,
+    ),
     _Scene(
       'calendario',
       (tester) => goTo(
@@ -146,6 +156,9 @@ void main() {
     'fixture_libertadores_series',
     'tabla_anual',
     'llaves_libertadores_2025',
+    // Fase E5: tabla de grupos y calendario en toda la matriz de anchos.
+    'tabla_grupo_libertadores',
+    'calendario',
   };
   const scaledScenes = {
     'inicio',
@@ -157,6 +170,8 @@ void main() {
     'calendario',
     'llaves_libertadores_2025',
     'competiciones_selector',
+    'tabla_anual',
+    'tabla_favorito',
   };
   // Fase E4: Competiciones también en el teléfono de 411 dp y en la tablet
   // vertical (800 px).
@@ -167,6 +182,8 @@ void main() {
     'calendario',
     'llaves_primera',
     'competiciones_selector',
+    // Fase E5.
+    'tabla_anual',
   };
   // Solo en escritorio (el panel existe desde 1200 px).
   const desktopOnly = {'fixture_panel_detalle'};

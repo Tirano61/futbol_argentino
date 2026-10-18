@@ -13,6 +13,7 @@ import 'package:futbol_argentino/features/matches/domain/entities/match.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_day_list.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/match_group.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../helpers/fakes.dart';
@@ -119,6 +120,18 @@ Future<FakeMatchRepository> pumpCalendar(
 
 Finder dayCell(String label) => find.bySemanticsLabel(label);
 
+/// El contexto (fase · etapa) va una vez, en el encabezado del grupo
+/// (Hito E, E5): el grupo con ese encabezado y sus [matches] partidos.
+void expectStageGroup(Finder header, int matches) {
+  expect(header, findsOne);
+  final group = find.ancestor(of: header, matching: find.byType(MatchGroup));
+  expect(group, findsOne);
+  expect(
+    find.descendant(of: group, matching: find.byType(MatchCard)),
+    findsNWidgets(matches),
+  );
+}
+
 void main() {
   testWidgets('abre en el mes de hoy con los partidos de hoy; sin consultas', (
     tester,
@@ -128,7 +141,7 @@ void main() {
     expect(find.text('Octubre 2026'), findsOne);
     expect(find.text('Domingo 11/10/2026'), findsOne);
     expect(find.byType(MatchCard), findsNWidgets(5));
-    expect(find.text('Clausura · Fecha 12'), findsNWidgets(5));
+    expectStageGroup(find.text('Clausura · Fecha 12'), 5);
     // Todo guardado y vigente: sin aviso y sin consultas.
     expect(find.text('Completar'), findsNothing);
     // El calendario no descarga nada (el fixture de fondo carga su etapa,
@@ -149,7 +162,7 @@ void main() {
 
     expect(find.text('Domingo 18/10/2026'), findsOne);
     expect(find.byType(MatchCard), findsNWidgets(15));
-    expect(find.text('Clausura · Fecha 13'), findsNWidgets(15));
+    expectStageGroup(find.text('Clausura · Fecha 13'), 15);
 
     // Un día sin partidos no se elige.
     await tester.tap(dayCell('Martes 13/10/2026: sin partidos guardados'));
@@ -191,7 +204,7 @@ void main() {
     expect(find.text('Marzo 2026'), findsOne);
     expect(find.text('Domingo 01/03/2026'), findsOne);
     expect(find.byType(MatchCard), findsNWidgets(5));
-    expect(find.textContaining('Apertura · Fecha'), findsNWidgets(5));
+    expectStageGroup(find.textContaining('Apertura · Fecha'), 5);
   });
 
   testWidgets('faltan fechas: aviso y «Completar» las descarga con P2', (
@@ -280,6 +293,6 @@ void main() {
     expect(find.text('Octubre 2026'), findsOne);
     expect(find.text('Domingo 25/10/2026'), findsOne);
     expect(find.byType(MatchCard), findsNWidgets(2));
-    expect(find.text('Semifinales'), findsNWidgets(2));
+    expectStageGroup(find.text('Semifinales'), 2);
   });
 }
