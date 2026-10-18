@@ -1,0 +1,470 @@
+# Arquitectura DDD
+
+> Generado desde el Plan Maestro v2 (aprobado el 11/10/2026). Las referencias «§N» apuntan a secciones de [PLAN.md](PLAN.md).
+
+## 3. Arquitectura DDD
+
+### 3.1 Features y cómo evitar duplicación
+- **`matches` es el núcleo**: dueño de `Match`, `TeamRef`, `MatchStatus`, `Kickoff`, del DTO de evento, del store local de eventos y de `MatchRepository`. Todos consultan partidos por ese repositorio → un parser, una tabla de eventos deduplicada por `idEvent`.
+- **`fixtures` vive dentro de `competitions`** (un fixture = partidos de competición/temporada/fase/ronda).
+- **`teams`**: `Team`, índice de búsqueda y ficha; usa `MatchRepository`.
+- **`favorites`**: solo `idTeam` + snapshot (nombre, escudo).
+- **`home`**: compone casos de uso de otras features, sin datos propios.
+- Dependencias: `home → competitions, matches, favorites`; `teams → matches`; `competitions → matches`; `matches → core`. Nunca al revés.
+
+### 3.2 Estructura de directorios
+```
+lib/
+  main.dart                          # abre DB, crea AppDependencies, runApp
+  app/
+    app.dart                         # MaterialApp.router, temas, es_AR
+    di/app_dependencies.dart         # composition root
+    router/app_router.dart           # go_router + StatefulShellRoute
+    shell/adaptive_shell.dart        # NavigationBar / NavigationRail
+    theme/app_theme.dart
+  core/
+    config/app_config.dart           # baseUrl, apiKey (--dart-define, default 123)
+    network/{thesportsdb_client, rate_limiter, api_exception, json_envelope}.dart
+    storage/local_database.dart      # sembast io / web
+    cache/{cache_policy, query_metadata_store}.dart
+    sync/{sync_scheduler, sync_job, cancel_token}.dart
+    time/{clock, argentina_time}.dart
+    error/failure.dart
+    result/data_result.dart
+    text/text_normalizer.dart        # sin acentos, reparación de mojibake
+  shared/presentation/widgets/       # §6.3
+  features/
+    matches/
+      domain/entities/{match, team_ref, match_status, kickoff, score}.dart
+      domain/services/{kickoff_resolver, match_status_mapper, round_merge_policy, match_grouping}.dart
+      domain/repositories/match_repository.dart
+      domain/usecases/{watch_stage_matches, get_match_detail, watch_team_matches, watch_matches_in_window}.dart
+      data/models/event_dto.dart
+      data/mappers/event_mapper.dart
+      data/datasources/{match_remote_data_source, match_local_data_source}.dart
+      data/repositories/match_repository_impl.dart
+      presentation/{bloc/match_detail_*, pages/match_detail_page}.dart
+    competitions/
+      domain/entities/{competition, season, phase, phase_assignment, stage}.dart
+      domain/catalog/competition_catalog.dart
+      domain/services/{phase_resolver, stage_labeler, round_navigator}.dart
+      domain/repositories/competition_repository.dart
+      domain/usecases/{get_competitions, resolve_current_stage, list_stages}.dart
+      data/{models/league_dto, datasources/competition_remote_data_source, repositories/competition_repository_impl}.dart
+      presentation/bloc/competition_fixture_*.dart
+      presentation/pages/competitions_page.dart
+      presentation/widgets/{competition_selector, season_selector, phase_selector, stage_navigator}.dart
+    teams/        domain (team, team_repository, search_teams, get_team) · data (team_dto, datasources, repo) · presentation (team_search_*, team_detail_*)
+    favorites/    domain (favorite_team, repo, watch/toggle) · data (local ds, repo) · presentation (favorites_bloc global, favorites_page, favorite_button)
+    home/         domain/usecases/get_home_feed.dart · presentation (home_bloc, home_page, secciones)
+    diagnostics/  prueba técnica (solo kDebugMode)
+test/
+  fixtures/api/                      # JSON REALES grabados de la API
+  core/ features/ ...
+```
+
+### 3.3 Convenciones (irán a `CLAUDE.md`)
+- `Bloc` + events/states sealed. **Prohibido `Cubit`.**
+- Sin HTTP en widgets; sin lógica de negocio en presentation; las pantallas solo ven entidades.
+- `domain/` es Dart puro (sin `flutter`, `http`, `sembast`).
+- Parsing en DTO (`fromJson`); mappers DTO → entidad.
+- Repositorios devuelven `DataResult<T>` o `Stream<DataResult<T>>`; traducen errores a `Failure`.
+- Casos de uso solo cuando hay lógica o composición.
+- UI en español rioplatense. `flutter analyze` limpio antes de cerrar cada tarea.
+- **Nunca datos simulados presentados como reales.**
+
+### 3.4 Dependencias
+`http`, `flutter_bloc` (ya están) · `bloc_concurrency` · `stream_transform` · `equatable` · `go_router` · `sembast` + `sembast_web` · `path_provider` + `path` · `intl` + `flutter_localizations` · dev: `bloc_test`, `mocktail`. Versiones estables vigentes al instalar. Sin `get_it`, sin `dartz`, sin codegen. Cada paquete se agrega en la tarea que lo necesita (no todos de una vez).
+
+---
+
+## 4. Modelo de dominio
+
+- **`Competition`** `{id (idLeague), name, shortName, format: league|cup, badgeUrl?, currentSeason}`
+- **`Season`** `{"2026"}` (formato `YYYY`)
+- **`Phase`** `{key: apertura|clausura|regular|unica|undetermined, label, kind: regular|knockout}`
+- **`PhaseAssignment`** `{phaseKey, stageKind, source: catalog|inferred|undetermined}` — por partido, nunca forzada.
+- **`Stage`** `{competitionId, season, phaseKey, apiRound, kind, label ("Fecha 12", "Octavos de final"…), order}`
+- **`TeamRef`** `{id (idTeam), name, badgeUrl?}` · **`Team`** `{id, name, alternateNames, badgeUrl?, stadium?, leagueIds}`
+- **`Kickoff`** `{utc?, argentinaDay?, certainty: confirmed|tentative|unknown, evidence}`
+- **`MatchStatus`** `{kind: scheduled|live|halfTime|finished|postponed|cancelled|abandoned|suspended|unknown, decidedBy: regular|extraTime|penalties, raw}`
+- **`Match`** `{id (idEvent), competitionId, competitionName, season, apiRound, phase: PhaseAssignment, home, away, kickoff, status, score?, venue?, thumbUrl?, videoUrl?, previousKickoffUtc?, previousApiRound?, membership: active|unconfirmed|orphaned|removed, lastSeenAt}`
+- **`FavoriteTeam`** `{teamId, name, badgeUrl?, addedAt}`
+- **`DataResult<T>`** `{data, origin: remote|cache, fetchedAt, refreshError?}` · **`Failure`** sealed: `Network`, `RateLimit`, `Server(status)`, `Format`, `NotFound`.
+
+### Reglas de negocio (Dart puro, con tests sobre JSON reales)
+
+1. **Hora argentina**: UTC−3 fijo encapsulado en `ArgentinaTime` (Argentina sin horario de verano desde 2009); cambiar al paquete `timezone` afectaría un solo archivo.
+
+2. **Kickoff — regla conservadora (D5)**, `KickoffResolver`:
+   - Instante candidato: `strTimestamp`; si falta, `dateEvent` + `strTime` (UTC, `HH:mm` o `HH:mm:ss`). `strTimeLocal` **nunca** es fuente; solo sirve para corroborar.
+   - **`confirmed`**: instante candidato con hora UTC distinta de `00:00` (ej. `20:45` → 17:45 ART).
+   - **`confirmed` por corroboración**: hora `00:00` UTC **y** `strTimeLocal == "21:00"` (coincide con la conversión a ART).
+   - **`tentative`**: hora `00:00` UTC sin corroboración (caso real: `2026-03-21T00:00:00` con `strTimeLocal = 18:00`). Se muestra **«Horario por confirmar»**; el detalle aclara «La API informa 00:00 UTC, sin confirmar».
+   - **`unknown`**: sin hora → «Horario por confirmar»; sin fecha → «Fecha por confirmar».
+   - **Día argentino**: `confirmed` → día de `utc − 3 h`; `tentative`/`unknown` → `dateEventLocal ?? dateEvent` (no se resta 3 h a una hora dudosa, así el partido no salta al día anterior).
+   - Orden en el día: primero `confirmed` por hora, luego los no confirmados.
+   - Se re-evalúa en cada actualización; un `tentative` pasa a `confirmed` apenas llega una hora distinta de `00:00`.
+
+3. **Estado**: tabla `strStatus` + `strPostponed`. `NS` con inicio `confirmed` hace más de 3 h → «Resultado pendiente de actualización». Estados desconocidos → se muestra el código crudo y se registra (V4).
+
+4. **Fase (D6)**, `PhaseResolver`, con fuente explícita:
+   - **Catálogo por temporada** (fuente principal): para Primera, cada temporada declara ventanas en fecha argentina `{phaseKey, regularDesde, regularHasta, eliminatoriasDesde?, eliminatoriasHasta?}` **cargadas desde datos reales grabados**, no por división fija de meses. Un partido se asigna si su día cae en **exactamente una** ventana → `source: catalog`.
+   - **Inferencia** (solo temporadas sin catálogo): la ronda tiene **exactamente dos** grupos de fechas separados por ≥ 45 días y cada uno ≤ 15 partidos → Apertura/Clausura con `source: inferred` (indicado en la UI).
+   - **Sin evidencia suficiente** (fuera de toda ventana, en dos ventanas, grupos ambiguos, día desconocido) → **`undetermined`**: no se ubica en Apertura ni Clausura; se ve en la opción «Sin fase determinada» y en la ficha del equipo; se registra en debug.
+   - **Consistencia**: en una fecha regular de una fase cada equipo juega una vez; si aparece dos veces, el partido posterior solo puede ser eliminatoria si cae en la ventana de eliminatorias; si no → `undetermined`.
+   - Eliminatorias de Primera: `r=0` → knockout de la fase cuya ventana de eliminatorias lo contiene; `r=16` dentro de esa ventana → «Octavos de final».
+   - *Nacional*: fase «regular» sin zonas (D7). *Copa*: knockout; `64→32avos, 32→16avos, 16→Octavos, 125→Cuartos, 150→Semifinales, 200→Final (V2)`; desconocido → «Ronda {n}».
+
+5. **Merge y deduplicación**: §5.3.
+6. **Agrupación**: por día argentino, luego hora (regla 2); desempate por `idEvent`.
+7. **Partidos de equipo**: `idHomeTeam == id || idAwayTeam == id`, todas las competiciones, excluyendo `removed`.
+
+---
+
+## 6. Navegación y pantallas
+
+### 6.1 Rutas (go_router, `StatefulShellRoute.indexedStack`)
+`/` Inicio · `/competiciones/:leagueId?temporada=&fase=&ronda=` · `/equipos?q=` · `/equipos/:teamId` · `/partidos/:eventId` · `/favoritos` · `/ajustes` (Fase 12) · `/diagnostico` (debug).
+
+### 6.2 Layout adaptable
+< 600 px: `NavigationBar` inferior, pull-to-refresh · 600–1199 px: `NavigationRail` · ≥ 1200 px: rail extendido, buscador en barra superior, Inicio en 2 columnas, fixture con panel de detalle, ancho máx. 1200 px. En Web también botón «Actualizar».
+
+### 6.3 Componentes reutilizables
+(Hito E, Fase E2: ver «Estado de implementación (Fase E2)» al final.) `MatchCard`, `TeamBadge` (`/tiny`/`/small`, placeholder con iniciales; estrategia Web según T0.2), `ScoreBox`, `MatchStatusChip`, `KickoffText` («Horario por confirmar»), `DayHeader`, `MatchListByDay`, `StaleDataBanner`, `EmptyView`, `ErrorView`, `LoadingView`, `CompetitionChip`, `SectionHeader`, `ResponsiveScaffold`. Accesibilidad: `Semantics` en tarjetas, contraste M3, objetivos ≥ 48 px, escala de texto.
+
+---
+
+## 7. BLoC y estados
+
+| BLoC | Events | Concurrencia |
+|---|---|---|
+| `CompetitionFixtureBloc` | `CompetitionSelected`, `SeasonSelected`, `PhaseSelected`, `StageSelected`, `Next/PreviousStageRequested`, `FixtureRefreshRequested` | `restartable` + descarte si la `StageKey` ya no es la actual |
+| `MatchDetailBloc` | `MatchDetailStarted(id)`, `MatchDetailRefreshRequested` | `droppable` |
+| `HomeBloc` | `HomeStarted`, `HomeRefreshRequested` | `droppable` |
+| `TeamSearchBloc` | `SearchQueryChanged` (debounce 350 ms), `SearchCleared` | debounce + `restartable` |
+| `TeamDetailBloc` | `TeamDetailStarted(id)`, `TeamDetailRefreshRequested` | `restartable`; cancela su sync al cerrarse |
+| `FavoritesBloc` (global) | `FavoritesSubscribed`, `FavoriteToggled` | secuencial |
+
+Estados sealed comunes: `Initial`, `Loading`, `Loaded{data, isRefreshing, origin, fetchedAt, refreshError?}`, `Empty{reason}`, `Failure{failure}`. «Actualizando» = `isRefreshing`; «caché con error» = `refreshError != null`.
+
+---
+
+
+## Estado de implementación (Fase 1, 11/10/2026)
+
+Implementado:
+- `lib/app/`: `app.dart` (MaterialApp.router, tema M3 claro/oscuro según el `SettingsBloc` global, `es_AR`), `di/app_dependencies.dart` (composition root), `router/app_router.dart` (`AppRoutes`, `StatefulShellRoute.indexedStack`), `shell/adaptive_shell.dart` (`NavigationBar` < 600 px, `NavigationRail` 600–1199 px, riel extendido ≥ 1200 px), `theme/app_theme.dart`.
+- `lib/core/`: `config/app_config.dart`, `network/` (`TheSportsDbClient`, `RateLimiter`, `ApiException`, `JsonEnvelope`), `error/failure.dart`, `result/data_result.dart`, `time/` (`Clock`, `argentina_time.dart`).
+- `lib/features/diagnostics/`: prueba técnica reubicada (debug o `--dart-define=DIAGNOSTICS=true`), ruta `/diagnostico`.
+- `lib/shared/presentation/widgets/coming_soon_page.dart`: placeholder de Inicio, Competiciones, Equipos y Favoritos.
+
+### Contrato de errores
+- `TheSportsDbClient` lanza `ApiException` (capa de datos): tipo, mensaje real, URI, status, tiempo y cuerpo.
+- Los repositorios lo traducen con `ApiException.toFailure()` y nunca lo dejan pasar al dominio ni a la UI.
+- Un repositorio **lanza** `Failure` solo si no tiene ningún dato; si tiene caché, devuelve `DataResult` con `refreshError`.
+- Reintentos: solo timeout, error de conexión y HTTP 5xx (máx. 2, con 1 s y 3 s + hasta 500 ms al azar). Nunca 4xx, 429 ni JSON inválido. En Web un `ClientException` no se reintenta (puede ser CORS).
+- HTTP 429: el `RateLimiter` se pausa 60 s para todas las consultas.
+
+### URLs en Web
+Por ahora go_router usa la estrategia por defecto con `#` (`/#/diagnostico`), que funciona en cualquier hosting estático sin configuración. Las URLs sin `#` (`usePathUrlStrategy`) requieren que el servidor reescriba todas las rutas a `index.html`; se decidirá cuando se defina dónde se publica la versión Web.
+
+## Estado de implementación (Fase 2, 11/10/2026)
+
+Dominio implementado (Dart puro, 125 tests):
+- `core/time/`: `CalendarDay`, `ArgentinaTime` (UTC−3 fijo, día argentino, formatos).
+- `features/matches/domain/`: `Match`, `TeamRef`, `Kickoff`, `MatchStatus`, `Score`; servicios `KickoffResolver` (D5), `MatchStatusMapper`, `RoundMergePolicy` (§5.3), `MatchGrouping`; contrato `MatchRepository` + `RoundQuery`.
+- `features/competitions/domain/`: `Competition`, `Season`, `PhaseKey`/`StageKind`, `PhaseAssignment`, `Stage`; `CompetitionCatalog` (4406, 4616, 4500 con ventanas 2025–2026 desde datos reales); servicios `PhaseResolver` (D6), `StageLabeler`, `RoundNavigator`; contrato `CompetitionRepository`; casos de uso `WatchStageMatches`, `ResolveCurrentStage`.
+
+### Ajustes respecto del plan
+- **`Match` no guarda la fase.** La fase depende del catálogo de `competitions` y `matches` no puede depender de `competitions` (§3.1). `PhaseResolver` la calcula por ronda y `WatchStageMatches` devuelve `StageMatches.assignments`. Ventaja extra: corregir el catálogo no exige migrar datos guardados.
+- **Sin caso de uso `GetMatchDetail`**: sería un pasamanos de `MatchRepository.getMatch` (convención: casos de uso solo con lógica). El BLoC de detalle usará el repositorio.
+
+### Reglas de fase implementadas (`PhaseResolver`)
+1. Temporada con catálogo: el día argentino debe caer en el período de **un solo** torneo. Ronda 0 → eliminatorias solo dentro de la ventana de eliminatorias; ronda 16 → octavos si cae en esa ventana, fecha 16 si cae en la regular; fechas 1–15 → solo dentro del período regular.
+2. Un torneo en curso puede no tener fin (`regularTo: null`); sin ventana de eliminatorias verificada, sus partidos de ronda 0 quedan `undetermined`.
+3. Sin catálogo: inferencia solo con exactamente dos grupos de días separados por ≥ 45 días y ≤ 15 partidos cada uno.
+4. Consistencia: si un equipo aparece dos veces en la misma fase y fecha regular, **ambos** partidos quedan `undetermined` (no se puede saber cuál es cuál).
+
+### Política de merge implementada (`RoundMergePolicy`)
+- `complete` si trae al menos lo que había visible en la ronda y lo esperado del catálogo; si no, `partial`.
+- En `complete`, los faltantes pasan a `orphaned` y se verifican. En `partial` no hay bajas; solo se verifican faltantes que no aparecen hace más de 24 h (así una respuesta siempre truncada no deja datos viejos para siempre).
+- Verificación (`applyVerification`): no existe → `removed`; misma ronda → `unconfirmed` (visible con aviso); otra ronda → activo en la nueva.
+
+## Estado de implementación (Fase 3, 11/10/2026)
+
+- `features/matches/data/`: `EventDto` (parsing tolerante), `EventMapper`, `MatchRecord` (formato guardado), `MatchRemoteDataSource`, `MatchLocalDataSource`, `RoundCachePolicy`, `MatchRepositoryImpl`.
+- `features/competitions/data/`: `LeagueDto`, `CompetitionRecord`, `CompetitionRemoteDataSource`, `CompetitionRepositoryImpl`.
+- `core/`: `storage/local_database.dart` (+ apertura por plataforma con import condicional), `cache/` (`CacheClass`, `QueryMetadataStore`), `sync/sync_scheduler.dart`, `network/remote_call.dart` (traduce `ApiException`/`JsonShapeException` a `Failure`).
+- `MatchRepository` suma `prefetchRound` (P1, no lanza errores).
+- Diagnóstico suma «Prueba de caché» (`CacheProbeBloc`) para validar la caché en dispositivos.
+- `main` es asíncrono: abre la base antes de `runApp`.
+
+## Estado de implementación (Fase 4, 11/10/2026)
+
+- `shared/presentation/`: `MatchLabels` (días en español, horario D5, estados, descripción accesible), `failureMessage`, `TeamBadge` (imagen del `BadgeImageResolver`: disco en Android, fallback `<img>` en Web; iniciales si falla), `MatchStatusChip`, `MatchCard` (incluye marcador y horario; reemplaza a `ScoreBox`/`KickoffText` separados), `matchDayItems`/`DayHeader`, `EmptyView`, `ErrorView`, `StaleDataBanner`.
+- `features/competitions/presentation/`: `CompetitionFixtureBloc` (un solo handler `restartable`: cada selección cancela la carga anterior; precarga P1 de la etapa siguiente), `CompetitionsPage`, `FixtureSelectors`, `StageNavigator`, `FixtureRoute` (URL ↔ selección).
+- **URL**: `/competiciones/4406?temporada=2026&fase=clausura&ronda=12[&etapa=eliminatoria]`. En Web se actualiza con `SystemNavigator.routeInformationUpdated(replace: true)` sin recrear la pantalla. `/competiciones` y `/competiciones/:leagueId` son rutas **hermanas** (si se anidan, el enlace directo muestra «atrás»).
+- **Sin fase determinada**: si la ronda tiene partidos así, aparece «N partidos de esta ronda sin fase determinada» y se pueden ver aparte.
+- `Clock` disponible por `RepositoryProvider`.
+- `LocalDatabase.openOrMemory` con timeout de 5 s: si IndexedDB no responde, la app arranca con base en memoria en lugar de quedar en blanco.
+
+## Estado de implementación (Fase 5, 11/10/2026) — Hito A completo
+
+- **Nueva feature `match_detail`** (desvío del plan, que ubicaba el detalle en `matches/presentation`): el detalle muestra fase y etapa, que dependen del catálogo de `competitions`, y `matches` no puede depender de `competitions`. Igual que `home`, compone las dos: `match_detail → competitions, matches`.
+  - `GetMatchDetail`: partido (`MatchRepository.getMatch`) + fase/etapa con `PhaseResolver` sobre la ronda guardada (primera emisión de `watchRound`, normalmente la caché); sin ronda, clasifica con el partido solo.
+  - `MatchDetailBloc` (`droppable`): `Loading`, `Loaded` (con `refreshError`/`isRefreshing`), `Failure`.
+  - `MatchDetailPage`: competición, «Fase · Etapa», escudos, marcador o «vs», fecha y hora ART o «Horario por confirmar» (con nota si es `00:00` UTC sin corroborar), «Reprogramado», estado, aviso de penales sin resultado, estadio, video (`url_launcher`) e imagen, solo si existen.
+- **Rutas**: `/partidos/:eventId` fuera del shell (pantalla completa). `GoRouter.optionURLReflectsImperativeAPIs = true`: abrir un partido actualiza la URL en Web. Con enlace directo (sin «atrás») se ofrece «Ir al inicio».
+
+## Estado de implementación (Fase 6, 11/10/2026)
+
+- **Feature `home`** (`home → competitions, matches`, sin datos propios):
+  - `domain/entities/home_feed.dart`: `HomeMatch` (partido + competición, fase y etapa visibles), `CompetitionFeed` (por competición: cargando, partidos de la ventana, `fetchedAt`, error) y `HomeFeed` (secciones `todayMatches`/`upcoming`/`recent` calculadas, `carryOver` para refrescar sin parpadeos).
+  - `domain/usecases/get_home_feed.dart` (`GetHomeFeed`): stream que emite a medida que llega cada competición; ventana de ayer a +7 días (día argentino); fase con `PhaseResolver` sobre la ronda completa. Un error de una competición no afecta a las demás.
+  - `presentation/bloc/home_*` (`HomeBloc`, `droppable`): `Initial`, `Loading`, `Loaded{feed}` (`isBusy` mientras alguna competición carga), `Failure` (ninguna competición con datos).
+  - `presentation/pages/home_page.dart`: accesos a «Buscar equipo» (lleva a Equipos; la búsqueda es la Fase 7) y a cada fixture; secciones Hoy, Próximos 7 días (por día) y Recientes (ayer); subtítulo «Competición · Fase · Etapa» en cada tarjeta; aviso de datos guardados y de competiciones que no cargaron; pull-to-refresh y botón «Actualizar»; acceso al diagnóstico.
+- `RoundNavigator.locate`: etapa de un partido suelto (extraída de `ResolveCurrentStage`, la usan ambos).
+- `MatchRepository.watchRound` y `CompetitionRepository.getSchedulePointers` aceptan `priority`: el Inicio carga con P1 y el refresco manual con P0.
+- `shared/presentation/widgets/section_header.dart` (`SectionHeader`).
+
+## Estado de implementación (Fase 7, 12/10/2026)
+
+- **Feature `teams`** (`teams → competitions, matches`; desvío del plan, que decía `teams → matches`: la ficha necesita catálogo, fases y etapas, igual que `home` y `match_detail`).
+  - `domain/entities`: `Team` (`lookupteam`), `TeamSummary` (ítem de búsqueda: `TeamRef` + competiciones), `TeamDetail` / `TeamMatch` / `TeamSyncProgress`.
+  - `domain/services/team_index.dart` (`TeamIndex`): cada palabra buscada debe aparecer en el nombre normalizado; orden: empieza con la búsqueda → alguna palabra empieza con ella → resto; alfabético dentro de cada grupo. Búsqueda en línea solo desde 3 letras.
+  - `domain/usecases`: `EnsureTeamIndex` (primera etapa de cada competición del catálogo = todos sus equipos; temporada = año argentino, o la anterior si la primera etapa todavía está vacía), `SearchTeamsOnline` (respaldo `searchteams`), `WatchTeamDetail` (stream: guardado → `lookupteam` P0 + índice P1 → rondas de la temporada P2 de a una, alternando competiciones, de la última a la primera).
+  - `data`: `TeamDto`, `TeamRecord` (store `teams`), `TeamRemoteDataSource` (`lookupteam`, `searchteams`), `TeamRepositoryImpl` (índice desde los partidos guardados sin reconstruirlos, con `MatchLocalDataSource.teamSightings`; nombre y escudo del partido visto más recientemente; competiciones de la temporada más reciente; `lookupteam` con TTL 7 días; búsqueda en línea filtrada a fútbol de Argentina).
+  - `presentation`: `TeamSearchBloc` (búsqueda `restartable` con debounce de 350 ms dentro del handler; la carga del índice va aparte y solo repite la búsqueda si el índice nuevo cambia el resultado), `TeamSearchPage` (`/equipos?q=`; en Web la URL refleja la búsqueda), `TeamDetailBloc` (`restartable`; un `CancelToken` por carga, cancelado al reemplazarla o al cerrar), `TeamDetailPage` (`/equipos/:teamId`, anidada: «atrás» vuelve al buscador; encabezado con estadio y competiciones, «Completando partidos… n/N», Próximos y Disputados del más reciente al más viejo).
+- **`core/text/text_normalizer.dart`**: minúsculas, sin acentos; apóstrofos y puntos se quitan («Newell's» → «newells»); el resto de los signos separa palabras.
+- **`core/sync/`**: `SyncPriority.team` (P2) y `cancel_token.dart` (`CancelToken`, `SyncCancelled`). Ver DATA_STRATEGY.
+- **`MatchRepository`** suma `syncRound` (actualiza una ronda vencida sin emitirla; acepta prioridad y `CancelToken`), `storedRound` y `storedTeamMatches` (lecturas locales). `prefetchRound` usa `syncRound`.
+- **`StageLabeler.describe`**: «fase · etapa» de un partido (la usan el Inicio y la ficha).
+- **`matchDayItems(newestFirst:)`**: días del más reciente al más viejo (Disputados).
+- **App**: `AppLifecycleListener` pausa la cola P2 al ocultarse la app (`onHide`) y la reanuda al volver (`onShow`).
+
+## Estado de implementación (Fase 8, 12/10/2026)
+
+- **Feature `favorites`** (`favorites → matches` solo por `TeamRef`):
+  - `domain`: `FavoriteTeam` (`teamId`, nombre, escudo, `addedAt`), `FavoritesRepository` (`watchAll`, `contains`, `save`, `remove`; sin `DataResult`: los datos son solo locales y no vencen), `ToggleFavorite` (consulta lo guardado, no la pantalla: dos toques seguidos agregan y quitan).
+  - `data`: `FavoriteRecord` (store `favorites`, clave `idTeam`, `v: 1`), `FavoritesRepositoryImpl` (`onSnapshots` de sembast: la lista se actualiza sola; orden por nombre normalizado, sin acentos).
+  - `presentation`: `FavoritesBloc` **global** (creado en `app.dart` arriba del router; `FavoritesSubscribed` `restartable` y `FavoriteToggled` `sequential` en handlers separados, para que la suscripción abierta no bloquee los toques), `FavoriteButton` (estrella con el color del tema; aviso con «Deshacer»), `FavoritesPage` (`/favoritos`: vacía con «Buscar equipo»; lista con estrella para quitar).
+- **Rutas**: `/favoritos/:teamId` (ficha anidada en Favoritos: «atrás» vuelve a la lista). El constructor de la ficha es compartido con `/equipos/:teamId`.
+- **Estrella** en la barra de la ficha y en cada resultado del buscador (reemplaza la flecha): `teams → favorites`, solo en presentación.
+- **«Tus equipos» en el Inicio** (`home → favorites`):
+  - `WatchFavoriteTeams` (stream): favoritos × partidos guardados de esos equipos → próximo (en juego o por jugarse) y último disputado de cada uno. Sin red; se recalcula al cambiar los favoritos y cada vez que se guardan partidos.
+  - `HomeFavoritesBloc` (aparte del `HomeBloc`, `restartable`): `Loading`, `Loaded(teams)`.
+  - Sección entre los accesos y «Hoy»: el equipo (abre su ficha en Favoritos) y las tarjetas «Próximo · día» y «Último · día» con «competición · fase · etapa»; sin partidos guardados lo dice; sin favoritos explica cómo agregarlos.
+- **Reutilización**: `MatchGrouping.isPlayed` (regla disputado/próximo, antes privada de la ficha) y `competitions/domain/services/stored_match_labeler.dart` (`StoredMatchLabeler`, antes `_RoundPhases` de `WatchTeamDetail`).
+- **`MatchRepository.watchStoredTeamsMatches`** (+ `MatchLocalDataSource.watchByTeams`): partidos guardados de varios equipos, reactivo, sin red.
+- **Tests**: en `testWidgets`, las llamadas directas a sembast van en `outsideFakeAsync` (`tester.runAsync`): sembast usa temporizadores que el reloj falso no avanza.
+
+## Estado de implementación (Fase 9, 12/10/2026)
+
+- **Anchos** (`shared/presentation/layout/breakpoints.dart`, `Breakpoints`): compacto < 600 px (navegación inferior), mediano 600–1199 px (riel), amplio ≥ 1200 px (riel extendido, buscador en la barra, Inicio en 2 columnas, fixture con panel). Contenido hasta 1200 px en el diseño amplio; las listas simples (buscador, favoritos, detalle) siguen en 720–900 px. Se decide por el ancho de la ventana, no del contenido.
+- **Inicio en 2 columnas**: Hoy y Próximos a la izquierda; accesos, «Tus equipos» y Recientes a la derecha. En una columna, el orden de siempre.
+- **Panel de detalle** (fixture, diseño amplio): tocar un partido lo abre al lado (`MatchDetailPanel`, mismo `MatchDetailBloc` y contenido que `MatchDetailPage`) y lo resalta (`MatchCard.selected`, `matchDayItems(selectedId:)`); «Abrir en pantalla completa» lleva a `/partidos/:id`. La selección es estado local de la pantalla (no va a la URL).
+- **Buscador en la barra** (`app/shell/top_bar_team_search.dart`, `TopBarTeamSearch`): en el diseño amplio es un campo en Inicio, Competiciones y Favoritos; al confirmar abre `/equipos?q=`. La página del buscador lleva `ValueKey(q)` para que una búsqueda nueva reemplace a la anterior. En `app/shell` y no en `teams` para no crear un ciclo `teams ↔ favorites`.
+- **Shell**: `AdaptiveShell` es `StatefulWidget`; al cambiar de sección (por el menú o por un enlace) quita el aviso abierto, al final del frame.
+- **Avisos**: `FavoriteButton` usa `persist: false` (en este Flutter un `SnackBar` con acción queda fijo por defecto). `showAlreadyUpToDate` (`shared/presentation/widgets/refresh_feedback.dart`): tras un refresco manual que no cambió la hora de descarga ni dio error, avisa «Ya está actualizado: los datos son de las HH:mm.» (Inicio, fixture y detalle).
+- **429** (`core/network/rate_limit_status.dart`, `RateLimitStatus`, implementado por `RateLimiter`): `pausedUntil` y un stream de pausas. `RateLimitNotice` (`app/shell/rate_limit_notice.dart`) envuelve toda la app desde `MaterialApp.router.builder` y muestra arriba «TheSportsDB pidió esperar por el límite de consultas. Se sigue a las HH:mm.» mientras dure la pausa; la estructura no cambia al mostrarlo (el contenido conserva su estado). Desde la Fase 16 también avisa las esperas de 3 s o más por el tope propio (`throttles`).
+- **Inicio**: espera a «Tus equipos» antes de mostrarse; `HomeFavoritesUnavailable` si la base local falla (lo dice y muestra el resto).
+- **Fixture**: `FixtureEmpty.isRefreshing` (refrescar una etapa vacía ahora tiene principio y fin); un error al refrescar una etapa vacía ya consultada la deja vacía con el aviso de datos guardados, en vez de pantalla de error.
+- **Accesibilidad**: `EmptyView` se desplaza si no entra (texto grande); el selector de temporada se ajusta al ancho. `Semantics(selected:)` en la tarjeta resaltada y encabezado del panel.
+- **Tests**: `test/helpers/recorded_app.dart` (`pumpApp`: la app completa con respuestas grabadas, reloj que avanza con `pump`, respuestas reemplazables); `test/app/responsive_layout_test.dart`, `accessibility_test.dart`, `error_states_test.dart`.
+
+## Estado de implementación (Fase 10.1, 12/10/2026)
+
+- **URL del fixture en Web**: la ubicación del router es la que abrió la pantalla y no sigue los cambios de competición, fase o etapa (esos se informan al navegador con `SystemNavigator.routeInformationUpdated`). Al volver de un partido (`push`) o de otra sección, el router informaba su ubicación y se perdía la etapa. `_CompetitionsViewState` escucha al `routerDelegate` (solo en Web) y, si `router.state.uri` (incluye lo abierto con `push`) es del fixture sin la etapa (`FixtureRoute.urlToRestore`), repone la de la etapa al final del frame, solo si la pantalla sigue siendo la ruta actual (si el router abrió otra competición, no la pisa).
+- **Ficha en una sección oculta**: `TeamDetailPage` escucha `TickerMode.getValuesNotifier` (go_router apaga el `TickerMode` de las secciones inactivas) y manda `TeamDetailPaused`/`TeamDetailResumed`. La pausa tiene su propio handler (sin `restartable`): solo cancela el `CancelToken` y la carga en curso termina sola; al volver, `TeamDetailResumed` (un `TeamDetailLoadEvent`, `restartable`) sigue con lo que falta si la descarga había quedado a medias. Pasar la pausa por `restartable` dejaba los eventos siguientes esperando la cancelación de la carga.
+- **«Ya está actualizado» en la ficha**: `MatchRepository.syncRound` devuelve si consultó la red; `WatchTeamDetail` cuenta las consultas de la carga (`TeamSyncProgress.fetched`, incluye `lookupteam`). Tras un refresco con 0 consultas y sin errores, la ficha avisa «Ya está actualizado.» (`showAlreadyUpToDate` sin hora).
+- **Tests**: `test/app/team_detail_visibility_test.dart` (ficha oculta: sin peticiones; al volver sigue; refrescar con la descarga en curso no la cuelga); `pumpApp(requests:)` registra las peticiones.
+
+## Estado de implementación (Fase 12, 12/10/2026)
+
+- **`SyncProgress`** pasa a `lib/core/sync/sync_progress.dart` (antes `TeamSyncProgress` en `teams`): lo usan la ficha del equipo y `CompleteRounds`.
+- **`MatchRepository`** suma `roundCacheState`, `storedSeason`, `storedSeasons` (resumen por competición y temporada, con `orphaned` y `removed`) y `deleteSeason`. `QueryMetadataStore.delete(prefix:, keys:)`. `MatchLocalDataSource.season`, `seasonSummaries` (sin reconstruir cada partido) y `deleteSeason`.
+- **`CompleteRounds`** (`competitions/domain/usecases/complete_rounds.dart`) emite `SeasonCompletion` (`competitions/domain/entities/season_completion.dart`): partidos guardados de la temporada, estado de cada ronda (`RoundCompletionStatus`: falta, vencida, vigente, cerrada, histórica, descargada) y `SyncProgress`. La regla por ronda es `CompleteRounds.classify` (pura, con tests). `WatchTeamDetail` no cambia (su presupuesto sigue en 25).
+- **Feature `settings`** (nueva): `domain/entities/stored_season.dart`, `domain/usecases/stored_seasons.dart` (`GetStoredSeasons`, `DeleteStoredSeasons`: la temporada actual o posterior no se puede borrar), `presentation/bloc/stored_data_bloc.dart` (`StoredDataStarted`, `StoredDataToggled`, `StoredDataDeleteRequested`; `StoredDataUnavailable` si falla la base local) y `presentation/pages/settings_page.dart`. La Fase 16 le suma el tema (ver abajo).
+- **Rutas**: `/ajustes` fuera del shell (pantalla completa con «atrás»; por enlace directo, «Ir al inicio», como el partido). Acceso: engranaje «Ajustes» en la barra del Inicio.
+- **`/diagnostico` → «Historial»**: `HistoryProbeBloc` (inicio con `restartable`; cancelar en su propio handler, como pide `CLAUDE.md`) y `HistoryProbeSection`: competición y temporada, «Completar temporada», «Forzar vencidas», «Cancelar», estado por ronda, temporadas guardadas y estado de la limpieza automática.
+- **Tests**: `test/features/competitions/complete_rounds_test.dart` (presupuestos, reglas, cancelación, error), `test/features/settings/stored_seasons_test.dart` (vigencia, temporadas, borrado, favoritos intactos), `test/features/settings/settings_page_test.dart` (`bloc_test` y pantalla), `test/features/diagnostics/history_probe_bloc_test.dart`; Ajustes en `responsive_layout_test.dart` (4 anchos) y en `accessibility_test.dart` (pautas y texto al 200 %).
+
+## Estado de implementación (Fase 13, 12/10/2026) — Tablas de Primera 2026
+
+- **Dominio común** (`competitions/domain/standings/`, Dart puro):
+  - `team_stats.dart`: `TeamStats` (PJ, PG, PE, PP, GF, GC, DG, Pts) y `StatsAccumulator` (suma cada partido terminado **con resultado** una vez por `idEvent`).
+  - `tie_breaker.dart`: `TieBreakCriterion` sealed (`goalDifference`, `goalsFor`, `headToHead`, `fairPlay` y `drawOfLots`, estos dos no calculables), `TieBreaker` (después de los puntos; el enfrentamiento directo arma una mini tabla de puntos, DG y GF entre los empatados y se repite con los que siguen empatados) y `StandingsRow` (`isShared` = posición compartida, mismo número).
+  - `standings_table.dart`: `StandingsTable` (clave, título, filas, `StandingsCoverage`, notas del reglamento, `sharedNote`), `UncountedMatch` con `UncountedReason`.
+  - `regular_season_matches.dart`: `RegularSeasonMatches.classify` resuelve la fase ronda por ronda con `PhaseResolver` (deduplica con `MatchGrouping.dedupe`); solo etapas regulares de las rondas 1–16; los indeterminados quedan aparte y figuran en la cobertura.
+  - `table_builders.dart`: `ZoneTableBuilder` (filas: los 15 de la zona; partidos del torneo, interzonales incluidos; h2h solo de ese torneo), `AnnualTableBuilder` (calculada directo con los partidos regulares de los dos torneos, sin eliminatorias, sin h2h) y `StandingsNotes`.
+  - `zone_validator.dart`: equipo sin zona (o en dos), o más cruces con la otra zona que `interzonalsPerTeam` → sin tablas por zona («zonas no verificadas»); la anual sigue.
+- **Catálogo**: `catalog/standings_format.dart` (`StandingsFormat` sealed: `NoStandings`, `LeagueZonesWithAnnual`) y `CompetitionDefinition.standingsBySeason` / `standingsFor(season)`. Primera 2026: zonas aprobadas (V12) con `idTeam`, desempates art. 10/16 y 24.3, artículos citados y el link del reglamento. Copa, Nacional y Primera 2025: `NoStandings`.
+- **`WatchStandings`** (`domain/usecases/watch_standings.dart`): lo guardado + `CompleteRounds` de las rondas 1–16 (P2); recalcula con cada ronda y emite `StandingsView` (tablas, `zoneIssues`, `SyncProgress`). Refresco manual: primero fuerza con P0 las fechas con partidos sin terminar de ayer y hoy; después `CompleteRounds(forceRefresh)`.
+- **Presentación**:
+  - `StandingsBloc` (`restartable` para `Started`/`RefreshRequested`; `Paused` y `Resumed` en handlers propios, porque un evento que pasa por `restartable` cancela la carga en curso aunque no haya nada que retomar; `StandingsLoaded.isRefreshing` marca el refresco, porque si todo estaba al día la emisión final es idéntica a la anterior y `flutter_bloc` no la reemite).
+  - `CompetitionsPage`: «Fixture | Tabla» (`SegmentedButton`); en la vista Tabla no se elige fase; la tabla descarga solo mientras se ve (pausa al pasar a Fixture o con la sección oculta, `TickerMode`).
+  - `widgets/standings_panel.dart`: selector de tablas, avance «Fechas consultadas N de 16», tabla con columnas según `Breakpoints` (< 600: PJ, DG, Pts; 600–1199: + PG, PE, PP; ≥ 1200: + GF, GC), filas de 48 px con etiqueta accesible completa; tocar un equipo abre su ficha (`/equipos/:id`); cobertura con «Partidos sin sumar (n)» y notas del reglamento siempre visibles.
+  - URL: `?vista=tabla&tabla=anual|apertura-a|apertura-b|clausura-a|clausura-b` (`FixtureRoute.parseView`, `parseTable`, `tableUri`); `urlToRestore` ahora recibe la URL objetivo (etapa o tabla).
+- **Tests**: `test/features/competitions/standings/` (constructores con JSON reales 2026 y 2025, contraste con `lookuptable`, validador, `TieBreaker` con estadísticas armadas, `WatchStandings` con presupuesto), `presentation/standings_view_test.dart`, `standings_bloc_test.dart`, `test/app/standings_budget_test.dart`; Tabla en `responsive_layout_test.dart` (4 anchos) y `accessibility_test.dart` (pautas y 200 %). Helper `openTable` en `recorded_app.dart` (deja pasar los 2 min del cupo P2).
+
+## Estado de implementación (Fase 14, 12/10/2026) — Tablas de Primera Nacional 2026
+
+- **Catálogo** (`catalog/standings_format.dart`): `ZonedStandingsFormat` (sealed, dentro de `StandingsFormat`) reúne lo que comparten los formatos por zona: `zonesByTournament`, `regularRounds`, `interzonalsPerTeam`, `regulation`, `tournaments`. Lo implementan `LeagueZonesWithAnnual` (Primera) y **`LeagueZones`** (Nacional: `zones` zona → `idTeam`, `tieBreak`, `tableArticle`, `tieBreakArticle`, `relegationNote`; un solo torneo, `PhaseKey.regular`). `primeraNacional.standingsBySeason = {2026: …}`: zonas aprobadas (V14), rondas 1–36, 2 interzonales por equipo, desempate [DG, GF, enfrentamiento directo] (art. 112 del R.G., puntos 1 a 3; V15), Boletín 6823 como reglamento. Nacional 2025: sin formato.
+- **Constructores** (`standings/table_builders.dart`): `LeagueZoneTableBuilder` (clave `zona-a`/`zona-b`, título «Posiciones 2026 · Zona A», selector «Zona A»; suma todos los partidos regulares de la temporada de cada equipo de la zona, interzonales incluidos; h2h con los partidos del torneo). `ZoneTableBuilder` y `LeagueZoneTableBuilder` usan el mismo cálculo privado (`_zoneTable`). `StandingsNotes.tieBreak(criteria, source:)` cita de dónde salen los criterios.
+- **`ZoneValidator`** recibe cualquier `ZonedStandingsFormat`; en una liga de un solo torneo los mensajes no nombran el torneo («Ferro Carril Oeste no tiene zona.»).
+- **`WatchStandings`**: acepta cualquier `ZonedStandingsFormat` y arma las tablas según el formato (Primera: anual + zonas; Nacional: zonas). Con las zonas sin verificar, Nacional queda sin tablas (`tables` vacía, `zoneIssues` con el motivo).
+- **Presentación**: `CompetitionsPage` guarda la tabla elegida como `String?` (`null` = la primera de la competición) y la vuelve a `null` al cambiar de competición; `FixtureRoute.tableUri` omite `tabla` si es `null`. `StandingsPanel` muestra «Zonas no verificadas» si hay partidos pero ninguna tabla. `TeamBadge` (compartido) pone `key: ValueKey(url)` a la imagen (en Web, el `<img>` del modo fallback no cambiaba al cambiar la URL).
+- **Tests**: `standings/nacional_tables_test.dart` (JSON reales r1–r36: 648 partidos, 34 + 2 interzonales por equipo en las rondas 7 y 25, 18 filas por zona, PJ = 2 × sumados, contraste con `lookuptable` usando `snapshot_20261012/`, caso real de desempate por DG, validador), `tie_breaker_test.dart` (regla de Nacional sin Fair Play ni sorteo), `watch_standings_test.dart` (36 en frío, 0 en caliente, zonas sin verificar), `standings_view_test.dart` (Zona A por defecto, URL, cambio de competición, «Zonas no verificadas»), `standings_budget_test.dart`, `responsive_layout_test.dart` y `accessibility_test.dart` (helper `openNacionalTable`), `test/shared/widgets_test.dart` (escudo con otra URL = otra imagen).
+
+## Estado de implementación (Fase 15, 12/10/2026) — Más competiciones y otras competiciones del equipo (D8)
+
+- **Catálogo**: `CompetitionDefinition.showInHome` e `inTeamIndex` (por defecto `true`). Entradas nuevas `primeraBMetropolitana` (5215, «B Metro», `SingleTableLeagueRules(matchesPerRound: 11, regularRoundsBySeason: {2026: 42})`) y `primeraC` (5524, «Primera C», 14 por fecha, sin cantidad de fechas), las dos con `showInHome: false`, `inTeamIndex: false` y sin `standingsBySeason` (→ `NoStandings`, «Sin tabla»). Federal A (5523) sigue afuera (V8). `CompetitionCatalog.all` = 5 competiciones.
+- **Marcas**: `GetHomeFeed` recorre solo las `showInHome` y `EnsureTeamIndex` solo las `inTeamIndex` (filtran el catálogo recibido, así los tests pueden pasar otro). El resto de los usos (fixture, ficha, «Tus equipos», Ajustes, etiquetas) sigue con el catálogo completo: los equipos de B Metro y C entran al buscador cuando hay partidos guardados (p. ej. tras abrir su fixture) y su ficha baja sus fechas con P2.
+- **Selector de competición** (`FixtureSelectors`): `ChoiceChip`s en una fila con desplazamiento horizontal (`competitionSelectorKey`) en lugar del `SegmentedButton`: 5 segmentos no entran a 360 px y, si los chips bajan de renglón, la cabecera fija del fixture desborda con texto al 200 %. (Reemplazado en la Fase D2 por `CompetitionPicker`, categoría → competición.)
+- **D8** (`teams`): entidad `TeamPointers` (próximo y último, `Match?`), `TeamRemoteDataSource.fetchNextEvent`/`fetchLastEvent` (`eventsnext` clave `events`, `eventslast` clave `results`), `TeamRepository.getTeamPointers(teamId, {forceRefresh, priority = P1})` con store propio `team_pointers` (no van a `events`: no alimentan fixtures, índice ni temporadas guardadas), clave `teamPointers:<id>` y vigencia `CacheClass.pointers` (30 min). Descarta un partido que no sea del equipo pedido. `TeamRepositoryImpl` comparte un `_cached` para `getTeam` y `getTeamPointers`.
+- **Ficha**: `WatchTeamDetail` pide los punteros junto con `lookupteam` (P1; P0 en un refresco manual) y arma `TeamDetail.otherCompetitions`: los punteros de competiciones fuera del catálogo, sin repetir, con el nombre de la API (`strLeague`) y la etiqueta «Próximo partido» / «Último partido». Si fallan sin nada guardado, la ficha sigue sin la sección. Cuentan en `progress.fetched` (aviso «Ya está actualizado»). La página agrega «Otras competiciones (información parcial)» al final, con su nota, agrupada por día y **sin `onTap`** (no hay detalle).
+- **Tests**: `competition_catalog_test.dart` (marcas, `NoStandings`, partidos por fecha y equipos según los JSON reales, 42 fechas de B Metro), `new_competitions_test.dart` (app completa: el Inicio no consulta 5215/5524; B Metro abre en la fecha 40 sin tabla; Primera C en la 32), `home_request_budget_test.dart` (12 con el catálogo de 5), `team_repository_impl_test.dart` (punteros: 2 peticiones, 30 min, local/visitante, no se guardan con los partidos, sin red), `watch_team_detail_test.dart` y `team_detail_sync_test.dart` (Boca en frío 27, Sudamericana como otra competición, en caliente 0, a los 31 min solo los punteros), `team_detail_page_test.dart` y `team_detail_layout_test.dart` (sección, día, sin detalle; 360/768/1280/1920 px, pautas y texto al 200 %). Helpers: `selectCompetition`, `homeCompetitions`, `recordedLastMatch`, `test/helpers/accessibility.dart`.
+
+## Estado de implementación (Fase 16, 13/10/2026) — Ajustes, tema, aviso de espera y escudos en disco
+
+- **Ajustes** (`settings`): `domain/entities/app_settings.dart` (`AppSettings`, `ThemePreference` = `system`/`light`/`dark`; Dart puro), `domain/repositories/settings_repository.dart` (`read`, `watch`, `saveTheme`; sin `DataResult`, como favoritos: datos solo locales), `data/models/settings_record.dart` (un valor desconocido vuelve a `system`), `data/repositories/settings_repository_impl.dart` (store `settings`, registro `app`; `saveTheme` en una transacción que conserva el resto), `presentation/bloc/settings_bloc.dart` (**global**, en `app.dart` junto a `FavoritesBloc`; `SettingsSubscribed` `restartable` y `ThemePreferenceChanged` `sequential` en handlers separados; `SettingsLoading` / `SettingsLoaded`).
+- **Tema sin parpadeo**: `main` lee los ajustes (timeout 2 s) y los pasa a `FutbolArgentinoApp.initialSettings`; el `SettingsBloc` arranca ya en `SettingsLoaded`. `MaterialApp.router` está bajo un `BlocSelector` del tema (`AppTheme.modeFor`). En `/ajustes`, sección «Tema» con `RadioGroup` + `RadioListTile` antes de «Datos guardados».
+- **Aviso de espera** (`core/network`): `RateLimitStatus` suma `throttledUntil` y `throttles`; `RateLimiter` los emite cuando una consulta debe esperar `throttleNoticeThreshold` (3 s) o más por el tope propio. `RateLimitNotice` sigue las dos esperas por separado (cada una con su temporizador): si hay pausa por 429, muestra esa; si no, «Muchas consultas seguidas: para no pasar el límite de TheSportsDB, se sigue en menos de un minuto.» (`secondaryContainer`).
+- **Escudos** (`shared/presentation/widgets/badge_image_resolver.dart`): `BadgeImageResolver.imageFor(url)` con `NetworkBadgeImages` (red, `WebHtmlElementStrategy.fallback`) y `DiskBadgeImages` (`CachedNetworkImageProvider` con un `CacheManager` propio `team_badges`, creado con el primer escudo). `AppDependencies.create(badgeImages:)` elige por plataforma (`forPlatform`: Web → red, resto → disco); `app.dart` lo publica con el `InheritedWidget` `BadgeImages` y `TeamBadge` usa `Image(image: BadgeImages.of(context).imageFor(...))`. Sin `BadgeImages` arriba (widgets sueltos en tests) usa la red. Los tests de app pasan `NetworkBadgeImages` (la caché real necesita `path_provider`).
+- **Tests**: `test/features/settings/settings_test.dart` (repositorio: predeterminado, persistencia al reabrir, cambios, valor desconocido; `bloc_test`; app completa: «Oscuro» oscurece toda la app), `settings_page_test.dart` (con el `SettingsBloc`), `test/core/network/rate_limiter_test.dart` (solo esperas ≥ 3 s; `throttledUntil` mientras dura), `test/app/rate_limit_notice_test.dart` (aviso con un `RateLimiter` real sobre el tiempo de `pump`, prioridad del 429, contraste en claro y oscuro), `test/shared/badge_image_resolver_test.dart` (red con fallback, disco con su caché, `forPlatform`, `TeamBadge` pide `/tiny` y `/small` al resolver).
+
+## Estado de implementación (Fase 17, 13/10/2026) — Compartir, agregar al calendario y auto-refresco en vivo
+
+- **Calendario** (`core/calendar/`, Dart puro): `CalendarEvent` (`uid`, `title`, `description`, `location`) con `CalendarEventTime` sealed = `TimedEvent(startUtc, endUtc)` / `AllDayEvent(CalendarDay)`. `IcsBuilder.build(event, stampUtc:)`: VCALENDAR con un VEVENT, horas en UTC (`…Z`), día completo con `VALUE=DATE` y fin exclusivo, texto escapado (`\ ; , 
+`), líneas plegadas a 75 bytes UTF-8 y CRLF.
+- **Acciones externas** (`core/platform/`): `ExternalActions` (`share(text, subject:)` → `ShareOutcome` `shared`/`dismissed`/`copied`/`failed`; `addToCalendar(event, fileName:)` → `CalendarOutcome` `opened`/`downloaded`/`failed`) y `PlatformExternalActions`: `share_plus` sin la alternativa `mailto:` (si falla, `Clipboard`); Android con `add_2_calendar` (`androidEvent`: con hora, instantes UTC y zona `America/Argentina/Buenos_Aires`; día completo, de medianoche a medianoche de Argentina), Web con `downloadTextFile` (movido desde `diagnostics`). `AppDependencies.create(externalActions:)` y `RepositoryProvider<ExternalActions>` en `app.dart`.
+- **Detalle del partido** (`match_detail/presentation/formatters/match_detail_texts.dart`): `MatchDetailTexts.share` (equipos o resultado, «Competición · Fase · Etapa», día y hora de Argentina o «Horario por confirmar» / «Final · día» / «En juego · actualizado a las HH:mm», estadio y «Horarios de Argentina · Datos de TheSportsDB»), `calendarEvent(detail, now)` (`null` si no está programado, no tiene fecha o ya empezó; con hora, 2 h; sin hora confirmada, día completo con la aclaración en la descripción), `calendarFileName`, y `phaseAndStage` (antes privado de la página). En `_DetailBody`, `_ShareActions`: «Compartir» y «Agregar al calendario» (o «… (todo el día)») con avisos `SnackBar` de copiado, descarga o error; igual en la pantalla y en el panel de escritorio.
+- **En vivo (D11)**: `MatchGrouping.isLive(m, now)` (en juego según la API, o empezado hace < 3 h sin terminar) y `anyLive`; `RoundCachePolicy` usa la misma regla para la clase `live`. `LiveAutoRefresh` (`shared/presentation/widgets/live_auto_refresh.dart`): `Timer.periodic` de `CacheClass.live.ttl + 5 s` que corre solo con `TickerMode` encendido y la app visible (`AppLifecycleListener`); en cada aviso evalúa `hasLiveMatches()` y llama a `onTick`; al volver a verse se pone al día una vez. Eventos nuevos: `HomeLiveTick`, `FixtureLiveTick` (solo con la etapa cargada), `MatchDetailLiveTick`, `TeamDetailLiveTick` (todos cargan sin forzar). Pantallas: Inicio (partidos de las competiciones, sin «Tus equipos»), fixture (solo la vista «Fixture»), detalle (pantalla y panel) y ficha (próximos y disputados, sin «Otras competiciones»). `hasLiveMatches` devuelve `false` mientras la pantalla carga.
+- **Tests**: `test/core/calendar/ics_builder_test.dart` (formato, día completo, escape, plegado UTF-8), `android_calendar_event_test.dart`, `test/features/match_detail/match_detail_texts_test.dart` (textos y eventos con partidos reales: terminado, en juego, programado, 00:00 UTC), `match_detail_actions_test.dart` (pantalla con un `ExternalActions` falso: compartir, copiado, descarga del `.ics`, día completo, terminado sin calendario, texto al 200 %), `test/features/matches/domain/match_grouping_test.dart` (`isLive`), `test/shared/live_auto_refresh_test.dart` (intervalo, sin partidos en vivo, oculta, segundo plano, cierre), `test/app/live_refresh_test.dart` (app completa: peticiones por aviso en Inicio, fixture y detalle; 0 con el Inicio oculto) y en `team_detail_sync_test.dart` (aviso en la ficha de Boca = 1 petición).
+
+## Estado de implementación (Fase 18, 13/10/2026) — Calendario mensual
+
+- **Dominio**: `CalendarMonth` (`core/time/calendar_month.dart`, Dart puro: `yyyy-MM`, largo, `addMonths`, `weeks` de lunes a domingo). `MonthCalendar` (`competitions/domain/calendar/month_calendar.dart`): `of(month, matches)` agrupa por `Kickoff.argentinaDay` con `MatchGrouping.byArgentinaDay` (deduplicado y ordenado como en el resto de la app); `defaultDay(today)` (en el mes de hoy: hoy, el próximo o el último con partidos; en otro mes, el primero); `undated` («Fecha por confirmar», fuera de todo mes); `monthsWithMatches`, `initialMonth` (el de hoy si cae dentro de la temporada guardada; si no, el más cercano con partidos; sin partidos, el de hoy o el último/primero del año de la temporada) y `navigableRange`.
+- **Caso de uso** `WatchCompetitionCalendar` (`domain/usecases/watch_competition_calendar.dart`) → `Stream<CompetitionCalendar>` (partidos guardados, `labels` = fase y etapa por `idEvent`, `roundsTotal`, `roundsStored`, `roundsPending`, `SyncProgress`). Usa `CompleteRounds` con el nuevo `fetch: false` (una emisión, sin red: lo guardado y el estado de cada ronda) salvo con `download` o `forceRefresh`. Los rótulos salen de `PhaseResolver.classifyRound` por ronda guardada + `StageLabeler.describe` (sin red). `RefreshRecentRounds` (nuevo, extraído de `WatchStandings`) fuerza con P0 las rondas con partidos sin terminar de ayer y hoy; lo usan las tablas y el calendario.
+- **Presentación**: `CalendarBloc` (`Started` / `CompletionRequested` / `RefreshRequested` y `_Continued` / `_Reloaded` por `restartable`; `Paused` / `Resumed` en handlers propios). `Resumed` sigue una descarga pausada; si no, vuelve a leer lo guardado; si llega durante una carga, la relectura se hace al terminarla (cortar la lectura en curso dejaba trabada la cola de `restartable` en los tests con `FakeAsync`). `CalendarPanel` (`widgets/calendar_panel.dart`): aviso de cobertura o avance (`InfoBanner`, ahora compartido con la Tabla), «‹ Mes ›», grilla de 7 columnas (celdas de 56 px, solo los días con partidos se pueden tocar; etiqueta accesible «Domingo 11/10/2026, hoy: 5 partidos»), chip «Fecha por confirmar (N)» si hay partidos sin fecha, y los partidos del día con `matchDayItems`; ≥ 1200 px, grilla a la izquierda (480 px) y partidos a la derecha; el partido se abre en su pantalla.
+- **Página**: `CompetitionsView.calendar`, `FixtureRoute.calendarUri`/`parseMonth` (`vista=calendario&mes=2026-10`); el mes vive en la página (vuelve a `null` al cambiar de competición o temporada). El listener del fixture también reacciona a un `fetchedAt` nuevo de la etapa mientras se ve el calendario (manda `CalendarResumed`: relee lo guardado). Selector `Fixture · Tabla · Calendario`: sin íconos en teléfonos; con texto agrandado (escala > 1,3) se desplaza en horizontal.
+- **Tests**: `test/core/time/calendar_month_test.dart`, `test/features/competitions/domain/month_calendar_test.dart` (Primera 2026 real: 495 partidos en 10 meses, junio vacío, día por defecto, mes inicial), `watch_competition_calendar_test.dart` (repositorios reales: 0 al abrir, 17/36/6 en frío, 0 en caliente, sin red, rótulos), `presentation/calendar_bloc_test.dart`, `presentation/calendar_view_test.dart` (grilla, días, meses, URL, «Completar» con P2, Copa, escritorio, fixture de fondo), `test/app/calendar_budget_test.dart` (app completa) y el calendario en `responsive_layout_test.dart` y `accessibility_test.dart` (pautas y texto al 200 %). Helper `openView` en `recorded_app.dart`.
+
+## Estado de implementación (Fase 19.1, 13/10/2026) — Llaves y «Avanza X»
+
+- **Datos**: `EventDto.intHomeScoreExtra`/`intAwayScoreExtra`; `EventMapper` los pasa a `Match.penalties` (`Score?`) solo con `MatchDecision.penalties`. `MatchRecord` guarda `penalties` (los registros anteriores no lo tienen: se leen sin tanda). `RoundMergePolicy.mergeFields` conserva la tanda si una respuesta `PEN` llega sin ella.
+- **Dominio**: `TieOutcome.of(match, laterMatches:)` (`matches/domain/services/tie_outcome.dart`, Dart puro) → ganador y fuente (`score` / `penalties` / `laterMatch`) o `null`. `BracketRound` (catálogo: `label`, `apiRound`, `matches`) y `CompetitionDefinition.bracketRounds` (Primera: `SplitSeasonLeagueRules.knockoutBracket`; Copa: sus `CupRound`; Nacional y ligas de una tabla: vacío). `KnockoutBracketBuilder` (`competitions/domain/knockout/knockout_bracket.dart`): `forSeason` clasifica con `PhaseResolver` y arma un `KnockoutBracket` por fase con partidos de eliminación (`rounds` de `BracketRoundView` con `BracketSlot`: `match`, `outcome`, `qualified`, `linkedToNext`; `pairingUnknown`; `unplaced`).
+- **Caso de uso** `WatchKnockoutBracket` → `Stream<BracketView>` (`brackets` por fase, `SyncProgress`, `isAvailable`): `CompleteRounds` con las rondas del cuadro (y `RefreshRecentRounds` con `forceRefresh`), como `WatchStandings`. `GetMatchDetail` suma `MatchDetail.advancement` para empates de eliminación terminados (tanda o cuadro con lo guardado).
+- **Presentación**: `BracketBloc` (`Started` / `RefreshRequested` / `_Continued` por `restartable`; `Paused` / `Resumed` en handlers propios; sin eliminatorias guardadas = `BracketLoaded` vacío, no un error). `BracketPanel` (`widgets/bracket_panel.dart`): chips Apertura/Clausura, avance, campeón, «Desde» (más de 4 rondas), aviso de cruces sin unir, el cuadro (`_BracketCanvas`: columnas de 208–264 px según el ancho, alto de cada llave según la escala de texto, uniones con `CustomPainter` solo si `linkedToNext`), «Sin ubicar en el cuadro» y la nota de cómo se decide quién avanza; tocar una llave abre el partido. `MatchCard`: «(4-3 pen.)» y «Avanza X (4-3 en penales)»; detalle: «Penales: 4-3» y la fila «Llave»; `MatchLabels.penalties`/`advances`.
+- **Página**: `CompetitionsView.bracket`, `FixtureRoute.bracketUri`/`parseBracketPhase` (`vista=llaves&llave=apertura`; la Copa sin `llave`); el torneo elegido vive en la página (vuelve a `null` al cambiar de competición). Selector `Fixture · Tabla · Calendario · Llaves`.
+- **Tests**: `test/features/matches/domain/tie_outcome_test.dart` (tanda, registro, merge, ganador), `test/features/competitions/knockout/knockout_bracket_test.dart` (catálogo, Apertura 2026 completo, ronda 0 por equipo, orden de las llaves, penales y campeón, datos inconsistentes, Copa 2026 y 2025), `watch_knockout_bracket_test.dart` (2/6/0 peticiones, Nacional sin cuadro, `BracketBloc`, sin red, pausa), `presentation/bracket_view_test.dart` (app completa), `test/app/bracket_budget_test.dart`, URL en `competitions_page_test.dart`, tarjeta en `test/shared/widgets_test.dart`, compartir en `match_detail_texts_test.dart`, y las llaves en `responsive_layout_test.dart` y `accessibility_test.dart` (pautas y texto al 200 %).
+
+## Estado de implementación (Fase D2, 15/10/2026) — Categorías y selector de competición
+
+- **Catálogo** (`competition_catalog.dart`): `enum CompetitionCategory { firstDivision, promotion, nationalCup, internationalCup }` con `label` («Primera División», «Ascenso», «Copas nacionales», «Copas internacionales»); `CompetitionDefinition.category` obligatorio; `CompetitionCatalog.byCategory([catalog])` = mapa en el orden del enum y, dentro, en el del catálogo recibido, **sin categorías vacías** (hasta D3 no aparecía «Copas internacionales»). Getters `hasStandings` (alguna temporada con formato ≠ `NoStandings`) y `hasBracket` (`bracketRounds` no vacío). `shortName` de Copa Argentina = «Copa Argentina».
+- **`CompetitionPicker`** (`presentation/widgets/competition_picker.dart`, dentro de `FixtureSelectors`, conserva `competitionSelectorKey`): la categoría se deriva de la competición elegida (ni estado propio ni URL). < 600 px: `OutlinedButton` «Ascenso · Nacional ▾» (una categoría con una sola competición se nombra por la competición: «Primera División») que abre una hoja (`showModalBottomSheet` con **`useRootNavigator: true`**: en el navegador de la sección quedaba detrás de la barra inferior) con encabezados de categoría (`Semantics(header:)`) y la actual marcada. ≥ 600 px: fila de chips de categoría y, debajo, la de competiciones de la categoría (oculta si tiene una sola); ≥ 1200 px, las dos en un `Wrap` (misma línea si entran). Cada fila se desplaza en horizontal. Tocar una categoría elige la última competición vista de esa categoría (memoria en el `State` del selector, mientras viva la pantalla) o la primera, con **un solo** `FixtureCompetitionChanged`; la competición actual no se vuelve a pedir.
+- **Vistas por competición**: `CompetitionsView.isAvailableFor(definition)` (Fixture y Calendario siempre; Tabla si `hasStandings`, Llaves si `hasBracket`). `_ViewSelector` recibe la lista de vistas. `CompetitionsPage` corrige la vista inicial (`vista=tabla` de la B Metro → Fixture) y el listener vuelve al Fixture si la competición nueva no ofrece la vista abierta; en Web la URL se reemplaza por la del Fixture cuando se resuelve la etapa. Resultado: Primera = 4 vistas; Nacional sin Llaves; Copa sin Tabla; B Metro y C solo Fixture y Calendario.
+- **Inicio**: los accesos se agrupan por categoría (encabezado `titleSmall` + chips); en < 600 px cada categoría es una fila con desplazamiento para no bajar «Tus equipos» ni los partidos. 0 peticiones nuevas.
+- **Tests**: `competition_catalog_test` (categorías, orden, nombres cortos únicos, `hasStandings`/`hasBracket`), nuevo `competition_picker_test` (hoja < 600 con encabezados y pautas, una elección por toque, memoria por categoría, dos filas a 768, una línea a 1280, texto al 200 %), `competitions_page_test` (vistas por competición), `standings_view_test` (Copa con `vista=tabla` abre el Fixture; Tabla → Copa vuelve al Fixture), `bracket_view_test` (Nacional sin Llaves), `new_competitions_test` (B Metro sin Tabla ni Llaves), `home_page_test` (encabezados en orden), `responsive_layout_test` (la hoja llega al borde, sobre la barra). Helper `selectCompetition(tester, shortName)`: deriva la categoría del catálogo; en teléfono usa la hoja, desde 600 px toca categoría y competición.
+
+## Estado de implementación (Fase D3, 15/10/2026) — Libertadores y Sudamericana: fixture, calendario y detalle
+
+- **Fases** (`entities/phase.dart`): `PhaseKey.qualifying` («Fases previas»), `groups` («Fase de grupos») y `knockoutStage` («Eliminatorias»; no confundir con `StageKind.knockout`, que también tienen las previas). En la URL: `previa`, `grupos`, `eliminatorias` (`FixtureRoute.phaseName`/`parsePhase`, un `switch` exhaustivo en lugar del mapa constante; un `PhaseKey` nuevo sin nombre no compila).
+- **Catálogo** (`competition_catalog.dart`): 4.ª variante `ContinentalCupRules(seasons: {año: ContinentalSeason})`; `ContinentalSeason.stages` en orden cronológico; `ContinentalStage { phase, label, apiRound, legs, expectedMatches, from?, to? }` con `kind` derivado (grupos → `regular`; previas y eliminatorias → `knockout`), `verified` (= tiene `from`) y `contains(día)`. `to == null` = en curso (semifinales 2026); sin `from` = sin datos todavía (final 2026), admitido solo si es la única etapa de su ronda. Constructor `ContinentalStage.groupMatchday(r, from:, to:)` («Fecha r», 16 partidos). Entradas `copaLibertadores` (4501, «Libertadores») y `copaSudamericana` (4724, «Sudamericana»): `internationalCup`, `format: cup`, `showInHome: false`, `inTeamIndex: false`, sin `standingsBySeason` y con `bracketRounds` vacío (Tabla en D4, Llaves en D5). Temporadas 2025 y 2026 con las etapas de D1 (`docs/evidence/d1_grupos_y_etapas.md`). `CompetitionCatalog.all` = 7.
+- **Ventanas**: las previas y las eliminatorias, la de cada etapa (días argentinos observados); las seis fechas de grupos, la de **toda la fase** (2025: 01/04–29/05; 2026: 07/04–28/05): la ronda ya dice qué fecha es y así un partido postergado dentro de la fase no queda sin fecha. Las etapas que comparten ronda (2026: `r=1–3`) tienen ventanas cerradas y disjuntas (test).
+- **Firmas con temporada**: `CompetitionDefinition.expectedMinimumMatches(Season, int)` (copas: la suma de las etapas de esa ronda; Libertadores 2026 `r=1` = 22) y `StageLabeler.label(definition, season, phase, apiRound, kind)` / `describe(definition, season, apiRound, assignment)`: la etiqueta se busca por la identidad de la etapa (fase, ronda, tipo).
+- **`PhaseResolver`**: un partido de la ronda r va a la etapa de esa temporada con `apiRound == r` cuya ventana contiene su día (`catalog`); ninguna o más de una → `undetermined`; una etapa sin ventana que es la única de la ronda → `inferred`; temporada sin formato → todo `undetermined`. `_enforceOneMatchPerTeam` sigue igual (solo mira `regular` = grupos; las series de ida y vuelta no lo disparan).
+- **Navegación**: `RoundNavigator.stagesFor` = las etapas de la fase en esa temporada; `RoundNavigator.stageOnDay(definition, season, día)` = la etapa cuya ventana contiene el día o la última que empezó (solo competiciones con ventanas por etapa). `ResolveCurrentStage(…, today:)` lo usa cuando el puntero no ubica una etapa (sin red, postergado): las copas no abren en la Fase 1 de febrero. `FixtureOpened.kind` puede ser nulo (`fase=previa&ronda=1` sin `etapa`): `_open` toma la primera etapa de esa ronda en la fase (en Primera, la fecha antes que los octavos, como antes).
+- **Ficha de equipo** (`watch_team_detail.dart`): «Otras competiciones» = punteros (`eventsnext`/`eventslast`) cuyo partido no está guardado, de competiciones que la ficha no sincroniza (fuera del catálogo o copas internacionales); con el nombre del catálogo si la copa está en él. `_plan` saltea las copas internacionales hasta la Fase D6 (desde D6 las sincroniza: ver «Estado de implementación (Fase D6)»). Boca conserva su puntero a la Sudamericana; deja de listarse cuando se guarda la ronda (p. ej. al abrir el fixture de la copa) y el partido pasa a la ficha con «Eliminatorias · Semifinales».
+- **Textos**: sin cambios de código: `StageLabeler.describe` nombra la fase porque las copas tienen más de una («Fase de grupos · Fecha 3», «Fases previas · Fase 1», «Eliminatorias · Octavos de final») en el detalle (`MatchDetailTexts.competitionLine`), el calendario, la ficha y «Tus equipos».
+- **Selector** (`competition_picker.dart`): desde 600 px, los chips de categoría van en `_MeasuredRow` (proxy que mide el ancho intrínseco de la fila al disponerse); si no entran, el `State` guarda el ancho medido con la escala de texto y en el cuadro siguiente muestra el botón con la hoja (vuelve a los chips cuando el ancho alcanza o cambia la escala). Resultado en la tablet: horizontal 1280 con panel de detalle → botón; vertical 800 y Calendario a 1280 (sin panel) → chips. La hoja: `isScrollControlled: true` (alto del contenido) y `Scrollable.ensureVisible` de la competición actual. `FixtureSelectors`: en < 600 px los chips de fase en una fila con desplazamiento.
+- **Herramienta** `tool/recorded_app/` (no es parte de la app): `main.dart` arma `FutbolArgentinoApp` con `AppDependencies.create(httpClient: MockClient(…), clock: reloj de la grabación, database: memoria)` y una `Banner` «DATOS GRABADOS»; `fixture_source_io.dart` lee los JSON de `getExternalStorageDirectory()/fixtures` (Android, copiados con `adb push`; la carpeta necesita `chmod 755`) y `fixture_source_web.dart`, de `fixtures/` junto a la app (Web). Comandos en `CLAUDE.md`.
+- **Tests**: `competition_catalog_test` (invariantes por temporada, **cada partido grabado de las 4 temporadas en exactamente una etapa** y con todos sus partidos, sumas por ronda), `phase_resolver_test`, `round_navigator_test` (etapas, etiquetas, `locate`, `stageOnDay`), nuevo `fixture_route_test` (ida y vuelta sobre `PhaseKey.values` y sobre cada etapa de la Libertadores 2026), `competition_fixture_bloc_test` (`fase=previa&ronda=1`, previas → grupos, sin punteros → etapa por fecha), `usecases_test` (`ResolveCurrentStage` con `today`), `complete_rounds_test` (10/11/11/12 en frío, 0 en caliente), `watch_competition_calendar_test`, `match_detail_test`, `watch_team_detail_test`, nuevo `test/app/continental_budget_test.dart` (app completa: Fixture ≤ 5 y 0 en caliente; `r=1` = 6 + 16; Sudamericana 2025 con sus códigos). `pumpApp(now:)` y `continentalRecordingTime` (14/10/2026 21:45 ART) para usar las grabaciones de D1 sin partidos «del futuro». Selector: `competition_picker_test` (con Roboto: chips a 768 y 1280, botón a 550 y a 768 con texto al 200 %, vuelta a los chips al ensancharse, hoja del alto de su contenido y con la actual a la vista), nuevo `test/app/competition_picker_layout_test.dart` (app completa con Roboto a 1280×800, 800×1280 y 1920×1080) y `test/app/continental_text_scale_test.dart` (copa en 360 px al 200 %: fases en una fila). El helper `selectCompetition` desplaza la hoja hasta la competición.
+
+## Estado de implementación (Fase D4, 15/10/2026) — Tablas de grupos de Libertadores y Sudamericana
+
+- **Criterios** (`standings/tie_breaker.dart`): `HeadToHeadCriterion({reapply = true})`; `TieBreakCriterion.headToHeadOnce` (`reapply: false`): la mini tabla de puntos, DG y GF entre los empatados se arma una vez y los que siguen empatados pasan al criterio siguiente (CONMEBOL 2026, «no se regresará a los anteriores»). `AwayGoalsForCriterion` (`awayGoalsFor`): goles como visitante en los partidos sumados de la tabla (CONMEBOL 2025; `TeamStats` no cambia). `UnavailableCriterion(label)`: criterio del reglamento no calculable (tarjetas, Ranking CONMEBOL) que, como Fair Play y sorteo, deja la posición compartida.
+- **Formato** (`catalog/standings_format.dart`): `GroupStage extends ZonedStandingsFormat` (`groups` grupo → `idTeam`, `regularRounds` 1–6, `interzonalsPerTeam` 0, `tieBreak`, `pointsArticle`, `tieBreakArticle`, `qualificationNote`, `regulation`; `zonesByTournament = {PhaseKey.groups: groups}`). `ZonedStandingsFormat.zoneNoun` («zona»; «grupo» en `GroupStage`).
+- **Catálogo**: `standingsBySeason` de `copaLibertadores` y `copaSudamericana` con 2025 y 2026 (8 grupos de 4 cada una, desde `docs/evidence/d1_grupos_y_etapas.md`). 2025 = [DG, GF, goles de visitante, Ranking CONMEBOL al 16/12/2024 (no calculable), sorteo]; 2026 = [directo una vez, DG, GF, menos rojas, menos amarillas (no calculables), sorteo]. Manuales de Clubes oficiales como `RegulationSource`.
+- **Constructor** (`standings/table_builders.dart`): `GroupTableBuilder` (clave `grupo-a`, título «Fase de grupos 2026 · Grupo A», selector «Grupo A») sobre `_zoneTable`, con los partidos que `PhaseResolver` ubica en `PhaseKey.groups` (las previas de `r=1–3` 2026 quedan afuera por la ventana). Notas: puntos (2.4.1), desempate con el artículo (2.4.2 Lib / 2.4.3 Sud) y, en 2026, «se miran una sola vez»; quiénes pasan; «no es la tabla oficial».
+- **Validación** (`standings/zone_validator.dart`): `ZoneValidation.invalidZones`; textos por formato («grupo», «otro grupo»). `WatchStandings._build` con `GroupStage` construye solo los grupos válidos y emite `StandingsView.zoneNoun`.
+- **Pantalla** (`widgets/standings_panel.dart`): chips «Grupo A»…«Grupo H» (`Wrap`), «Grupos no verificados» (vacío y aviso), «Sin tabla» según las reglas (Copa Argentina: eliminación directa; copa internacional: sin grupos verificados en la temporada). URL: `/competiciones/4501?temporada=2026&vista=tabla&tabla=grupo-g`.
+- **Tests**: nuevo `standings/group_tables_test.dart` (4 temporadas con las grabaciones de D1: 96 partidos de grupos, validador, `strGroup`, 8 tablas completas, orden = etapa que jugó después cada equipo, Grupo G completo, casos de la prensa con tabla parcial y contraste con la regla 2025, `WO`/`AWD`, un grupo cambiado invalida solo dos), `tie_breaker_test` (directo una vez vs re-aplicado con un triple empate armado, goles de visitante, notas de posición compartida), `watch_standings_test` (Libertadores 2026: 6 en frío y 8 tablas, 0 en caliente; Sudamericana 2025; un grupo inválido), `standings_view_test` (URL `grupo-g`, chips, cobertura «6 de 6 · 12 de 12», notas, cambio de grupo, aviso, copa sin grupos en 2027), `standings_budget_test` (app completa: Libertadores 6 y Sudamericana 5 + 6, cada una una vez; 0 en caliente), `responsive_layout_test` (4 anchos) y `accessibility_test` (pautas y 200 % en 360 px).
+
+## Estado de implementación (Fase D5, 17/10/2026) — Series de ida y vuelta y cuadro de las copas
+
+- **Llave** (`matches/domain/entities/knockout_tie.dart`, Dart puro): `KnockoutTie { legs (orden cronológico), expectedLegs }`; `first`/`second` = local y visitante de la ida (orden del cuadro y del global); `isComplete` (todas las piernas y terminadas), `scoreOf(leg)` y `penalties` en el orden de la llave, `partialAggregate` (lo jugado) y `aggregate` (solo completa), `decisive` (vuelta o partido único), `current` (la pierna a abrir), `isBefore(m)` (partido posterior a la vuelta, con horario conocido). `KnockoutTie.single(match)` para el partido único.
+- **Emparejamiento** (`matches/domain/services/tie_pairing.dart`): `TiePairing.pair(matches, legs:)` → `(ties, unpaired)`: agrupa por el par no ordenado de `idTeam`; una sola pierna = llave incompleta; más de `legs` partidos con el mismo par → `unpaired` (no se elige ninguno). Llaves por la fecha de la ida.
+- **Quién avanza** (`tie_outcome.dart`): `TieOutcome.ofTie(tie, laterMatches:)`. Partido único = `TieOutcome.of` (idéntico). Serie: global distinto (`TieOutcomeSource.aggregate`) → con el global igual, la tanda de la vuelta (`PEN` con tanda no empatada) → el único de los dos que juega un partido de `laterMatches` **posterior** a la serie (`laterMatch`) → `null`. `PEN` en la ida o con el global distinto (contradictorio): solo el último paso.
+- **Catálogo**: `BracketRound.legs` (1 por defecto; `matches` sigue contando llaves). `ContinentalCupRules.bracket` (Libertadores y Sudamericana 2025–2026: octavos `16`, cuartos `125`, semis `150` a ida y vuelta; final `200` única) y `preliminarySeries(season)` = etapas de eliminatorias de la temporada fuera del cuadro (Sudamericana: Playoffs `160` en 2025, `32` en 2026). `CompetitionDefinition.bracketPhases` (Primera sus torneos, Copa `[unica]`, copas `[knockoutStage]`, Nacional y ligas `[]`) y `bracketApiRounds(season)` (series previas primero, después el cuadro). Test: cada ronda del cuadro es una etapa de cada temporada con las mismas piernas y llaves.
+- **Cuadro** (`knockout/knockout_bracket.dart`): `BracketSlot.tie` (+ `match` de compatibilidad = la ida), `BracketRoundView.legs`, `KnockoutBracket.preliminary` (series previas sin unir). `KnockoutBracketBuilder.build(…, preliminary:)` empareja cada ronda **después** de repartir la ronda de la API (Primera `r=0`) y antes de recortar/ordenar; el orden de la final hacia atrás usa `tie.involvesTeam`; la evidencia de una serie previa = cualquier partido posterior del cuadro. `forSeason` separa las etapas de `preliminarySeries` del árbol.
+- **Casos de uso**: `WatchKnockoutBracket` pide `bracketApiRounds(season)` (Libertadores 4, Sudamericana 5). `WatchStageMatches`: en una etapa de ida y vuelta lee lo guardado de la temporada **una vez antes** de suscribirse y agrupa cada emisión en `StageMatches.series` (`StageSeries {tie, outcome}`) + `unpaired`; el resto de las etapas, sin cambios (un `asyncMap` demoraba el cierre del stream de la ronda y colgaba la precarga en los widget tests). `GetMatchDetail`: en las copas, `_continentalTie` empareja la ronda filtrada por la etapa del partido y usa `ofTie` con lo guardado de la temporada → `MatchDetail.tie` + `advancement` (también en una pierna no empatada); Primera y Copa siguen con `_advancement`.
+- **Pantalla**: `bracket_panel.dart` — chips por `bracketPhases`; `_TieCard` con el global (lo jugado) en los renglones de equipo y el estado por pierna («Ida 1-0 · Vuelta 0-2», «Vuelta: 21/10/2026 · 21:30», «Ida en juego»), «Sin dato de la definición» en una copa (también en la final única); sección de Playoffs (`Wrap` de tarjetas); pie según haya series. `series_list.dart` (Fixture): encabezado por serie (equipos · global · avanza) y tarjetas «Ida · día» / «Vuelta · día» (`MatchCard(showAdvance: false)`). Detalle: «Serie de ida y vuelta» (piernas y global) y «Llave» (`MatchLabels.tieAdvances`, o «Sin dato de la definición»). `FixtureRoute.bracketUri` sin `llave` si la competición tiene un solo cuadro.
+- **Tests**: `tie_pairing_test` (nuevo), `tie_outcome_test` (regresión de partido único, global, tanda con la vuelta ganada por el otro, 2025 sin penales, `PEN` sin tanda, evidencia solo posterior, contradictorio, finales 2025), `knockout_bracket_test` (Libertadores 2025 completo hasta Flamengo, unión por ganadores, Libertadores 2026 con tandas y semis en juego, Playoffs de la Sudamericana 2025/2026, final sin dato), `watch_knockout_bracket_test` (4 / 5 en frío, 0 en caliente), `competition_catalog_test`, `match_detail_test`, `continental_bracket_view_test` (nuevo: Llaves, detalle desde una serie, Playoffs, Fixture agrupado), `bracket_budget_test`, `responsive_layout_test` y `accessibility_test` con las Llaves de una copa.
+
+## Estado de implementación (Fase D6, 17/10/2026) — Copas en la ficha de equipo y en el buscador
+
+- **Ficha** (`teams/domain/usecases/watch_team_detail.dart`): `_plan` (asíncrono) arma `_Step { query, priority, force, cup, stage }`. Orden: forzadas por un refresco manual (P0) → rondas de los punteros en copas internacionales (P1) → alternando competiciones: ligas y copas argentinas de la última ronda a la primera, copas internacionales en orden cronológico (P2). Copa en el plan: partidos guardados del equipo en la temporada o un puntero suyo, y temporada con formato. Rondas: las de las etapas hasta `max(última etapa con from ≤ hoy, _Cup.floor)`, una vez cada ronda; `floor` = última etapa con partidos conocidos del equipo (guardados o punteros). `_cut` saca, desde la posición actual, las rondas de la copa cuya primera etapa es posterior a `max(salida, floor)`; corre antes de empezar y después de cada ronda de la copa. Las rondas de los punteros nunca se cortan.
+- **Evidencia** (`competitions/domain/services/continental_exit_evidence.dart`, Dart puro): `ContinentalStageIndex.of(definition, season, matches)` → `idEvent` → posición de la etapa (ronda por ronda con `PhaseResolver`). `ContinentalExitEvidence.of(definition, season, teamId, matches)` → `ContinentalExit { stageIndex, reason }` o `null`, recorriendo las etapas en orden: llave completa perdida (`TiePairing` + `TieOutcome.ofTie` con los partidos posteriores), en la última fecha de grupos `GroupTableBuilder` sobre `RegularSeasonMatches` (grupo válido, `coverage` con los n·6/2 partidos jugados, puesto > `GroupStage.advancingPlaces`), y la final terminada.
+- **Catálogo**: `GroupStage.advancingPlaces` (Libertadores 3, Sudamericana 2; `null` = sin corte).
+- **Buscador**: `EnsureContinentalTeamIndex` (`queries(now)`, `isDone(now)`, `call(now)`); `TeamSearchBloc` con `TeamSearchContinentalRequested` (droppable) y estado `offersContinental`, `isIndexingContinental`, `continentalFailure`; `_ContinentalSearch` en `team_search_page.dart` (sin resultados y sobre los resultados en línea). `TeamRepositoryImpl.searchOnline` acepta `isArgentineFootball` o `isFootball && playsAnyOf(copas del catálogo)`.
+- **Tests**: `continental_exit_evidence_test` (17, datos reales + una variante armada), `team_detail_continental_test` (corte en la ficha, semanas sin partidos, Flamengo), `team_detail_sync_test` (Boca 37, P1 del puntero, alternancia), `watch_team_detail_test`, `team_detail_layout_test` (Boca con la Sudamericana; Flamengo con «Otras competiciones»), `team_search_continental_test`, `team_search_continental_page_test` (360 px al 200 %, 768, 1280), `team_repository_impl_test` (Flamengo en línea).
+
+## Estado de implementación (Fase D7, 17/10/2026) — Estabilización del Hito D
+
+- **Selector de vistas** (`_ViewSelector` en `competitions_page.dart`): mide las etiquetas con `TextPainter` (estilo `labelLarge` y la escala de texto del dispositivo); los segmentos de `SegmentedButton` miden todos lo que el más ancho. Íconos solo fuera de los teléfonos y si entran; sin íconos, relleno lateral de 4 px; si aun así no entran, el selector se desplaza a lo ancho (nunca parte una etiqueta). Reemplaza la regla por escala de texto (> 1,3) de la Fase 18.
+- **Etapa sin partidos** en el Fixture: «{Etapa}: TheSportsDB todavía no tiene los partidos cargados.» (la final 2026 de las copas).
+- **Tests**: `test/app/continental_finals_test.dart` (cuadros y finales 2025 completos y 2026 con la final pendiente, en la app completa) y `test/app/view_selector_layout_test.dart` (con Roboto: 360 px, 360 px al 200 %, 800 px).
+
+## Estado de implementación (Fase E2, 17/10/2026) — Base visual y filas de partido
+
+- **Tokens** (`lib/shared/presentation/theme/`, para que `shared` no dependa de `app`): `AppColors.scheme(brightness)` (semilla celeste + superficies neutras de `docs/HITO_E.md` §4.1), `AppPalette` (`ThemeExtension`: `group`, `live`/`liveContainer`, `warning`/`warningContainer`, `success`; `AppPalette.of` cae al brillo del tema si falta), `AppSpacing`/`AppRadius`/`AppSizes` y `AppText` (extensión de `TextTheme` con los roles de §4.2; cifras tabulares). `lib/app/theme/app_theme.dart` arma el `ThemeData` con ellos y los temas de componentes (AppBar, `Card` plana, chips, divisores, barra y riel, hoja inferior).
+- **Fila de partido** (`MatchCard`, misma API y `ValueKey`): sin `Card`, dentro de un `MatchGroup`. Columna central medida con `TextPainter` y la escala de texto (`_RowMetrics`, en caché por escala y tema). Si a los costados no entra un nombre de ~10 letras, apila los equipos (`_Stacked`). Ganador en negrita con `TieOutcome.of`. Estado debajo con `MatchStatusChip`. La semántica lleva `onTap`.
+- **Grupos** (`match_group.dart`): `MatchGroup` (superficie + divisores), `MatchGroupHeader`, `MatchGroupFooter`, `MatchGroupNote`. `matchDayItems` = `DayHeader` + un `MatchGroup` por día; `seriesItems` = un `MatchGroup` por serie.
+- **Avisos**: `InfoBanner(tone:, band:)` para todos (incluidos `StaleDataBanner` y `RateLimitNotice`).
+- **Tests**: `test/shared/match_row_test.dart` (estados y casos de fila en 360/1280 × 100/200 % × claro/oscuro, con Roboto); goldens de `test/visual/` regenerados tras revisión.
+
+## Estado de implementación (Fase E7, 18/10/2026) — Consistencia y cierre
+
+- **Compartidos nuevos**: `ContentAppBar` (`shared/presentation/widgets/content_app_bar.dart`: la `AppBar` con el ancho de la columna de contenido), `InvalidLinkPage` (reemplaza `ComingSoonPage`: «Enlace no válido» + «Ir al inicio»), `SyncTexts` (`shared/presentation/formatters/sync_texts.dart`: textos de una descarga detenida y del avance). `Breakpoints.maxListWidth` (900), `maxNarrowWidth` (720) y `listWidth(context)`. `AppSizes.inlineProgress`/`inlineProgressStroke`.
+- **Cambios en compartidos**: `InfoBanner` con acción usa `_MessageWithAction` (`RenderBox` de dos hijos: acción al lado si al texto le quedan ~12 letras escaladas, si no debajo y al final). `ScrollRow` envuelve cada hijo en `_WholePixelWidth` (ancho redondeado hacia arriba). `TeamBadge`: iniciales sin partir y hasta 1,3×. `MatchCard`: nombres en hasta 3 renglones a los costados del marcador. `MatchGroup` es también la superficie de las listas de equipos y de Ajustes. `MatchLabels.tieAdvances`: «Clasificó X por…» en series. Tema: etiqueta del chip deshabilitado en `onSurface` al 38 %.
+- **Pantallas**: Equipos, Favoritos y Ajustes con `MatchGroup`, `InfoBanner` y botones tonales; Inicio (chip-encabezado de una categoría de un solo acceso, búsqueda en el error); ficha (título según el desplazamiento, último alto de la cabecera guardado); `MatchHero` (escudos de 32 con el marcador debajo; partes del texto unidas con espacios duros solo si no entran en un renglón); Llaves (tarjetas con su alto, centradas en el lugar de la más alta); `AdaptiveShell` (escala de las etiquetas inferiores limitada a la que entra).
+- **Tests**: `test/shared/sync_texts_test.dart`, `test/shared/control_states_test.dart`, `test/app/sync_notice_test.dart`, `test/app/visual_consistency_test.dart`; escenas nuevas en `test/visual/screens_golden_test.dart`.
+
+## Estado de implementación (Fase E6, 18/10/2026) — Llaves, ficha y detalle
+
+- **Llaves** (`bracket_panel.dart`, mismos BLoC y reglas): `_TieContent.of(slot)` describe una tarjeta (renglones de equipo, goles, tanda, estado o piernas, tono) y `_CardStyles` la mide con `TextMeasure`: `minWidth` (palabra más ancha de los nombres; el ✓ del que avanza es un carácter de la fuente de íconos en el mismo `TextSpan`, `_CardStyles.nameSpan`, pegado a la última palabra con un espacio duro) y `cardHeight` (la tarjeta más alta). `_BracketCanvas` usa ese ancho mínimo para la columna (208–264 o más si hace falta) y ese alto para todas las tarjetas; `_TieList` (Playoffs) igual, y se desplaza si una tarjeta no entra. `_ConnectorPainter`: tramo por llave (codo redondeado) + tramo compartido hacia la siguiente; definido (`slot.outcome != null`) lleno en `onSurfaceVariant`, pendiente punteado en `outline`. `_ChampionBanner` sobre la superficie de grupo.
+- **Ficha** (`team_detail_page.dart`): `_Header` sin tarjeta (escudo `AppSizes.badgeHero`, nombre `AppText.teamHeaderName` con `FavoriteButton` al lado, estadio · ciudad, chips debajo). Un `LayoutBuilder` decide con la palabra más ancha del nombre: al lado del escudo, debajo del escudo, o con la estrella junto al escudo. La barra solo tiene «Actualizar».
+- **Detalle** (`match_detail_page.dart` + `widgets/match_hero.dart`, nuevo): `MatchHero(detail, now)` = competición, etapa, día · hora; `_Scoreboard` (centro medido con `softWrap: false`; equipos a los costados, arriba en dos columnas o apilados), «Penales: x-y», `MatchStatusChip`, global y `_TieLine` («✓ Avanza…» o «Sin dato de la definición», nodo semántico «Llave: …»). Negrita por `TieOutcome.of(match)`; quién avanza por `detail.advancement` (sin cambios en `GetMatchDetail`). `_InfoGrid` de `_InfoItem` (etiqueta, valor, nota, `wide`): 1 o 2 columnas según el ancho disponible (600), etiquetas medidas. Acciones `FilledButton.tonal`.
+- **Compartido**: `TextMeasure` (`shared/presentation/layout/text_measure.dart`): tamaño, ancho, alto y palabra más ancha de un texto con la escala del sistema; `spanSize` para un `TextSpan` con partes de distinto estilo. Tokens nuevos en `AppSizes`/`AppRadius` (conectores) y `AppText` (`heroTeam`, `heroTeamWinner`, `teamHeaderName`).
+- **Tests**: `test/app/bracket_layout_test.dart`, `match_detail_layout_test.dart`, `team_header_layout_test.dart` (Roboto) y el helper `test/helpers/text_layout.dart`. Goldens de Llaves, ficha y detalle regenerados tras revisión; escenas nuevas en `test/visual/screens_golden_test.dart`.
+
+## Estado de implementación (Fase E5, 18/10/2026) — Tablas y Calendario
+
+- **`StandingsTableView`** (`widgets/standings_table_view.dart`, nuevo; mismas filas tocables de 48 px y misma semántica «Posición N: Equipo.»): superficie de grupo con divisores, sin cebra; encabezado 11 / w600; posición y Pts en negrita, Pts sobre una columna sombreada; cifras tabulares a la derecha. `_TableLayout.resolve` mide con `TextPainter` (ancho de la tabla por `LayoutBuilder` + escala de texto) cada columna y la palabra más larga de los nombres: Pts siempre; PJ y DG juntas si al nombre le quedan `max(palabra más larga, 160 escalados)`; después PG, PE, PP, GF, GC de a una. Si PJ y DG no entran, van en un renglón debajo del nombre («PJ 12 · DG +9»). Con lugar de sobra, las cifras pasan a 44 px. Si ni con solo Pts entra la palabra más larga, se quita el escudo antes que partirla.
+- **Favoritos** (E-D11): `StandingsPanel` lee los `idTeam` del `FavoritesBloc` global (`context.select`, 0 peticiones; sin el bloc —el panel solo, en tests— no hay favoritos). Fila con `primaryContainer` al 60 % sobre la superficie y estrella dentro del texto del nombre (`WidgetSpan`, se va al renglón siguiente con el último nombre).
+- **Marcadores** (E-D10): `StandingsTableView.advancingTeams(rows, places)` con `GroupStage.advancingPlaces` del catálogo (no hay otro origen); una posición compartida que cruza el corte no se marca. Barra de 3 px en `success` junto a la posición, «Sigue en competencia.» en la semántica y `QualificationLegend` con el `qualificationNote` literal + «Posiciones actuales, no definitivas.» (la nota no se repite en el pie). Sin cambios en el dominio (solo el comentario de `qualificationNote`).
+- **Cobertura y notas** (`standings_panel.dart`): `_CoverageLine` (ícono + «Tabla completa» / «Tabla parcial» + «Fechas consultadas… · …partidos sumados»), `InfoBanner(warning)` si hay partidos excluidos sin torneo, `_UncountedView` («Partidos sin sumar (N)» desplegable, agrupados por motivo) y `_NotesView` (pie con divisor: posición compartida, reglamento y «no es la tabla oficial» con ícono).
+- **Calendario** (`calendar_panel.dart`): grilla en la superficie de grupo; encabezado «Octubre 2026» a la izquierda (16 / w700) y chevrons juntos a la derecha; celda con número tabular y punto + cantidad en `primary`; sin partidos en gris; hoy con anillo `primary` (con el día elegido, en `onPrimary`); elegido relleno en `primary`. El alto de la celda crece con la escala de texto. Lista del día: `DayHeader` + un `MatchGroup` por fase · etapa con el contexto en `MatchGroupHeader(detailInline: true)`. Dos paneles con `splitsAt(ancho, escala)`: ≥ 900 px de vista y 400 px escalados para la lista.
+- **Tests**: `test/app/standings_layout_test.dart` y `test/app/calendar_layout_test.dart` (Roboto). Goldens de tablas y calendario regenerados tras revisión; escena nueva `tabla_favorito`.
+
+## Estado de implementación (Fase E4, 18/10/2026) — Competiciones
+
+- **Cabecera en 3 niveles** (`competitions_page.dart`, mismos BLoC, eventos, URL y restauración): un `LayoutBuilder` da el ancho de la sección; `CompetitionTitleLayout.resolve` decide con ese ancho (menos búsqueda de la barra, «Actualizar» y Atrás) si va el nombre completo o el corto y si la temporada entra en la barra. Nivel 1 = título `Row(CompetitionPicker, SeasonSelector)`; nivel 2 = `ViewTabs`; nivel 3 = la temporada si bajó (renglón propio) + `FixtureSelectors` en el Fixture. Tabla y Llaves llevan sus chips en una fila fija arriba de su lista (dentro de `StandingsPanel` / `BracketPanel`).
+- **`CompetitionPicker`** (`widgets/competition_picker.dart`, `competitionSelectorKey`): el nombre + flecha como botón (nodo semántico propio «Competición: <nombre completo>», tooltip «Elegir competición»). < 600: la hoja de D22 (navegador raíz, actual a la vista); ≥ 600: `MenuAnchor` con encabezados de categoría y `MenuItemButton` (tilde en la actual). Una elección = un `FixtureCompetitionChanged`; la actual no se vuelve a pedir. La categoría solo agrupa (sin estado).
+- **`SeasonSelector`** (`fixture_controls.dart`, `seasonSelectorKey`): `DropdownButton` sin subrayado, compacto («2026») en la barra de un teléfono; nodo semántico propio; `IntrinsicWidth` + `isExpanded` para recortarse en vez de desbordar. En la barra conserva la escala de texto del sistema (el `AppBar` limita la del título a 1,34).
+- **`ViewTabs`** (`widgets/view_tabs.dart`): pestañas medidas con `TextPainter` (reemplaza `_ViewSelector`/`SegmentedButton`); subrayado `AppSizes.tabIndicator`; si no entran, `ScrollRow`.
+- **`ScrollRow`** (`shared/presentation/widgets/scroll_row.dart`): fila horizontal de un renglón que se desplaza (también con mouse), esfuma el borde del lado con más contenido (`ShaderMask`, `AppSizes.scrollFade`) y mantiene a la vista el hijo `visible`. La usan las pestañas, las fases, las tablas y las llaves.
+- **`FilterLine`** (`fixture_controls.dart`): `RenderBox` de dos hijos que los pone en una línea si el primero entra entero (ancho intrínseco) junto al segundo con su mínimo; si no, uno debajo del otro. Fases + `StageNavigator` (mín. 320).
+- **Tests**: `test/app/competitions_header_layout_test.dart` (≤ 200 px a 360/411, 200 %, panel de detalle), `competition_picker_layout_test` y `competition_picker_test` (barra, hoja, menú, medición), `view_selector_layout_test` (pestañas). Helpers `selectCompetition` (título → hoja o menú), `tapFilter`, `competitionTitle`.
+
+## Estado de implementación (Fase E3, 17/10/2026) — Inicio
+
+- **Página** (`features/home/presentation/pages/home_page.dart`): mismos BLoC, eventos y consultas. La lista arma sus hijos con el margen lateral (12 en teléfonos, 24 desde 600) salvo la fila de accesos del teléfono, que llega a los bordes. La barra de actualización queda fija arriba de la lista. ≥ 1200: dos columnas (Hoy + Próximos | accesos + Tus equipos + Recientes).
+- **Widgets del Inicio** (`features/home/presentation/widgets/`):
+  - `home_match_list.dart`: `HomeGrouping.byDay` (función pura: día argentino → competición · fase · etapa; grupos en el orden de su primer partido, partidos en el orden recibido, un `idEvent` una sola vez), `homeMatchItems` (un `MatchGroup` por grupo, con el contexto en `MatchGroupHeader(detailInline: true)`; `DayHeader` por día solo si la sección abarca varios) y `HomeEmptyMessage`.
+  - `home_shortcuts.dart`: `TeamSearchShortcut` (campo-botón de 48 px que abre Equipos, < 1200) y `CompetitionShortcuts` (`singleRow`: una fila desplazable con etiqueta de categoría y chips, arrastrable también con mouse; si no, un `Wrap` de categorías, cada una un `Wrap` de etiqueta + chips).
+  - `favorite_teams_section.dart`: un `MatchGroup` por favorito (`ListTile` con escudo y chevron a la ficha + hasta 2 `MatchCard` con `subtitleLead` «Próximo» / «Último»; en juego, sin día ni prefijo).
+- **Compartidos**: `MatchCard.subtitleLead` (comienzo destacado del contexto), `MatchGroupHeader.detailInline`, `DayHeader(day:)`. `TopBarTeamSearch` ya no tiene el botón para pantallas angostas (solo lo usaba el Inicio).
+- **Tests**: `test/features/home/home_grouping_test.dart` (agrupación con los partidos grabados), `test/app/home_layout_test.dart` (con Roboto: «Hoy» en 360 × 640 sin favoritos y con uno, buscador, fila desplazable sin conflicto con la lista, renglones de accesos por ancho, 200 %, pautas con un favorito en claro y oscuro); `pumpApp(seed:)` guarda datos antes de arrancar.

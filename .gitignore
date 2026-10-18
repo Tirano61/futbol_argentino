@@ -44,5 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Documentación, capturas y evidencias: solo locales (no van al repo)
-/docs/
+# Documentación: se versionan los Markdown de docs/ y la maqueta aprobada del
+# Hito E. Evidencias, capturas y comparaciones: solo locales (no van al repo)
+/docs/*
+!/docs/*.md
+!/docs/design/
+/docs/design/*
+!/docs/design/hito_e_maqueta.html
+/docs/evidence/
