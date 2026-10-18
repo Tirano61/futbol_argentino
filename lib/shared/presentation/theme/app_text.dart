@@ -43,6 +43,18 @@ extension AppText on TextTheme {
     fontFeatures: _tabular,
   );
 
+  /// Equipo en el héroe del detalle: 16 / w400…
+  TextStyle get heroTeam =>
+      titleMedium!.copyWith(fontSize: 16, fontWeight: FontWeight.w400);
+
+  /// …y el ganador del partido: 16 / w700.
+  TextStyle get heroTeamWinner =>
+      heroTeam.copyWith(fontWeight: FontWeight.w700);
+
+  /// Nombre en la cabecera de la ficha de un equipo: 24 / w600.
+  TextStyle get teamHeaderName =>
+      headlineSmall!.copyWith(fontSize: 24, fontWeight: FontWeight.w600);
+
   /// Hora en una lista: 14 / w600, tabular.
   TextStyle get listTime => titleSmall!.copyWith(
     fontSize: 14,

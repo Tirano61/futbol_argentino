@@ -7,7 +7,9 @@ import '../../../../app/router/app_router.dart';
 import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
+import '../../../../shared/presentation/layout/text_measure.dart';
 import '../../../../shared/presentation/theme/app_spacing.dart';
+import '../../../../shared/presentation/theme/app_text.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
@@ -118,9 +120,8 @@ class _TeamDetailViewState extends State<_TeamDetailView> {
               TeamDetailLoaded(:final detail) => detail.team!.name,
               _ => 'Equipo',
             }),
+            // El favorito va en la cabecera, junto al nombre (E-D14).
             actions: [
-              if (state case TeamDetailLoaded(detail: TeamDetail(:final team?)))
-                FavoriteButton(team: team),
               IconButton(
                 tooltip: 'Actualizar',
                 onPressed: state.isBusy ? null : _refresh,
@@ -186,13 +187,18 @@ class _DetailBody extends StatelessWidget {
     final empty = detail.upcoming.isEmpty && detail.played.isEmpty;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.xl,
+      ),
       children: [
-        _SyncStatus(progress: progress, onRetry: onRetry),
         _Header(detail: detail),
+        _SyncStatus(progress: progress, onRetry: onRetry),
         if (empty)
           Padding(
-            padding: const EdgeInsets.only(top: 24),
+            padding: const EdgeInsets.only(top: AppSpacing.xl),
             child: Text(
               progress.isRunning
                   ? 'Buscando partidos…'
@@ -241,7 +247,7 @@ class _DetailBody extends StatelessWidget {
           ),
         ],
         Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: Text(
             'Partidos guardados en este dispositivo · Horarios de Argentina',
             textAlign: TextAlign.center,
@@ -253,6 +259,14 @@ class _DetailBody extends StatelessWidget {
   }
 }
 
+/// Cabecera de la ficha (Hito E, §11.1), sin tarjeta: escudo de 72, el
+/// nombre con el favorito al lado (E-D14), estadio · ciudad y, debajo, a
+/// todo el ancho, las competiciones de la app como chips discretos.
+///
+/// Si la palabra más ancha del nombre no entra al lado del escudo (texto
+/// grande en un teléfono), el escudo va arriba y el nombre usa todo el
+/// ancho; nunca se parte una palabra. Un chip que no entra en un renglón
+/// usa dos (la letra no se achica).
 class _Header extends StatelessWidget {
   const _Header({required this.detail});
 
@@ -261,52 +275,128 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final team = detail.team!;
     final info = detail.info;
     final place = [?info?.stadium, ?info?.location].join(' · ');
-    return Card(
-      margin: const EdgeInsets.only(top: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            TeamBadge(name: team.name, url: team.badgeUrl, size: 64),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(team.name, style: theme.textTheme.titleLarge),
-                  if (place.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(place, style: theme.textTheme.bodyMedium),
-                    ),
-                  if (detail.competitionIds.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          for (final id in detail.competitionIds)
-                            if (CompetitionCatalog.byId(id) case final c?)
-                              Chip(
-                                avatar: const Icon(
-                                  Icons.emoji_events_outlined,
-                                  size: 18,
-                                ),
-                                label: Text(c.name),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                        ],
-                      ),
-                    ),
-                ],
+    final nameStyle = theme.textTheme.teamHeaderName.copyWith(
+      color: colors.onSurface,
+    );
+    final badge = TeamBadge(
+      name: team.name,
+      url: team.badgeUrl,
+      size: AppSizes.badgeHero,
+    );
+    final favorite = FavoriteButton(team: team);
+    final name = Semantics(
+      header: true,
+      child: Text(team.name, style: nameStyle),
+    );
+    final competitions = [
+      for (final id in detail.competitionIds) ?CompetitionCatalog.byId(id),
+    ];
+    final placeText = place.isEmpty
+        ? null
+        : Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              place,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
               ),
             ),
-          ],
-        ),
+          );
+    final chips = competitions.isEmpty
+        ? null
+        : Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final c in competitions)
+                  Chip(
+                    label: Text(
+                      c.name,
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    labelStyle: theme.textTheme.labelLarge?.copyWith(
+                      color: colors.onSurface,
+                    ),
+                    backgroundColor: colors.surfaceContainerHigh,
+                    side: BorderSide.none,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: AppRadius.controlAll,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+              ],
+            ),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final word = TextMeasure.of(
+            context,
+          ).widestWord([team.name], nameStyle);
+          final besideBadge =
+              constraints.maxWidth -
+              AppSizes.badgeHero -
+              AppSpacing.lg -
+              AppSizes.tapTarget;
+          // La estrella sigue al nombre (no al borde de la pantalla).
+          final nameRow = Row(
+            children: [
+              Flexible(child: name),
+              favorite,
+            ],
+          );
+          if (word <= besideBadge) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    badge,
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [nameRow, ?placeText],
+                      ),
+                    ),
+                  ],
+                ),
+                ?chips,
+              ],
+            );
+          }
+          // Si tampoco entra al lado de la estrella, ella sube junto al
+          // escudo.
+          final fitsBesideFavorite =
+              word <= constraints.maxWidth - AppSizes.tapTarget;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  badge,
+                  const Spacer(),
+                  if (!fitsBesideFavorite) favorite,
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (fitsBesideFavorite) nameRow else name,
+              ?placeText,
+              ?chips,
+            ],
+          );
+        },
       ),
     );
   }
@@ -333,14 +423,14 @@ class _SyncStatus extends StatelessWidget {
         label: text,
         excludeSemantics: true,
         child: Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LinearProgressIndicator(
                 value: total == 0 ? null : progress.done / total,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(text, style: theme.textTheme.labelSmall),
             ],
           ),
@@ -351,7 +441,7 @@ class _SyncStatus extends StatelessWidget {
 
     final (:title, message: _) = failureMessage(failure);
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
       child: InfoBanner(
         tone: InfoTone.offline,
         text:
@@ -373,7 +463,10 @@ class _EmptySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.sm,
+      ),
       child: Text(
         message,
         style: theme.textTheme.bodyMedium?.copyWith(

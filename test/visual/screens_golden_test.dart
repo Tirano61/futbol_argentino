@@ -146,6 +146,74 @@ void main() {
       );
       await goTo(tester, '/partidos/2600654');
     }, continental: true),
+    // Fase E6: los demás cuadros (pendientes y en juego, Playoffs y final
+    // sin dato, partido único con penales) y el detalle de una serie
+    // definida por el global, de un partido único por penales y de uno
+    // programado con nombres largos.
+    _Scene(
+      'llaves_libertadores_2026',
+      (tester) => goTo(
+        tester,
+        '/competiciones/4501?temporada=2026&vista=llaves',
+        wait: const Duration(minutes: 1),
+      ),
+      continental: true,
+    ),
+    _Scene(
+      'llaves_sudamericana_2025',
+      (tester) => goTo(
+        tester,
+        '/competiciones/4724?temporada=2025&vista=llaves',
+        wait: const Duration(minutes: 1),
+      ),
+      continental: true,
+    ),
+    _Scene(
+      'llaves_copa_argentina',
+      (tester) => goTo(
+        tester,
+        '/competiciones/4500?temporada=2026&vista=llaves',
+        wait: const Duration(minutes: 1),
+      ),
+    ),
+    _Scene('detalle_serie_global', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4501?temporada=2025&vista=llaves',
+        wait: const Duration(minutes: 1),
+      );
+      await goTo(tester, '/partidos/2262164');
+    }, continental: true),
+    _Scene('detalle_copa_penales', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4500?temporada=2026&vista=llaves',
+        wait: const Duration(minutes: 1),
+      );
+      await goTo(tester, '/partidos/2540103');
+    }),
+    _Scene('detalle_programado', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4406?temporada=2026&fase=clausura&ronda=13',
+      );
+      await goTo(tester, '/partidos/2398141');
+    }),
+    // La serie con penales en el panel de 440 px (una columna).
+    _Scene('fixture_panel_detalle_serie', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4501?temporada=2026&fase=eliminatorias'
+        '&ronda=125&etapa=eliminatoria',
+      );
+      final vuelta = find.byWidgetPredicate(
+        (w) => w is MatchCard && w.match.id == 2600654,
+      );
+      await tester.ensureVisible(vuelta);
+      await tester.pumpAndSettle();
+      await tester.tap(vuelta);
+      await tester.pumpAndSettle();
+    }, continental: true),
   ];
 
   // Matriz: todas las pantallas a 360 y 1280 en claro y oscuro; las de
@@ -172,6 +240,14 @@ void main() {
     'competiciones_selector',
     'tabla_anual',
     'tabla_favorito',
+    // Fase E6.
+    'llaves_primera',
+    'llaves_libertadores_2026',
+    'llaves_copa_argentina',
+    'ficha_boca',
+    'detalle_primera',
+    'detalle_serie_penales',
+    'detalle_programado',
   };
   // Fase E4: Competiciones también en el teléfono de 411 dp y en la tablet
   // vertical (800 px).
@@ -184,9 +260,15 @@ void main() {
     'competiciones_selector',
     // Fase E5.
     'tabla_anual',
+    // Fase E6: llaves, ficha y detalle.
+    'llaves_libertadores_2025',
+    'llaves_libertadores_2026',
+    'ficha_boca',
+    'detalle_serie_penales',
+    'detalle_programado',
   };
   // Solo en escritorio (el panel existe desde 1200 px).
-  const desktopOnly = {'fixture_panel_detalle'};
+  const desktopOnly = {'fixture_panel_detalle', 'fixture_panel_detalle_serie'};
 
   for (final scene in scenes) {
     if (desktopOnly.contains(scene.name)) {

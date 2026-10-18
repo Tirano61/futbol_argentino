@@ -96,14 +96,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(tie);
     await tester.pumpAndSettle();
+    // Fase E6: la fila «Serie de ida y vuelta» lista las piernas; el global
+    // y quién avanza van en el héroe, cada uno una sola vez.
     expect(
       find.text(
         'Ida: Peñarol 1-0 Racing Club\n'
-        'Vuelta: Racing Club 3-1 Peñarol\n'
-        'Global Peñarol 2-3 Racing Club',
+        'Vuelta: Racing Club 3-1 Peñarol',
       ),
       findsOne,
     );
+    expect(find.text('Serie de ida y vuelta'), findsOne);
+    expect(find.text('Global Peñarol 2-3 Racing Club'), findsOne);
     expect(find.text('Avanza Racing Club (global 3-2)'), findsOne);
   });
 
