@@ -10,9 +10,11 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_group.dart';
+import '../../../../shared/presentation/widgets/scroll_row.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../matches/domain/entities/knockout_tie.dart';
@@ -124,29 +126,56 @@ class _LoadedViewState extends State<_LoadedView> {
             orElse: () => phases.isEmpty ? PhaseKey.unica : phases.first,
           );
     final bracket = view.brackets[phase];
+    final rounds = bracket != null && bracket.hasMatches
+        ? bracket.rounds
+        : const <BracketRoundView>[];
+    final start = rounds.isEmpty
+        ? 0
+        : (_start ??
+                  rounds.indexWhere((r) => r.slots.length <= _defaultMaxSlots))
+              .clamp(0, rounds.length - 1);
 
-    return RefreshIndicator(
+    // Filtros de la vista (nivel 3 de la cabecera, Hito E): el torneo y la
+    // ronda desde la que se dibuja el cuadro, en una fila fija que se
+    // desplaza, con lo elegido a la vista.
+    final theme = Theme.of(context);
+    final filters = <Widget>[];
+    int? visible;
+    if (phases.length > 1) {
+      for (final p in phases) {
+        if (p == phase) visible = filters.length;
+        filters.add(
+          ChoiceChip(
+            label: Text(p.label),
+            selected: p == phase,
+            onSelected: (_) => widget.onPhaseSelected(p),
+          ),
+        );
+      }
+    }
+    if (rounds.length > 4) {
+      filters.add(Text('Desde', style: theme.textTheme.labelLarge));
+      for (final (i, r) in rounds.indexed.take(rounds.length - 1)) {
+        if (i == start && visible == null) visible = filters.length;
+        filters.add(
+          ChoiceChip(
+            label: Text(r.label),
+            selected: i == start,
+            onSelected: (_) => setState(() => _start = i),
+          ),
+        );
+      }
+    }
+
+    final list = RefreshIndicator(
       onRefresh: widget.onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: EdgeInsets.fromLTRB(12, filters.isEmpty ? 8 : 0, 12, 24),
         children: [
           if (widget.isRefreshing) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 8),
           ],
-          if (phases.length > 1)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final p in phases)
-                  ChoiceChip(
-                    label: Text(p.label),
-                    selected: p == phase,
-                    onSelected: (_) => widget.onPhaseSelected(p),
-                  ),
-              ],
-            ),
           _SyncStatus(progress: view.progress),
           if (bracket == null || !bracket.hasMatches)
             EmptyView(
@@ -161,10 +190,26 @@ class _LoadedViewState extends State<_LoadedView> {
             ..._bracketItems(
               context,
               bracket,
+              start: start,
               continental: definition?.rules is ContinentalCupRules,
             ),
         ],
       ),
+    );
+    if (filters.isEmpty) return list;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: ScrollRow(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            visible: visible,
+            children: filters,
+          ),
+        ),
+        Expanded(child: list),
+      ],
     );
   }
 
@@ -181,14 +226,11 @@ class _LoadedViewState extends State<_LoadedView> {
   List<Widget> _bracketItems(
     BuildContext context,
     KnockoutBracket bracket, {
+    required int start,
     required bool continental,
   }) {
     final theme = Theme.of(context);
     final rounds = bracket.rounds;
-    final defaultStart = rounds.indexWhere(
-      (r) => r.slots.length <= _defaultMaxSlots,
-    );
-    final start = (_start ?? defaultStart).clamp(0, rounds.length - 1);
     final shown = rounds.sublist(start);
     final champion = rounds.last.slots.firstOrNull?.outcome?.winner;
     final now = context.read<Clock>().now();
@@ -199,23 +241,6 @@ class _LoadedViewState extends State<_LoadedView> {
           padding: const EdgeInsets.only(top: 12),
           child: _ChampionBanner(team: champion),
         ),
-      if (rounds.length > 4) ...[
-        const SizedBox(height: 12),
-        Text('Desde', style: theme.textTheme.labelLarge),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final (i, r) in rounds.indexed.take(rounds.length - 1))
-              ChoiceChip(
-                label: Text(r.label),
-                selected: i == start,
-                onSelected: (_) => setState(() => _start = i),
-              ),
-          ],
-        ),
-      ],
       if (shown.any((r) => r.pairingUnknown))
         const Padding(
           padding: EdgeInsets.only(top: 12),

@@ -5,6 +5,9 @@ import 'package:futbol_argentino/features/favorites/domain/entities/favorite_tea
 import 'package:http/http.dart' as http;
 import 'package:sembast/sembast.dart' show Database;
 
+import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
+
 import '../helpers/fake_teams.dart';
 import '../helpers/recorded_app.dart';
 import 'visual_helpers.dart';
@@ -100,6 +103,24 @@ void main() {
           goTo(tester, '/equipos/135156', wait: const Duration(minutes: 5)),
       continental: true,
     ),
+    // Fase E4: el selector de competición abierto (hoja < 600, menú
+    // ≥ 600) y el fixture con un partido en el panel de detalle.
+    _Scene('competiciones_selector', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4501?temporada=2026&fase=eliminatorias',
+      );
+      await tester.tap(find.byKey(FixtureSelectors.competitionSelectorKey));
+      await tester.pumpAndSettle();
+    }, continental: true),
+    _Scene('fixture_panel_detalle', (tester) async {
+      await goTo(
+        tester,
+        '/competiciones/4406?temporada=2026&fase=clausura&ronda=12',
+      );
+      await tester.tap(find.byType(MatchCard).first);
+      await tester.pumpAndSettle();
+    }),
     _Scene('detalle_primera', (tester) async {
       await goTo(
         tester,
@@ -130,14 +151,47 @@ void main() {
     'inicio',
     'inicio_favorito',
     'fixture_libertadores_series',
+    'fixture_primera',
     'tabla_zona',
+    'tabla_grupo_libertadores',
+    'calendario',
+    'llaves_libertadores_2025',
+    'competiciones_selector',
   };
+  // Fase E4: Competiciones también en el teléfono de 411 dp y en la tablet
+  // vertical (800 px).
+  const competitionScenes = {
+    'fixture_primera',
+    'fixture_libertadores_series',
+    'tabla_grupo_libertadores',
+    'calendario',
+    'llaves_primera',
+    'competiciones_selector',
+  };
+  // Solo en escritorio (el panel existe desde 1200 px).
+  const desktopOnly = {'fixture_panel_detalle'};
 
   for (final scene in scenes) {
+    if (desktopOnly.contains(scene.name)) {
+      for (final brightness in Brightness.values) {
+        scene.register(VisualSizes.tabletLandscape, brightness);
+      }
+      scene.register(VisualSizes.desktop, Brightness.light);
+      scene.register(
+        VisualSizes.tabletLandscape,
+        Brightness.light,
+        textScale: 2,
+      );
+      continue;
+    }
     for (final brightness in Brightness.values) {
       for (final size in [VisualSizes.phone, VisualSizes.tabletLandscape]) {
         scene.register(size, brightness);
       }
+    }
+    if (competitionScenes.contains(scene.name)) {
+      scene.register(VisualSizes.phoneWide, Brightness.light);
+      scene.register(VisualSizes.tablet800, Brightness.light);
     }
     if (wideScenes.contains(scene.name)) {
       scene.register(VisualSizes.tabletPortrait, Brightness.light);

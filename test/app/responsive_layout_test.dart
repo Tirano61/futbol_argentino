@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/bracket_panel.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/fixture_controls.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
 
 import '../helpers/recorded_app.dart';
@@ -54,14 +55,12 @@ void main() {
       expect(find.text('Pts'), findsOne);
       expect(find.text('GF'), desktop ? findsOne : findsNothing);
 
-      await tester.tap(find.text('Apertura · Zona A'));
-      await tester.pumpAndSettle();
+      await tapFilter(tester, 'Apertura · Zona A');
       expect(find.text('Apertura 2026 · Zona A'), findsOne);
 
       await openNacionalTable(tester);
       expect(find.text('Posiciones 2026 · Zona A'), findsOne);
-      await tester.tap(find.text('Zona B'));
-      await tester.pumpAndSettle();
+      await tapFilter(tester, 'Zona B');
       expect(find.text('Posiciones 2026 · Zona B'), findsOne);
       // Los desbordes de layout fallan el test por sí solos.
     });
@@ -118,8 +117,7 @@ void main() {
       await tester.pump(const Duration(minutes: 1));
       await tester.pumpAndSettle();
       expect(find.text('Desde'), findsOne);
-      await tester.tap(find.widgetWithText(ChoiceChip, '32avos de final'));
-      await tester.pumpAndSettle();
+      await tapFilter(tester, '32avos de final');
       expect(find.text('16avos de final'), findsWidgets);
       // Los desbordes de layout fallan el test por sí solos.
     });
@@ -206,7 +204,8 @@ void main() {
     await pumpApp(tester, phone);
     await openSection(tester, 'Competiciones');
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Primera División'));
+    expect(competitionTitle('Primera División'), findsOne);
+    await tester.tap(find.byKey(FixtureSelectors.competitionSelectorKey));
     await tester.pumpAndSettle();
 
     // En el navegador raíz llega al borde de la pantalla; en el de la
@@ -222,11 +221,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsNothing);
-    expect(find.widgetWithText(OutlinedButton, 'Ascenso · Nacional'), findsOne);
+    // El título de la barra pasa a la competición elegida.
     expect(
       find.descendant(
         of: find.byType(AppBar),
-        matching: find.text('Primera Nacional'),
+        matching: competitionTitle('Primera Nacional'),
       ),
       findsOne,
     );

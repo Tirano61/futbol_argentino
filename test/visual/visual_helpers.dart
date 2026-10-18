@@ -37,6 +37,12 @@ Future<void> loadVisualFonts() async {
 abstract final class VisualSizes {
   static const phone = Size(360, 780);
   static const tabletPortrait = Size(768, 1024);
+
+  /// Teléfono de 411 dp (el Motorola One Fusion de las pruebas en Android).
+  static const phoneWide = Size(411, 860);
+
+  /// La tablet de pruebas en vertical (800 px a densidad 160).
+  static const tablet800 = Size(800, 1280);
   static const tabletLandscape = Size(1280, 800);
   static const desktop = Size(1920, 1080);
 }

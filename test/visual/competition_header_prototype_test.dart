@@ -122,9 +122,8 @@ void main() {
   Future<void> capture(WidgetTester tester, String name) =>
       expectScreen(tester, 'prototipo_$name');
 
-  testWidgets('referencia: alto de los controles del diseño actual a 360', (
-    tester,
-  ) async {
+  testWidgets('referencia: la app real cumple lo del prototipo a 360 '
+      '(E1: 272 px; desde E4, ≤ 200)', (tester) async {
     // La misma pantalla en la app real (Libertadores, eliminatorias).
     await pumpApp(tester, VisualSizes.phone, now: continentalRecordingTime);
     await goTo(tester, '/competiciones/4501?temporada=2026&fase=eliminatorias');
@@ -134,8 +133,8 @@ void main() {
         .dy;
     final height = navigatorBottom - barBottom;
     // ignore: avoid_print
-    print('E1 · controles del diseño actual a 360: ${height.round()} px');
-    expect(height, greaterThan(200));
+    print('E4 · controles de la app a 360: ${height.round()} px');
+    expect(height, lessThanOrEqualTo(200));
   });
 
   group('teléfono 360', () {

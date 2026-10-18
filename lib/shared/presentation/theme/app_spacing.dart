@@ -57,4 +57,10 @@ abstract final class AppSizes {
 
   /// Ícono de una vista vacía o de error.
   static const double emptyIcon = 40;
+
+  /// Borde esfumado de una fila que se desplaza (hay más contenido).
+  static const double scrollFade = 24;
+
+  /// Subrayado de la pestaña elegida (`ViewTabs`).
+  static const double tabIndicator = 3;
 }

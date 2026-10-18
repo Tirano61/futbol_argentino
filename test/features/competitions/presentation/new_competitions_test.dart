@@ -42,7 +42,7 @@ void main() {
 
     await selectCompetition(tester, 'B Metro');
 
-    expect(find.text('Primera B Metropolitana'), findsWidgets);
+    expect(competitionTitle('Primera B Metropolitana'), findsOne);
     expect(find.text('Fecha 40'), findsOne);
     expect(find.byType(MatchCard), findsWidgets);
     // La fecha 40 y la siguiente (precarga P1; la 41 no está grabada).

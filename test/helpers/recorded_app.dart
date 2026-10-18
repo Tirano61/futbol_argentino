@@ -121,34 +121,24 @@ Future<void> openNacionalTable(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Elige una competición en el selector del fixture por su nombre corto.
-/// Con el botón (teléfono, o categorías que no entran en una línea: con la
-/// fuente de los tests pasa en casi todos los anchos) abre la hoja y toca
-/// su nombre; con chips toca su
-/// categoría (si no es la actual) y, si la categoría tiene varias, la
-/// competición. Las filas de chips se desplazan: con texto grande el chip
-/// puede quedar fuera de la vista.
+/// Elige una competición en el selector del título de Competiciones por su
+/// nombre corto (Hito E, E-D8): en un teléfono abre la hoja y toca su
+/// nombre (la hoja se desplaza: las copas pueden quedar debajo); desde
+/// 600 px, el menú agrupado por categoría.
 Future<void> selectCompetition(WidgetTester tester, String shortName) async {
   final competition = CompetitionCatalog.all.singleWhere(
     (c) => c.shortName == shortName,
   );
-  final picker = find.byKey(FixtureSelectors.competitionSelectorKey);
-  Finder inPicker(Finder matching) =>
-      find.descendant(of: picker, matching: matching);
+  await tester.tap(find.byKey(FixtureSelectors.competitionSelectorKey));
+  await tester.pumpAndSettle();
 
-  final sheetButton = inPicker(find.byType(OutlinedButton));
-  if (sheetButton.evaluate().isNotEmpty) {
-    await tester.tap(sheetButton);
-    await tester.pumpAndSettle();
-    // La hoja se desplaza: las copas pueden quedar debajo.
+  final sheet = find.byType(BottomSheet);
+  if (sheet.evaluate().isNotEmpty) {
     final tile = find.widgetWithText(ListTile, competition.name);
     await tester.scrollUntilVisible(
       tile,
       100,
-      scrollable: find.descendant(
-        of: find.byType(BottomSheet),
-        matching: find.byType(Scrollable),
-      ),
+      scrollable: find.descendant(of: sheet, matching: find.byType(Scrollable)),
     );
     await tester.pumpAndSettle();
     await tester.tap(tile);
@@ -156,16 +146,26 @@ Future<void> selectCompetition(WidgetTester tester, String shortName) async {
     return;
   }
 
-  Future<void> tapChip(String label) async {
-    final chip = inPicker(find.widgetWithText(ChoiceChip, label));
-    await tester.ensureVisible(chip);
-    await tester.pumpAndSettle();
-    if (tester.widget<ChoiceChip>(chip).selected) return;
-    await tester.tap(chip);
-    await tester.pumpAndSettle();
-  }
-
-  await tapChip(competition.category.label);
-  final siblings = CompetitionCatalog.byCategory()[competition.category]!;
-  if (siblings.length > 1) await tapChip(shortName);
+  final item = find.widgetWithText(MenuItemButton, competition.name);
+  await tester.ensureVisible(item);
+  await tester.pumpAndSettle();
+  await tester.tap(item);
+  await tester.pumpAndSettle();
 }
+
+/// Toca un filtro de Competiciones (fase, tabla, «Desde»): van en filas
+/// que se desplazan (Hito E, E4) y el chip puede estar fuera de la vista.
+Future<void> tapFilter(WidgetTester tester, String label) async {
+  final chip = find.widgetWithText(ChoiceChip, label);
+  await tester.ensureVisible(chip);
+  await tester.pumpAndSettle();
+  await tester.tap(chip);
+  await tester.pumpAndSettle();
+}
+
+/// El selector de la barra muestra [name] (el nombre completo va siempre en
+/// su semántica, aunque se vea el corto).
+Finder competitionTitle(String name) => find.descendant(
+  of: find.byKey(FixtureSelectors.competitionSelectorKey),
+  matching: find.bySemanticsLabel('Competición: $name'),
+);

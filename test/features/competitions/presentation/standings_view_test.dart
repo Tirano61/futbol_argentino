@@ -11,6 +11,7 @@ import 'package:futbol_argentino/features/competitions/presentation/bloc/competi
 import 'package:futbol_argentino/features/competitions/presentation/pages/competitions_page.dart';
 import 'package:futbol_argentino/features/competitions/presentation/routing/fixture_route.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/standings_panel.dart';
+import 'package:futbol_argentino/features/competitions/presentation/widgets/view_tabs.dart';
 import 'package:futbol_argentino/features/matches/domain/repositories/match_repository.dart';
 import 'package:go_router/go_router.dart';
 
@@ -166,6 +167,9 @@ void main() {
       findsOne,
     );
 
+    // Las tablas van en una fila que se desplaza (Hito E, E4).
+    await tester.ensureVisible(find.text('Clausura · Zona B'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clausura · Zona B'));
     await tester.pumpAndSettle();
     expect(find.text('Clausura 2026 · Zona B'), findsOne);
@@ -237,10 +241,8 @@ void main() {
 
     expect(find.byType(StandingsPanel), findsNothing);
     expect(find.text('Tabla'), findsNothing);
-    final fixture = tester.widget<SegmentedButton<CompetitionsView>>(
-      find.byType(SegmentedButton<CompetitionsView>),
-    );
-    expect(fixture.selected, {CompetitionsView.fixture});
+    final tabs = tester.widget<ViewTabs>(find.byType(ViewTabs));
+    expect(tabs.view, CompetitionsView.fixture);
 
     // Al volver, «Tabla» está otra vez (sin abrirse sola).
     await selectCompetition(tester, 'Primera');
