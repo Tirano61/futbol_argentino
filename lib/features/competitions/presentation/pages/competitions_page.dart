@@ -10,6 +10,7 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/calendar_month.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
@@ -35,8 +36,10 @@ import '../routing/fixture_route.dart';
 import '../widgets/bracket_panel.dart';
 import '../widgets/calendar_panel.dart';
 import '../widgets/fixture_controls.dart';
+import '../widgets/competition_picker.dart';
 import '../widgets/series_list.dart';
 import '../widgets/standings_panel.dart';
+import '../widgets/view_tabs.dart';
 
 /// Fixture, tablas, calendario y llaves de cualquier competición del
 /// catálogo.
@@ -370,8 +373,6 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
   @override
   Widget build(BuildContext context) {
     final expanded = Breakpoints.isExpanded(context);
-    final table = _view == CompetitionsView.table;
-    final calendar = _view == CompetitionsView.calendar;
     final standingsBusy = context.select<StandingsBloc, bool>(
       (bloc) => bloc.state.isBusy,
     );
@@ -423,247 +424,234 @@ class _CompetitionsViewState extends State<_CompetitionsView> {
         }
         _updateUrl(state);
       },
-      builder: (context, state) {
-        final definition =
-            state.definition ?? CompetitionCatalog.byId(_competitionId);
-        final content = Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      // El ancho de la pantalla de la sección (sin el riel): de ahí sale lo
+      // que entra en la barra superior.
+      builder: (context, state) => LayoutBuilder(
+        builder: (context, constraints) => _page(
+          context,
+          state,
+          constraints.maxWidth,
+          expanded: expanded,
+          busy: (
+            standings: standingsBusy,
+            calendar: calendarBusy,
+            bracket: bracketBusy,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _page(
+    BuildContext context,
+    CompetitionFixtureState state,
+    double width, {
+    required bool expanded,
+    required ({bool standings, bool calendar, bool bracket}) busy,
+  }) {
+    final bloc = context.read<CompetitionFixtureBloc>();
+    final definition =
+        state.definition ?? CompetitionCatalog.byId(_competitionId);
+    final season = state.season;
+    final seasons = state.seasons;
+    final hasSeason = season != null && seasons.isNotEmpty;
+    final compact = Breakpoints.isCompact(context);
+
+    // Nivel 1: competición y, si entra al lado, la temporada (E-D8). Lo que
+    // le queda al título: el ancho de la barra menos el botón Atrás (si lo
+    // hay), las acciones y los márgenes del título.
+    final leading = (ModalRoute.of(context)?.impliesAppBarDismissal ?? false)
+        ? kToolbarHeight
+        : 0.0;
+    final actions =
+        (expanded ? TopBarTeamSearch.barWidth : 0) + AppSizes.tapTarget;
+    final layout = definition == null
+        ? null
+        : CompetitionTitleLayout.resolve(
+            context,
+            competition: definition,
+            width: width - leading - actions - 2 * AppSpacing.sm,
+            seasonWidth: hasSeason
+                ? AppSpacing.sm +
+                      SeasonSelector.widthFor(
+                        context,
+                        seasons,
+                        compact: compact,
+                      )
+                : null,
+          );
+    final seasonInBar = layout?.seasonInBar ?? true;
+    Widget seasonSelector({required bool compact}) => SeasonSelector(
+      season: season!,
+      seasons: seasons,
+      compact: compact,
+      onChanged: (s) => bloc.add(FixtureSeasonChanged(s)),
+    );
+    // Si no entra en la barra, baja al principio de los filtros (nivel 3),
+    // en su propio renglón: al final de una fila desplazable quedaría fuera
+    // de la vista.
+    final filterSeason = hasSeason && !seasonInBar
+        ? seasonSelector(compact: false)
+        : null;
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Nivel 2: vistas.
+        ViewTabs(
+          view: _view,
+          views: [
+            for (final v in CompetitionsView.values)
+              // La abierta sigue hasta que el listener la cambie.
+              if (v == _view ||
+                  definition == null ||
+                  v.isAvailableFor(definition))
+                v,
+          ],
+          onChanged: _showView,
+        ),
+        // Nivel 3: filtros de la vista (las tablas y las llaves llevan los
+        // suyos arriba de su contenido).
+        if (filterSeason != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              AppSpacing.xs,
+              AppSpacing.xs,
+              0,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: filterSeason,
+            ),
+          ),
+        if (_view == CompetitionsView.fixture) FixtureSelectors(state: state),
+        Expanded(child: _viewContent(context, state, expanded: expanded)),
+      ],
+    );
+    final selected = _selectedMatchId;
+
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: AppSpacing.sm,
+        title: definition == null
+            ? const Text('Competiciones')
+            : Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ViewSelector(
-                    view: _view,
-                    views: [
-                      for (final v in CompetitionsView.values)
-                        // La abierta sigue hasta que el listener la cambie.
-                        if (v == _view ||
-                            definition == null ||
-                            v.isAvailableFor(definition))
-                          v,
-                    ],
-                    onChanged: _showView,
+                  Flexible(
+                    child: CompetitionPicker(
+                      key: FixtureSelectors.competitionSelectorKey,
+                      selected: definition,
+                      shortName: layout!.shortName,
+                      onSelected: (id) =>
+                          bloc.add(FixtureCompetitionChanged(id)),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  FixtureSelectors(
-                    state: state,
-                    showPhaseSelector: _view == CompetitionsView.fixture,
-                  ),
+                  if (hasSeason && seasonInBar) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    // La barra limita la escala del título a 1,34; la
+                    // temporada es un control y usa la del sistema.
+                    MediaQuery(
+                      data: MediaQuery.of(context),
+                      child: seasonSelector(compact: compact),
+                    ),
+                  ],
                 ],
               ),
-            ),
-            if (table)
-              Expanded(
-                child: StandingsPanel(
-                  tableKey: _tableKey,
-                  onTableSelected: _selectTable,
-                  onRefresh: () => _refreshStandings(context),
-                ),
-              )
-            else if (calendar)
-              Expanded(
-                child: CalendarPanel(
-                  month: _month,
-                  onMonthChanged: _selectMonth,
-                  onRefresh: () => _refreshCalendar(context),
-                ),
-              )
-            else if (_view == CompetitionsView.bracket)
-              Expanded(
-                child: BracketPanel(
-                  phase: _bracketPhase,
-                  onPhaseSelected: _selectBracketPhase,
-                  onRefresh: () => _refreshBracket(context),
-                ),
-              )
-            else ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: StageNavigator(state: state),
-              ),
-              Expanded(
-                child: LiveAutoRefresh(
-                  hasLiveMatches: () => _fixtureHasLiveMatches(context),
-                  onTick: () => context.read<CompetitionFixtureBloc>().add(
-                    const FixtureLiveTick(),
-                  ),
-                  child: _FixtureContentView(
-                    state: state,
-                    selectedMatchId: expanded ? _selectedMatchId : null,
-                    // En escritorio el partido se abre en el panel; si no, en
-                    // su pantalla.
-                    onOpen: expanded
-                        ? (id) => setState(() => _selectedMatchId = id)
-                        : (id) => context.push(AppRoutes.matchDetail(id)),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        );
-        final selected = _selectedMatchId;
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(state.definition?.name ?? 'Competiciones'),
-            actions: [
-              const TopBarTeamSearch(),
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: switch (_view) {
-                  CompetitionsView.table =>
-                    standingsBusy ? null : () => _refreshStandings(context),
-                  CompetitionsView.calendar =>
-                    calendarBusy ? null : () => _refreshCalendar(context),
-                  CompetitionsView.bracket =>
-                    bracketBusy ? null : () => _refreshBracket(context),
-                  CompetitionsView.fixture =>
-                    state.stage == null || state.isRefreshing
-                        ? null
-                        : () => _refreshFixture(context),
-                },
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+        actions: [
+          const TopBarTeamSearch(),
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: switch (_view) {
+              CompetitionsView.table =>
+                busy.standings ? null : () => _refreshStandings(context),
+              CompetitionsView.calendar =>
+                busy.calendar ? null : () => _refreshCalendar(context),
+              CompetitionsView.bracket =>
+                busy.bracket ? null : () => _refreshBracket(context),
+              CompetitionsView.fixture =>
+                state.stage == null || state.isRefreshing
+                    ? null
+                    : () => _refreshFixture(context),
+            },
+            icon: const Icon(Icons.refresh),
           ),
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
-              ),
-              child: expanded && _view == CompetitionsView.fixture
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: content),
-                        const VerticalDivider(width: 1),
-                        SizedBox(
-                          width: _panelWidth,
-                          child: selected == null
-                              ? const EmptyView(
-                                  icon: Icons.sports_soccer,
-                                  title: 'Detalle del partido',
-                                  message:
-                                      'Elegí un partido de la lista para '
-                                      'verlo acá.',
-                                )
-                              : MatchDetailPanel(
-                                  key: ValueKey(selected),
-                                  matchId: selected,
-                                  onClose: () =>
-                                      setState(() => _selectedMatchId = null),
-                                ),
-                        ),
-                      ],
-                    )
-                  : content,
-            ),
+        ],
+      ),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: expanded ? Breakpoints.maxContentWidth : 900,
           ),
-        );
-      },
-    );
-  }
-}
-
-/// «Fixture | Tabla | Calendario | Llaves», solo las que ofrece la
-/// competición.
-class _ViewSelector extends StatelessWidget {
-  const _ViewSelector({
-    required this.view,
-    required this.views,
-    required this.onChanged,
-  });
-
-  final CompetitionsView view;
-  final List<CompetitionsView> views;
-  final ValueChanged<CompetitionsView> onChanged;
-
-  static const _segments = [
-    (CompetitionsView.fixture, 'Fixture', Icons.format_list_bulleted),
-    (CompetitionsView.table, 'Tabla', Icons.leaderboard_outlined),
-    (CompetitionsView.calendar, 'Calendario', Icons.calendar_month_outlined),
-    (CompetitionsView.bracket, 'Llaves', Icons.account_tree_outlined),
-  ];
-
-  /// Relleno lateral de cada segmento sin ícono (el de Material es 12; 4 es
-  /// su mínimo, con texto grande).
-  static const _compactPadding = 4.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final shown = [
-      for (final segment in _segments)
-        if (views.contains(segment.$1)) segment,
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Los segmentos miden todos lo que el más ancho. En un teléfono van
-        // sin íconos y con menos relleno; si las etiquetas no entran en una
-        // línea (texto grande, cuatro vistas en 360 px), en vez de partirlas
-        // se desplaza, como el selector de competiciones.
-        final widest = _widestLabel(context, shown);
-        bool fits(double extra) =>
-            shown.length * (widest + extra) <= constraints.maxWidth;
-        final icons = !Breakpoints.isCompact(context) && fits(_iconExtra);
-        final selector = SegmentedButton<CompetitionsView>(
-          style: icons
-              ? null
-              : SegmentedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: _compactPadding,
-                  ),
-                ),
-          segments: [
-            for (final (value, label, icon) in shown)
-              ButtonSegment(
-                value: value,
-                label: Text(label),
-                icon: icons ? Icon(icon) : null,
-              ),
-          ],
-          selected: {view},
-          showSelectedIcon: false,
-          onSelectionChanged: (views) => onChanged(views.first),
-        );
-        if (icons || fits(_textExtra)) return selector;
-        return Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: selector,
-          ),
-        );
-      },
+          child: expanded && _view == CompetitionsView.fixture
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: content),
+                    const VerticalDivider(width: 1),
+                    SizedBox(
+                      width: _panelWidth,
+                      child: selected == null
+                          ? const EmptyView(
+                              icon: Icons.sports_soccer,
+                              title: 'Detalle del partido',
+                              message:
+                                  'Elegí un partido de la lista para '
+                                  'verlo acá.',
+                            )
+                          : MatchDetailPanel(
+                              key: ValueKey(selected),
+                              matchId: selected,
+                              onClose: () =>
+                                  setState(() => _selectedMatchId = null),
+                            ),
+                    ),
+                  ],
+                )
+              : content,
+        ),
+      ),
     );
   }
 
-  /// Ícono (18) y separación (8), relleno de Material con ícono (12 + 16),
-  /// borde y margen.
-  static const _iconExtra = 18 + 8 + 12 + 16 + 6.0;
-
-  /// Relleno compacto a cada lado, borde y margen.
-  static const _textExtra = 2 * _compactPadding + 4;
-
-  static double _widestLabel(
+  /// Contenido de la vista abierta, debajo de la cabecera.
+  Widget _viewContent(
     BuildContext context,
-    List<(CompetitionsView, String, IconData)> shown,
-  ) {
-    final style = Theme.of(context).textTheme.labelLarge;
-    var widest = 0.0;
-    for (final (_, label, _) in shown) {
-      final painter = TextPainter(
-        text: TextSpan(text: label, style: style),
-        textDirection: Directionality.of(context),
-        textScaler: MediaQuery.textScalerOf(context),
-        maxLines: 1,
-      )..layout();
-      if (painter.width > widest) widest = painter.width;
-      painter.dispose();
-    }
-    return widest;
-  }
+    CompetitionFixtureState state, {
+    required bool expanded,
+  }) => switch (_view) {
+    CompetitionsView.table => StandingsPanel(
+      tableKey: _tableKey,
+      onTableSelected: _selectTable,
+      onRefresh: () => _refreshStandings(context),
+    ),
+    CompetitionsView.calendar => CalendarPanel(
+      month: _month,
+      onMonthChanged: _selectMonth,
+      onRefresh: () => _refreshCalendar(context),
+    ),
+    CompetitionsView.bracket => BracketPanel(
+      phase: _bracketPhase,
+      onPhaseSelected: _selectBracketPhase,
+      onRefresh: () => _refreshBracket(context),
+    ),
+    CompetitionsView.fixture => LiveAutoRefresh(
+      hasLiveMatches: () => _fixtureHasLiveMatches(context),
+      onTick: () =>
+          context.read<CompetitionFixtureBloc>().add(const FixtureLiveTick()),
+      child: _FixtureContentView(
+        state: state,
+        selectedMatchId: expanded ? _selectedMatchId : null,
+        // En escritorio el partido se abre en el panel; si no, en su
+        // pantalla.
+        onOpen: expanded
+            ? (id) => setState(() => _selectedMatchId = id)
+            : (id) => context.push(AppRoutes.matchDetail(id)),
+      ),
+    ),
+  };
 }
 
 /// La etapa mostrada tiene partidos en vivo y no se está cargando (D11).

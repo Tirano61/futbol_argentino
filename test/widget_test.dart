@@ -74,11 +74,13 @@ void main() {
     await tester.tap(find.text('Competiciones'));
     await tester.pumpAndSettle();
 
-    // Fixture real; la API simulada no devuelve partidos.
+    // Fixture real; la API simulada no devuelve partidos. El selector del
+    // título lleva el nombre completo en su semántica (a 400 px, con la
+    // fuente de los tests, se ve el corto).
     expect(
       find.descendant(
         of: find.byType(AppBar),
-        matching: find.text('Primera División'),
+        matching: find.bySemanticsLabel('Competición: Primera División'),
       ),
       findsOneWidget,
     );

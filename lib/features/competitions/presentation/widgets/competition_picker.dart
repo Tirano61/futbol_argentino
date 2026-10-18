@@ -1,279 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../domain/catalog/competition_catalog.dart';
 
-/// Selector de competición en dos niveles: categoría → competición.
+/// Selector de competición en el título de la barra superior (Hito E,
+/// decisión E-D8): el nombre de la competición con una flecha. En un
+/// teléfono abre la hoja con las competiciones agrupadas por categoría;
+/// desde 600 px, un menú con las mismas secciones.
 ///
 /// La categoría se deriva de la competición elegida (no es estado propio ni
-/// va en la URL). En un teléfono es un botón que abre una hoja con las
-/// competiciones agrupadas; desde 600 px, una fila de categorías y otra con
-/// las competiciones de la categoría (oculta si tiene una sola); desde
-/// 1200 px, las dos en la misma línea si entran. Si las categorías no entran
-/// en una línea (la columna del fixture junto al panel de detalle, o texto
-/// grande), vuelve al botón con la hoja: un solo renglón, sin chips
-/// cortados ni áreas táctiles más chicas.
-class CompetitionPicker extends StatefulWidget {
+/// va en la URL): solo agrupa la lista.
+class CompetitionPicker extends StatelessWidget {
   const CompetitionPicker({
     super.key,
-    required this.selectedId,
+    required this.selected,
     required this.onSelected,
+    this.shortName = false,
     this.catalog = CompetitionCatalog.all,
   });
 
-  /// Competición mostrada; `null` mientras carga.
-  final int? selectedId;
+  /// Competición mostrada.
+  final CompetitionDefinition selected;
 
-  /// Se llama una sola vez por elección, con la competición a cargar.
+  /// Se llama una sola vez por elección, con la competición a cargar (nunca
+  /// con la actual).
   final ValueChanged<int> onSelected;
+
+  /// Mostrar el nombre corto («Libertadores»): el completo no entra.
+  final bool shortName;
 
   final List<CompetitionDefinition> catalog;
 
-  @override
-  State<CompetitionPicker> createState() => _CompetitionPickerState();
-}
+  static const tooltip = 'Elegir competición';
 
-class _CompetitionPickerState extends State<CompetitionPicker> {
-  /// Última competición vista de cada categoría, mientras la pantalla vive:
-  /// tocar la categoría vuelve a ella.
-  final _lastByCategory = <CompetitionCategory, int>{};
+  /// Escala de texto máxima del título de un `AppBar` (la de Material: el
+  /// título no pasa de 1,34 aunque el texto esté más grande).
+  static const titleMaxTextScale = 1.34;
 
-  /// Ancho que necesitan los chips de categoría en una línea, medido con
-  /// [_measuredScaler] (cambia con la escala de texto).
-  double? _categoriesWidth;
-  TextScaler? _measuredScaler;
-
-  @override
-  void initState() {
-    super.initState();
-    _remember();
+  /// Ancho que necesita el selector con [name], con la fuente y la escala
+  /// de texto reales: texto, relleno y flecha.
+  static double widthFor(BuildContext context, String name) {
+    final scaler = MediaQuery.textScalerOf(
+      context,
+    ).clamp(maxScaleFactor: titleMaxTextScale);
+    final painter = TextPainter(
+      text: TextSpan(text: name, style: _style(context)),
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width + 2 * AppSpacing.sm + _arrowSize;
   }
 
-  @override
-  void didUpdateWidget(CompetitionPicker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _remember();
-  }
+  static const _arrowSize = 24.0;
 
-  CompetitionDefinition? get _selected {
-    for (final c in widget.catalog) {
-      if (c.id == widget.selectedId) return c;
-    }
-    return null;
-  }
-
-  void _remember() {
-    final selected = _selected;
-    if (selected != null) _lastByCategory[selected.category] = selected.id;
+  static TextStyle _style(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.textTheme.titleLarge!.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
   }
 
   void _select(int id) {
-    if (id != widget.selectedId) widget.onSelected(id);
+    if (id != selected.id) onSelected(id);
   }
 
-  /// La medición llega durante el layout: el cambio se aplica en el cuadro
-  /// siguiente (mientras tanto la fila no se pinta).
-  void _onCategoriesMeasured(double width, TextScaler scaler) {
-    final known = _categoriesWidth;
-    if (scaler == _measuredScaler &&
-        known != null &&
-        (known - width).abs() < 0.5) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        _categoriesWidth = width;
-        _measuredScaler = scaler;
-      });
-    });
-  }
-
-  void _selectCategory(
-    CompetitionCategory category,
-    List<CompetitionDefinition> competitions,
-  ) {
-    final last = _lastByCategory[category];
-    _select(
-      competitions.any((c) => c.id == last) ? last! : competitions.first.id,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final byCategory = CompetitionCatalog.byCategory(widget.catalog);
-    final selected = _selected;
-    final sheetButton = _SheetButton(
-      byCategory: byCategory,
-      selected: selected,
-      onSelected: _select,
-    );
-    if (Breakpoints.isCompact(context)) return sheetButton;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaler = MediaQuery.textScalerOf(context);
-        final needed = scaler == _measuredScaler ? _categoriesWidth : null;
-        if (needed != null && needed > constraints.maxWidth) {
-          return sheetButton;
-        }
-        return _chips(
-          context,
-          byCategory,
-          selected,
-          (width) => _onCategoriesMeasured(width, scaler),
-        );
-      },
-    );
-  }
-
-  Widget _chips(
-    BuildContext context,
-    Map<CompetitionCategory, List<CompetitionDefinition>> byCategory,
-    CompetitionDefinition? selected,
-    ValueChanged<double> onCategoriesMeasured,
-  ) {
-    final category = selected?.category;
-    final competitions = byCategory[category] ?? const [];
-    final categoryChips = _MeasuredRow(
-      onMeasured: onCategoriesMeasured,
-      children: [
-        for (final MapEntry(key: c, value: list) in byCategory.entries)
-          ChoiceChip(
-            label: Text(c.label),
-            showCheckmark: false,
-            selected: c == category,
-            onSelected: (_) {
-              if (c != category) _selectCategory(c, list);
-            },
-          ),
-      ],
-    );
-    final competitionChips = competitions.length < 2
-        ? null
-        : _ChipRow([
-            for (final c in competitions)
-              ChoiceChip(
-                label: Text(c.shortName),
-                tooltip: c.name,
-                showCheckmark: false,
-                selected: c.id == selected?.id,
-                onSelected: (_) => _select(c.id),
-              ),
-          ]);
-
-    if (Breakpoints.isExpanded(context)) {
-      return Wrap(
-        spacing: 24,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [categoryChips, ?competitionChips],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 8,
-      children: [categoryChips, ?competitionChips],
-    );
-  }
-}
-
-/// Fila de chips que informa el ancho que necesita para entrar en una línea.
-/// Si no entra no se pinta: el selector pasa al botón en el cuadro
-/// siguiente.
-class _MeasuredRow extends SingleChildRenderObjectWidget {
-  _MeasuredRow({required this.onMeasured, required List<Widget> children})
-    : super(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 8,
-          children: children,
-        ),
-      );
-
-  final ValueChanged<double> onMeasured;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderMeasuredRow(onMeasured);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderMeasuredRow renderObject,
-  ) {
-    renderObject.onMeasured = onMeasured;
-  }
-}
-
-class _RenderMeasuredRow extends RenderProxyBox {
-  _RenderMeasuredRow(this.onMeasured);
-
-  ValueChanged<double> onMeasured;
-  var _fits = true;
-
-  @override
-  void performLayout() {
-    final child = this.child!;
-    final needed = child.getMaxIntrinsicWidth(double.infinity);
-    onMeasured(needed);
-    _fits = needed <= constraints.maxWidth;
-    // Sin entrar, se dispone sin límite de ancho (no desborda) y no se pinta.
-    child.layout(
-      _fits ? constraints.loosen() : const BoxConstraints(),
-      parentUsesSize: true,
-    );
-    size = constraints.constrain(child.size);
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (_fits) super.paint(context, offset);
-  }
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      _fits && super.hitTest(result, position: position);
-}
-
-/// Chips en una fila con desplazamiento: con texto grande no entran, y
-/// bajar de renglón le quita alto al fixture.
-class _ChipRow extends StatelessWidget {
-  const _ChipRow(this.chips);
-
-  final List<Widget> chips;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(spacing: 8, children: chips),
-    );
-  }
-}
-
-/// «Ascenso · Nacional ▾»: abre la hoja con todas las competiciones.
-class _SheetButton extends StatelessWidget {
-  const _SheetButton({
-    required this.byCategory,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final Map<CompetitionCategory, List<CompetitionDefinition>> byCategory;
-  final CompetitionDefinition? selected;
-  final ValueChanged<int> onSelected;
-
-  /// Una categoría con una sola competición se nombra por la competición.
-  String get _label {
-    final c = selected;
-    if (c == null) return 'Competición';
-    if ((byCategory[c.category]?.length ?? 0) < 2) return c.name;
-    return '${c.category.label} · ${c.shortName}';
-  }
-
-  Future<void> _open(BuildContext context) async {
+  Future<void> _openSheet(BuildContext context) async {
     final id = await showModalBottomSheet<int>(
       context: context,
       // Sobre la barra de navegación (la de la sección la taparía).
@@ -283,30 +78,152 @@ class _SheetButton extends StatelessWidget {
       // Del alto de su contenido (no 9/16 de la pantalla: en horizontal
       // dejaba las copas fuera de la vista); si no entra, se desplaza.
       isScrollControlled: true,
-      builder: (context) =>
-          _CompetitionSheet(byCategory: byCategory, selectedId: selected?.id),
+      builder: (context) => _CompetitionSheet(
+        byCategory: CompetitionCatalog.byCategory(catalog),
+        selectedId: selected.id,
+      ),
     );
-    if (id != null) onSelected(id);
+    if (id != null) _select(id);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
+    // Un nodo propio (en la barra no se mezcla con la temporada), con el
+    // nombre completo aunque se vea el corto.
+    Widget button(VoidCallback onPressed) => Semantics(
+      container: true,
+      button: true,
+      label: 'Competición: ${selected.name}',
+      tooltip: tooltip,
+      onTap: onPressed,
+      excludeSemantics: true,
       child: Tooltip(
-        message: 'Elegir competición',
-        child: OutlinedButton(
-          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-          onPressed: () => _open(context),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(child: Text(_label, overflow: TextOverflow.ellipsis)),
-              const Icon(Icons.arrow_drop_down),
-            ],
+        message: tooltip,
+        excludeFromSemantics: true,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: AppRadius.controlAll,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppSizes.tapTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      shortName ? selected.shortName : selected.name,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: _style(context),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, size: _arrowSize),
+                ],
+              ),
+            ),
           ),
         ),
       ),
+    );
+
+    if (Breakpoints.isCompact(context)) {
+      return button(() => _openSheet(context));
+    }
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, AppSpacing.xs),
+      menuChildren: [
+        for (final MapEntry(key: category, value: competitions)
+            in CompetitionCatalog.byCategory(catalog).entries) ...[
+          _MenuHeader(category.label),
+          for (final c in competitions)
+            MenuItemButton(
+              leadingIcon: c.id == selected.id
+                  ? const Icon(Icons.check)
+                  : const SizedBox.square(dimension: _arrowSize),
+              onPressed: () => _select(c.id),
+              child: Semantics(
+                selected: c.id == selected.id,
+                child: Text(c.name),
+              ),
+            ),
+        ],
+      ],
+      builder: (context, controller, _) => button(
+        () => controller.isOpen ? controller.close() : controller.open(),
+      ),
+    );
+  }
+}
+
+/// Nombre de una categoría en el menú (encabezado, no se elige).
+class _MenuHeader extends StatelessWidget {
+  const _MenuHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.xs,
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Qué entra en la barra superior: el nombre completo de la competición o
+/// el corto, y si la temporada va al lado o baja a los filtros de la vista.
+/// Se mide con la fuente y la escala de texto reales sobre el ancho que le
+/// queda al título (no el de la pantalla: el riel, la búsqueda y las
+/// acciones lo achican).
+///
+/// Orden: completo y temporada; corto y temporada; completo solo; corto
+/// solo (si ni así entra, el nombre corto se recorta con «…»).
+class CompetitionTitleLayout {
+  const CompetitionTitleLayout({
+    required this.shortName,
+    required this.seasonInBar,
+  });
+
+  final bool shortName;
+  final bool seasonInBar;
+
+  /// [seasonWidth]: ancho del selector de temporada en la barra; `null`
+  /// mientras no hay temporada.
+  static CompetitionTitleLayout resolve(
+    BuildContext context, {
+    required CompetitionDefinition competition,
+    required double width,
+    required double? seasonWidth,
+  }) {
+    final full = CompetitionPicker.widthFor(context, competition.name);
+    final short = CompetitionPicker.widthFor(context, competition.shortName);
+    final season = seasonWidth ?? 0;
+    if (full + season <= width) {
+      return const CompetitionTitleLayout(shortName: false, seasonInBar: true);
+    }
+    if (short + season <= width) {
+      return const CompetitionTitleLayout(shortName: true, seasonInBar: true);
+    }
+    return CompetitionTitleLayout(
+      shortName: full > width,
+      seasonInBar: seasonWidth == null,
     );
   }
 }
@@ -344,12 +261,17 @@ class _CompetitionSheetState extends State<_CompetitionSheet> {
     final selectedId = widget.selectedId;
     return ListView(
       shrinkWrap: true,
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       children: [
         for (final MapEntry(key: category, value: competitions)
             in byCategory.entries) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
             child: Semantics(
               header: true,
               child: Text(

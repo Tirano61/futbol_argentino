@@ -7,7 +7,9 @@ import '../../../../core/sync/sync_progress.dart';
 import '../../../../core/time/argentina_time.dart';
 import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
+import '../../../../shared/presentation/widgets/scroll_row.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../domain/catalog/competition_catalog.dart';
@@ -121,27 +123,32 @@ class _LoadedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return RefreshIndicator(
+    // Filtros de la vista (nivel 3 de la cabecera, Hito E): las tablas en
+    // una fila fija que se desplaza, con la elegida a la vista.
+    final chips = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: ScrollRow(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        visible: view.tables.indexWhere((t) => t.key == table.key),
+        children: [
+          for (final t in view.tables)
+            ChoiceChip(
+              label: Text(t.shortTitle),
+              selected: t.key == table.key,
+              onSelected: (_) => onTableSelected(t.key),
+            ),
+        ],
+      ),
+    );
+    final list = RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
         children: [
           if (isRefreshing) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 8),
           ],
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final t in view.tables)
-                ChoiceChip(
-                  label: Text(t.shortTitle),
-                  selected: t.key == table.key,
-                  onSelected: (_) => onTableSelected(t.key),
-                ),
-            ],
-          ),
           if (view.zoneIssues.isNotEmpty) ...[
             const SizedBox(height: 8),
             InfoBanner(
@@ -169,6 +176,13 @@ class _LoadedView extends StatelessWidget {
           _NotesView(table: table),
         ],
       ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        chips,
+        Expanded(child: list),
+      ],
     );
   }
 }

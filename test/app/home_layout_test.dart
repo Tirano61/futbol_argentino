@@ -146,7 +146,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.text('Copa Sudamericana'),
+          matching: competitionTitle('Copa Sudamericana'),
         ),
         findsOne,
       );

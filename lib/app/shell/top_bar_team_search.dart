@@ -11,6 +11,11 @@ import '../../shared/presentation/theme/app_spacing.dart';
 class TopBarTeamSearch extends StatefulWidget {
   const TopBarTeamSearch({super.key});
 
+  static const _fieldWidth = 280.0;
+
+  /// Ancho que ocupa en la barra (en escritorio; si no, nada).
+  static const barWidth = _fieldWidth + 2 * AppSpacing.sm;
+
   @override
   State<TopBarTeamSearch> createState() => _TopBarTeamSearchState();
 }
@@ -41,7 +46,7 @@ class _TopBarTeamSearchState extends State<TopBarTeamSearch> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: SizedBox(
-        width: 280,
+        width: TopBarTeamSearch._fieldWidth,
         child: TextField(
           controller: _controller,
           textInputAction: TextInputAction.search,
