@@ -9,6 +9,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - `docs/DATA_STRATEGY.md` — carga por rondas, TTL, merge, sincronización incremental.
 - `docs/DECISIONS.md` — decisiones y alternativas.
 - `docs/HITO_C.md` — plan detallado del Hito C v3 (Fases 11–19, post-MVP).
+- `docs/HITO_E.md` — Hito E: rediseño visual (solo presentación), fases E1–E7. Maqueta en `docs/design/hito_e_maqueta.html`; capturas de referencia y prototipos en `test/visual/` (las imágenes de `test/visual/goldens/` se regeneran con `--update-goldens` solo después de revisar las diferencias).
 
 ## Forma de trabajo
 - Se trabaja **por fases**. Dentro de una fase se avanza tarea por tarea; **al terminar cada fase**: validar, informar, actualizar docs y **esperar aprobación** antes de la siguiente.
@@ -53,6 +54,12 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Un stream de ronda no se transforma con una espera por emisión (`asyncMap`): el cierre del stream de la ronda se demora y en los widget tests la precarga queda colgada. Leer antes lo que haga falta y mapear sincrónico (`WatchStageMatches._withSeries`).
 - En vivo (D11): `MatchGrouping.isLive` (la misma regla que la clase `live` de `RoundCachePolicy`). `LiveAutoRefresh` avisa cada 2 min 5 s solo con la pantalla visible (`TickerMode`), la app en primer plano y partidos en vivo; el aviso (`…LiveTick`) es una carga **sin forzar** (la vigencia decide). No avisar con la pantalla cargando: en un BLoC `restartable` cancelaría la carga. Presupuesto en `test/app/live_refresh_test.dart`.
 - Compartir y calendario: siempre por `ExternalActions` (`core/platform`, inyectado; en tests uno falso). `IcsBuilder` en `core/calendar` (Dart puro). Solo se agenda un partido programado que no empezó; hora sin confirmar → día completo. Android, día completo: de medianoche a medianoche **de Argentina** (Google Calendar toma la zona del dispositivo y el fin exclusivo).
+
+## Diseño visual (Hito E)
+- Tokens en `lib/shared/presentation/theme/`: colores del `ColorScheme` o de `AppPalette` (`group`, `live`, `warning`, `success`), espacios y medidas de `AppSpacing`/`AppRadius`/`AppSizes`, estilos de `AppText`. **Sin colores, tamaños de letra ni radios literales** en pantallas ni widgets compartidos.
+- Partidos: `MatchCard` es una fila y va dentro de un `MatchGroup` (superficie con divisores); nunca una `Card` por partido. Avisos: siempre `InfoBanner` con su `tone`.
+- Un estado nunca se indica solo con color (texto, y en las anomalías también ícono). Sin animaciones infinitas (el punto «en vivo» es fijo).
+- Las mediciones de un componente usan el ancho disponible (`LayoutBuilder`), no el de la pantalla. La fila de partido apila los equipos si a los costados no entra un nombre (texto grande en teléfono): en tests de anchos reales, cargar Roboto.
 
 ## Responsive y accesibilidad
 - Anchos en `Breakpoints` (`lib/shared/presentation/layout/breakpoints.dart`): < 600 navegación inferior · 600–1199 riel · ≥ 1200 escritorio (riel extendido, buscador en la barra, Inicio en 2 columnas, fixture con panel de detalle, contenido hasta 1200 px). La tablet a densidad 160 da 800 px en vertical y 1280 px en horizontal (escritorio).

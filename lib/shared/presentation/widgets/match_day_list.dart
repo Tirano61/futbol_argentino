@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../features/matches/domain/entities/match.dart';
 import '../../../features/matches/domain/services/match_grouping.dart';
 import '../formatters/match_labels.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_text.dart';
 import 'match_card.dart';
+import 'match_group.dart';
 
 /// Ítems de una lista de partidos agrupados por día argentino (encabezado
-/// del día + tarjetas), para usar dentro de un `ListView`.
+/// del día + un `MatchGroup` con las filas del día), para usar dentro de un
+/// `ListView`.
 ///
 /// [newestFirst]: días del más reciente al más viejo (dentro de cada día,
 /// por hora). [selectedId]: partido resaltado (abierto en el panel).
@@ -23,15 +27,19 @@ List<Widget> matchDayItems({
           ? MatchGrouping.byArgentinaDay(matches).reversed
           : MatchGrouping.byArgentinaDay(matches)) ...[
     DayHeader(group: group),
-    for (final m in group.matches)
-      MatchCard(
-        key: ValueKey(m.id),
-        match: m,
-        now: now,
-        subtitle: subtitle?.call(m),
-        onTap: onTap == null ? null : () => onTap(m),
-        selected: m.id == selectedId,
-      ),
+    MatchGroup(
+      children: [
+        for (final m in group.matches)
+          MatchCard(
+            key: ValueKey(m.id),
+            match: m,
+            now: now,
+            subtitle: subtitle?.call(m),
+            onTap: onTap == null ? null : () => onTap(m),
+            selected: m.id == selectedId,
+          ),
+      ],
+    ),
   ],
 ];
 
@@ -46,12 +54,16 @@ class DayHeader extends StatelessWidget {
     return Semantics(
       header: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.xs,
+          AppSpacing.sm,
+        ),
         child: Text(
           MatchLabels.day(group.day),
-          style: theme.textTheme.titleSmall?.copyWith(
+          style: theme.textTheme.dayHeader.copyWith(
             color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/features/competitions/presentation/widgets/bracket_panel.dart';
 import 'package:futbol_argentino/shared/presentation/widgets/match_card.dart';
+import 'package:futbol_argentino/shared/presentation/widgets/match_group.dart';
 
 import '../../../helpers/recorded_app.dart';
 
@@ -171,13 +172,30 @@ void main() {
     expect(find.byType(MatchCard), findsNWidgets(16));
     expect(find.textContaining('Ida · '), findsNWidgets(8));
     expect(find.textContaining('Vuelta · '), findsNWidgets(8));
-    expect(find.text('Fluminense – Independiente Rivadavia'), findsOne);
+    // Un grupo por serie: los equipos y el global en el encabezado, quién
+    // avanza al pie.
+    final series = find.ancestor(
+      of: find.text('Fluminense – Independiente Rivadavia'),
+      matching: find.byType(MatchGroup),
+    );
+    expect(series, findsOne);
     expect(
-      find.text(
-        'Global Fluminense 1-1 Independiente Rivadavia · '
-        'Avanza Fluminense (5-4 en penales)',
+      find.descendant(
+        of: series,
+        matching: find.text('Global Fluminense 1-1 Independiente Rivadavia'),
       ),
       findsOne,
+    );
+    expect(
+      find.descendant(
+        of: series,
+        matching: find.text('Avanza Fluminense (5-4 en penales)'),
+      ),
+      findsOne,
+    );
+    expect(
+      find.descendant(of: series, matching: find.byType(MatchCard)),
+      findsNWidgets(2),
     );
     // Dentro de la serie, la tarjeta no repite «Avanza».
     expect(find.textContaining('Avanza Fluminense (4-5'), findsNothing);

@@ -8,9 +8,11 @@ import '../../../../core/time/argentina_time.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/layout/breakpoints.dart';
+import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/live_auto_refresh.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
 import '../../../../shared/presentation/widgets/match_day_list.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/refresh_feedback.dart';
 import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
@@ -240,14 +242,18 @@ class _FeedView extends StatelessWidget {
           feed.isLoading ? 'Buscando partidos…' : 'No hay partidos hoy.',
         )
       else
-        for (final m in today)
-          MatchCard(
-            key: ValueKey(m.match.id),
-            match: m.match,
-            now: now,
-            subtitle: labels[m.match.id],
-            onTap: () => open(m.match.id),
-          ),
+        MatchGroup(
+          children: [
+            for (final m in today)
+              MatchCard(
+                key: ValueKey(m.match.id),
+                match: m.match,
+                now: now,
+                subtitle: labels[m.match.id],
+                onTap: () => open(m.match.id),
+              ),
+          ],
+        ),
     ];
 
     final upcomingSection = [
@@ -420,9 +426,14 @@ class _FavoriteTeam extends StatelessWidget {
           const _EmptySection(
             'Sin partidos guardados. Abrí la ficha para buscarlos.',
           ),
-        if (next != null)
-          card(next.match.status.isInPlay ? 'En juego' : 'Próximo', next),
-        if (last != null) card('Último', last),
+        if (next != null || last != null)
+          MatchGroup(
+            children: [
+              if (next != null)
+                card(next.match.status.isInPlay ? 'En juego' : 'Próximo', next),
+              if (last != null) card('Último', last),
+            ],
+          ),
       ],
     );
   }
@@ -508,30 +519,12 @@ class _FailedCompetitionsNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final names = competitions.map((c) => c.name).join(', ');
-    return Semantics(
-      liveRegion: true,
-      child: Material(
-        color: colors.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-          child: Row(
-            children: [
-              Icon(Icons.cloud_off, color: colors.onErrorContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'No se pudo cargar: $names.',
-                  style: TextStyle(color: colors.onErrorContainer),
-                ),
-              ),
-              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
-            ],
-          ),
-        ),
-      ),
+    return InfoBanner(
+      tone: InfoTone.error,
+      icon: Icons.cloud_off,
+      text: 'No se pudo cargar: $names.',
+      action: TextButton(onPressed: onRetry, child: const Text('Reintentar')),
     );
   }
 }

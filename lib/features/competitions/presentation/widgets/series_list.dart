@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../../shared/presentation/formatters/match_labels.dart';
+import '../../../../shared/presentation/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
+import '../../../../shared/presentation/widgets/section_header.dart';
 import '../../../matches/domain/entities/match.dart';
 import '../../domain/usecases/watch_stage_matches.dart';
 
-/// Etapa de ida y vuelta en el Fixture: cada serie con su encabezado
-/// (equipos, global y quién avanza) y sus piernas («Ida · Martes
-/// 12/08/2025»). Los partidos sin emparejar van al final.
+/// Etapa de ida y vuelta en el Fixture: un grupo por serie, con los equipos
+/// y el global en el encabezado, sus piernas («Ida · Martes 12/08/2025») y
+/// quién avanza al pie. Los partidos sin emparejar van al final.
 List<Widget> seriesItems({
   required List<StageSeries> series,
   required List<Match> unpaired,
@@ -26,86 +29,50 @@ List<Widget> seriesItems({
   );
 
   return [
-    for (final s in series) ...[
-      _SeriesHeader(series: s),
-      for (final (i, leg) in s.tie.legs.indexed)
-        legCard(leg, MatchLabels.leg(i)),
-      if (s.tie.legs.length < s.tie.expectedLegs)
-        _MissingLeg(label: MatchLabels.leg(s.tie.legs.length)),
-    ],
+    for (final s in series)
+      Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.md),
+        child: MatchGroup(
+          header: MatchGroupHeader(
+            title: '${s.tie.first.name} – ${s.tie.second.name}',
+            detail: MatchLabels.aggregate(s.tie),
+          ),
+          footer: _seriesFooter(s),
+          children: [
+            for (final (i, leg) in s.tie.legs.indexed)
+              legCard(leg, MatchLabels.leg(i)),
+            if (s.tie.legs.length < s.tie.expectedLegs)
+              MatchGroupNote(
+                '${MatchLabels.leg(s.tie.legs.length)}: sin datos en '
+                'TheSportsDB',
+              ),
+          ],
+        ),
+      ),
     if (unpaired.isNotEmpty) ...[
-      const _SectionHeader(text: 'Sin emparejar en una serie'),
-      for (final m in unpaired) legCard(m, 'Partido'),
+      const SectionHeader(title: 'Sin emparejar en una serie'),
+      MatchGroup(children: [for (final m in unpaired) legCard(m, 'Partido')]),
     ],
   ];
 }
 
-class _SeriesHeader extends StatelessWidget {
-  const _SeriesHeader({required this.series});
-
-  final StageSeries series;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tie = series.tie;
-    final outcome = series.outcome;
-    final detail = [
-      ?MatchLabels.aggregate(tie),
-      if (outcome != null)
-        MatchLabels.tieAdvances(outcome, tie)
-      else if (tie.isComplete)
-        'Sin dato de la definición',
-    ];
-    return Semantics(
-      header: true,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${tie.first.name} – ${tie.second.name}',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (detail.isNotEmpty)
-              Text(detail.join(' · '), style: theme.textTheme.bodySmall),
-          ],
-        ),
-      ),
+/// Quién avanza (con el global o la tanda), o que la serie terminó sin
+/// evidencia de la definición. Mientras se juega, nada.
+Widget? _seriesFooter(StageSeries series) {
+  final tie = series.tie;
+  final outcome = series.outcome;
+  if (outcome != null) {
+    return MatchGroupFooter(
+      icon: Icons.check_circle_outline,
+      text: MatchLabels.tieAdvances(outcome, tie),
+      success: true,
     );
   }
-}
-
-class _MissingLeg extends StatelessWidget {
-  const _MissingLeg({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-    child: Text(
-      '$label: sin datos en TheSportsDB',
-      style: Theme.of(context).textTheme.bodySmall,
-    ),
-  );
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    header: true,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-      child: Text(text, style: Theme.of(context).textTheme.titleSmall),
-    ),
-  );
+  if (tie.isComplete) {
+    return const MatchGroupFooter(
+      icon: Icons.help_outline,
+      text: 'Sin dato de la definición',
+    );
+  }
+  return null;
 }

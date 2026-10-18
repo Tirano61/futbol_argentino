@@ -12,6 +12,7 @@ import '../../../../shared/presentation/formatters/failure_messages.dart';
 import '../../../../shared/presentation/formatters/match_labels.dart';
 import '../../../../shared/presentation/widgets/info_banner.dart';
 import '../../../../shared/presentation/widgets/match_card.dart';
+import '../../../../shared/presentation/widgets/match_group.dart';
 import '../../../../shared/presentation/widgets/status_views.dart';
 import '../../../../shared/presentation/widgets/team_badge.dart';
 import '../../../matches/domain/entities/knockout_tie.dart';
@@ -219,6 +220,7 @@ class _LoadedViewState extends State<_LoadedView> {
         const Padding(
           padding: EdgeInsets.only(top: 12),
           child: InfoBanner(
+            tone: InfoTone.warning,
             icon: Icons.info_outline,
             text:
                 'Faltan partidos de la ronda siguiente en TheSportsDB: '
@@ -288,12 +290,16 @@ class _LoadedViewState extends State<_LoadedView> {
             ),
           ),
         ),
-        for (final m in bracket.unplaced)
-          MatchCard(
-            match: m,
-            now: now,
-            onTap: () => context.push(AppRoutes.matchDetail(m.id)),
-          ),
+        MatchGroup(
+          children: [
+            for (final m in bracket.unplaced)
+              MatchCard(
+                match: m,
+                now: now,
+                onTap: () => context.push(AppRoutes.matchDetail(m.id)),
+              ),
+          ],
+        ),
       ],
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
@@ -393,6 +399,7 @@ class _SyncStatus extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: InfoBanner(
+        tone: InfoTone.offline,
         icon: Icons.cloud_off,
         text:
             'No se pudieron consultar todas las rondas '

@@ -74,6 +74,19 @@ abstract final class MatchLabels {
         MatchStatusKind.unknown => status.raw ?? 'Estado desconocido',
       };
 
+  /// Si [m] tiene un marcador para mostrar: terminado, en juego, o el
+  /// parcial de un partido suspendido o interrumpido (si la API lo da).
+  static bool showsScore(Match m) =>
+      m.score != null &&
+      switch (m.status.kind) {
+        MatchStatusKind.finished ||
+        MatchStatusKind.live ||
+        MatchStatusKind.halfTime ||
+        MatchStatusKind.abandoned ||
+        MatchStatusKind.suspended => true,
+        _ => false,
+      };
+
   /// «4-3» de la tanda de penales, si la API la informa.
   static String? penalties(Match m) {
     final p = m.penalties;
@@ -129,7 +142,7 @@ abstract final class MatchLabels {
   /// Descripción para lectores de pantalla.
   static String semantics(Match m, {bool overdue = false}) {
     final score = m.score;
-    final result = score != null && (m.status.isFinished || m.status.isInPlay)
+    final result = score != null && showsScore(m)
         ? '${m.home.name} ${score.home}, ${m.away.name} ${score.away}'
         : '${m.home.name} contra ${m.away.name}';
     final shootout = m.penalties;

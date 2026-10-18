@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../features/settings/domain/entities/app_settings.dart';
+import '../../shared/presentation/theme/app_palette.dart';
+import '../../shared/presentation/theme/app_spacing.dart';
 
-/// Tema Material 3 claro y oscuro. Por defecto la app sigue el modo del
-/// sistema; en Ajustes se puede fijar uno.
+/// Tema Material 3 claro y oscuro (Hito E, §4). Por defecto la app sigue el
+/// modo del sistema; en Ajustes se puede fijar uno.
+///
+/// Los criterios visuales van en los temas de componentes, para no repetir
+/// estilos en cada widget: contenido sin elevación (la separación sale de
+/// la superficie), chips sin tilde, divisores de 1 px.
 abstract final class AppTheme {
-  /// Celeste de la camiseta argentina como color semilla.
-  static const _seed = Color(0xFF4A9BD9);
-
   static ThemeData get light => _build(Brightness.light);
 
   static ThemeData get dark => _build(Brightness.dark);
@@ -19,21 +22,67 @@ abstract final class AppTheme {
   };
 
   static ThemeData _build(Brightness brightness) {
-    final colors = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: brightness,
+    final colors = AppColors.scheme(brightness);
+    final palette = AppPalette.forBrightness(brightness);
+    final text = ThemeData(colorScheme: colors).textTheme;
+
+    final chipLabel = text.labelLarge!.copyWith(color: colors.onSurface);
+    final chipSelectedLabel = chipLabel.copyWith(
+      color: colors.onPrimaryContainer,
+      fontWeight: FontWeight.w700,
     );
+
     return ThemeData(
       colorScheme: colors,
+      scaffoldBackgroundColor: colors.surface,
+      extensions: [palette],
       appBarTheme: AppBarTheme(
         centerTitle: false,
         backgroundColor: colors.surface,
-        scrolledUnderElevation: 2,
+        foregroundColor: colors.onSurface,
+        scrolledUnderElevation: 0,
       ),
-      cardTheme: const CardThemeData(
-        margin: EdgeInsets.symmetric(vertical: 4),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: palette.group,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.groupAll),
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         clipBehavior: Clip.antiAlias,
       ),
+      // Las chips de la app son `ChoiceChip`: el elegido toma
+      // `secondarySelectedColor` y `secondaryLabelStyle`.
+      chipTheme: ChipThemeData(
+        showCheckmark: false,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.controlAll),
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? BorderSide.none
+              : BorderSide(color: colors.outlineVariant),
+        ),
+        backgroundColor: palette.group,
+        selectedColor: colors.primaryContainer,
+        secondarySelectedColor: colors.primaryContainer,
+        labelStyle: chipLabel,
+        secondaryLabelStyle: chipSelectedLabel,
+        iconTheme: IconThemeData(color: colors.onSurfaceVariant),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.outlineVariant,
+        thickness: AppSizes.divider,
+        space: AppSizes.divider,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: palette.group,
+        indicatorColor: colors.primaryContainer,
+        // Etiquetas de fábrica: en negrita, «Competiciones» no entra en
+        // un renglón a 360 px.
+        elevation: 0,
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: colors.surface,
+        indicatorColor: colors.primaryContainer,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: palette.group),
     );
   }
 }

@@ -131,11 +131,14 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Tus equipos'), findsOne);
-    await tester.scrollUntilVisible(
-      find.byType(MatchCard),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
+    // Los partidos van en grupos: el grupo construye todas sus filas juntas
+    // y `scrollUntilVisible` exige un único resultado.
+    for (var i = 0; i < 50 && find.byType(MatchCard).evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.pump();
+    }
+    await tester.ensureVisible(find.byType(MatchCard).first);
+    await tester.pumpAndSettle();
 
     await openSection(tester, 'Competiciones');
     // Con los selectores (y «Fixture | Tabla») la lista queda baja.

@@ -249,6 +249,7 @@ class _CoverageStatus extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: InfoBanner(
+          tone: InfoTone.offline,
           icon: Icons.cloud_off,
           text:
               'No se pudieron consultar todas las fechas ($upToDate de '
