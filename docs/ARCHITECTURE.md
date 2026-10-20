@@ -164,7 +164,7 @@ Implementado:
 - Los repositorios lo traducen con `ApiException.toFailure()` y nunca lo dejan pasar al dominio ni a la UI.
 - Un repositorio **lanza** `Failure` solo si no tiene ningún dato; si tiene caché, devuelve `DataResult` con `refreshError`.
 - Reintentos: solo timeout, error de conexión y HTTP 5xx (máx. 2, con 1 s y 3 s + hasta 500 ms al azar). Nunca 4xx, 429 ni JSON inválido. En Web un `ClientException` no se reintenta (puede ser CORS).
-- HTTP 429: el `RateLimiter` se pausa 60 s para todas las consultas.
+- HTTP 429: el `RateLimiter` pausa todas las consultas (`rateLimited`): lo que pide `Retry-After` (segundos o fecha HTTP medida contra `Date`; `core/network/retry_after.dart`, acotado a 1 s–10 min) o, sin él, 60 → 120 → 240 s con 429 seguidos (`recordAccepted` vuelve a 60 s con una respuesta aceptada enviada después de la pausa; un 429 de una consulta enviada antes de la pausa vigente es la misma señal). Durante la ventana que sigue a la pausa las consultas salen de a una cada `window / maxRequests` (2,4 s): sin ráfaga al reanudar. La consulta del 429 sigue fallando con `rateLimited` (sin reintento).
 
 ### URLs en Web
 Por ahora go_router usa la estrategia por defecto con `#` (`/#/diagnostico`), que funciona en cualquier hosting estático sin configuración. Las URLs sin `#` (`usePathUrlStrategy`) requieren que el servidor reescriba todas las rutas a `index.html`; se decidirá cuando se defina dónde se publica la versión Web.

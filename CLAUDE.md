@@ -125,7 +125,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 - Cuidado con `whenComplete(() => map.remove(key))`: si devuelve el Future quitado, `whenComplete` lo espera y se bloquea. Usar cuerpo de bloque.
 
 ## Contrato de red y errores
-- Todo HTTP pasa por `TheSportsDbClient.getJson` (rate limiter 25/min, timeout 15 s, reintentos solo transitorios).
+- Todo HTTP pasa por `TheSportsDbClient.getJson` (rate limiter 25/min, timeout 15 s, reintentos solo transitorios). Un 429 pausa con `RateLimiter.rateLimited` (`Retry-After` o 60 → 120 → 240 s) y al reanudar las consultas salen cada 2,4 s durante una ventana; no cambiar el tope ni volver a una pausa fija (Fase R1).
 - Data lanza `ApiException`; los repositorios lo convierten con `toFailure()`. Presentation solo ve `Failure` y `DataResult`.
 - Los tests de red usan `MockClient` + `FakeClock` (`test/helpers/`) y JSON reales de `test/fixtures/api/`.
 - En `testWidgets`, toda llamada directa a sembast va dentro de `outsideFakeAsync` (`test/helpers/favorites.dart`, usa `tester.runAsync`); si no, el test se cuelga.

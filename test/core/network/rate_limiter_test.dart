@@ -106,6 +106,175 @@ void main() {
     expect(throttles, [start.add(const Duration(minutes: 2))]);
   });
 
+  group('HTTP 429', () {
+    const s = Duration(seconds: 1);
+
+    test('sin Retry-After, la pausa crece con cada 429 seguido', () async {
+      final pauses = <Duration>[];
+      for (var i = 0; i < 4; i++) {
+        final sentAt = await limiter.acquire();
+        clock.advance(const Duration(milliseconds: 300));
+        pauses.add(limiter.rateLimited(sentAt: sentAt));
+      }
+
+      expect(pauses, [s * 60, s * 120, s * 240, s * 240]);
+    });
+
+    test(
+      'una respuesta aceptada después de la pausa vuelve a la primera',
+      () async {
+        final first = await limiter.acquire();
+        clock.advance(s);
+        expect(limiter.rateLimited(sentAt: first), s * 60);
+
+        limiter.recordAccepted(await limiter.acquire());
+        final third = await limiter.acquire();
+        clock.advance(s);
+
+        expect(limiter.rateLimited(sentAt: third), s * 60);
+      },
+    );
+
+    test(
+      'una respuesta aceptada enviada antes de la pausa no la reinicia',
+      () async {
+        final first = await limiter.acquire();
+        final second = await limiter.acquire();
+        clock.advance(s);
+        limiter.rateLimited(sentAt: first);
+        limiter.recordAccepted(second);
+
+        final third = await limiter.acquire();
+        clock.advance(s);
+
+        expect(limiter.rateLimited(sentAt: third), s * 120);
+      },
+    );
+
+    test('429 simultáneos: una sola pausa, sin escalar ni alargar', () async {
+      final pauses = <DateTime>[];
+      limiter.pauses.listen(pauses.add);
+      final start = clock.now();
+      final first = await limiter.acquire();
+      final second = await limiter.acquire();
+      clock.advance(s);
+
+      expect(limiter.rateLimited(sentAt: first), s * 60);
+      clock.advance(s);
+      expect(limiter.rateLimited(sentAt: second), s * 59);
+      await Future<void>.delayed(Duration.zero);
+
+      final until = start.add(s * 61);
+      expect(limiter.pausedUntil, until);
+      expect(pauses, [until]);
+
+      // El siguiente 429 es el segundo, no el tercero.
+      final third = await limiter.acquire();
+      clock.advance(s);
+      expect(limiter.rateLimited(sentAt: third), s * 120);
+    });
+
+    test('respeta Retry-After', () async {
+      final sentAt = await limiter.acquire();
+
+      expect(limiter.rateLimited(sentAt: sentAt, retryAfter: s * 30), s * 30);
+      await limiter.acquire();
+      expect(clock.delays, [s * 30]);
+    });
+
+    test('Retry-After se acota entre 1 s y 10 min', () async {
+      final first = await limiter.acquire();
+      expect(limiter.rateLimited(sentAt: first, retryAfter: Duration.zero), s);
+
+      final second = await limiter.acquire();
+      expect(
+        limiter.rateLimited(
+          sentAt: second,
+          retryAfter: const Duration(hours: 1),
+        ),
+        const Duration(minutes: 10),
+      );
+    });
+
+    test(
+      'un Retry-After más largo en un 429 simultáneo alarga la pausa',
+      () async {
+        final first = await limiter.acquire();
+        final second = await limiter.acquire();
+        clock.advance(s);
+        limiter.rateLimited(sentAt: first);
+
+        expect(limiter.rateLimited(sentAt: second, retryAfter: s * 90), s * 90);
+      },
+    );
+
+    test(
+      'al reanudar, las que esperaban salen de a una cada 2,4 s (sin ráfaga)',
+      () async {
+        final limiter = RateLimiter(
+          maxRequests: 25,
+          clock: clock,
+          delay: clock.delay,
+        );
+        final throttles = <DateTime>[];
+        limiter.throttles.listen(throttles.add);
+        final start = clock.now();
+        limiter.rateLimited(sentAt: await limiter.acquire());
+
+        final sent = await Future.wait([
+          for (var i = 0; i < 25; i++) limiter.acquire(),
+        ]);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(limiter.cautiousGap, const Duration(milliseconds: 2400));
+        expect(sent, [
+          for (var i = 0; i < 25; i++)
+            start.add(s * 60 + const Duration(milliseconds: 2400) * i),
+        ]);
+        expect(clock.delays, [
+          s * 60,
+          for (var i = 1; i < 25; i++) const Duration(milliseconds: 2400),
+        ]);
+        expect(throttles, isEmpty, reason: 'las esperas de 2,4 s no se avisan');
+      },
+    );
+
+    test('el modo prudente dura una ventana después de la pausa', () async {
+      final limiter = RateLimiter(
+        maxRequests: 25,
+        clock: clock,
+        delay: clock.delay,
+      );
+      limiter.rateLimited(sentAt: await limiter.acquire());
+      await limiter.acquire();
+      clock.advance(s * 60);
+      clock.delays.clear();
+
+      for (var i = 0; i < 5; i++) {
+        await limiter.acquire();
+      }
+
+      expect(clock.delays, isEmpty);
+    });
+
+    test('un 429 durante el modo prudente vuelve a pausar', () async {
+      final limiter = RateLimiter(
+        maxRequests: 25,
+        clock: clock,
+        delay: clock.delay,
+      );
+      limiter.rateLimited(sentAt: await limiter.acquire());
+      final resumed = await limiter.acquire();
+      clock.advance(s);
+      limiter.rateLimited(sentAt: resumed);
+      clock.delays.clear();
+
+      await limiter.acquire();
+
+      expect(clock.delays, [s * 120]);
+    });
+  });
+
   test('mientras dura la espera por el tope, informa hasta cuándo', () async {
     final gate = Completer<void>();
     final limiter = RateLimiter(
