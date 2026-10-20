@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/error/failure.dart';
+import 'package:futbol_argentino/core/network/rate_limiter.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 
@@ -226,6 +228,250 @@ void main() {
       scheduler.resume();
       await team;
       expect(teamRan, isTrue);
+    });
+  });
+
+  group('HTTP 429', () {
+    late FakeClock clock;
+    late RateLimiter limiter;
+
+    setUp(() {
+      clock = FakeClock();
+      limiter = RateLimiter(maxRequests: 25, clock: clock, delay: clock.delay);
+    });
+
+    SyncScheduler build({int maxConcurrent = 2, Delay? delay}) => SyncScheduler(
+      maxConcurrent: maxConcurrent,
+      clock: clock,
+      delay: delay ?? clock.delay,
+      rateLimit: limiter,
+    );
+
+    /// Una consulta como la del cliente: pide turno al limitador y, si le
+    /// toca 429, lo informa y falla con `RateLimitFailure`.
+    Future<void> request({bool limited = false, Duration? retryAfter}) async {
+      final sentAt = await limiter.acquire();
+      if (!limited) {
+        limiter.recordAccepted(sentAt);
+        return;
+      }
+      limiter.rateLimited(sentAt: sentAt, retryAfter: retryAfter);
+      throw const RateLimitFailure(detail: 'HTTP 429 (test)');
+    }
+
+    test('un 429 y después responde: el trabajo termina solo', () async {
+      final scheduler = build();
+      var runs = 0;
+
+      await scheduler.run('ronda', SyncPriority.team, () async {
+        runs++;
+        await request(limited: runs == 1);
+      });
+
+      expect(runs, 2);
+      expect(clock.delays, [const Duration(seconds: 60)]);
+      expect(scheduler.pending, 0);
+    });
+
+    test('429 persistente: falla tras 2 reintentos (3 intentos)', () async {
+      final scheduler = build();
+      var runs = 0;
+
+      await expectLater(
+        scheduler.run('ronda', SyncPriority.team, () async {
+          runs++;
+          await request(limited: true);
+        }),
+        throwsA(isA<RateLimitFailure>()),
+      );
+
+      expect(runs, 3);
+      expect(clock.delays, [
+        const Duration(seconds: 60),
+        const Duration(seconds: 120),
+      ]);
+      expect(scheduler.pending, 0);
+    });
+
+    test('tras agotar los reintentos, los 429 de la ventana siguiente fallan '
+        'sin esperar (no se encadenan esperas)', () async {
+      final scheduler = build();
+      await expectLater(
+        scheduler.run('a', SyncPriority.visible, () => request(limited: true)),
+        throwsA(isA<RateLimitFailure>()),
+      );
+
+      var runs = 0;
+      await expectLater(
+        scheduler.run('b', SyncPriority.team, () async {
+          runs++;
+          await request(limited: true);
+        }),
+        throwsA(isA<RateLimitFailure>()),
+      );
+      expect(runs, 1);
+
+      // Pasada esa ventana, un 429 nuevo vuelve a reintentarse.
+      clock.advance(const Duration(minutes: 6));
+      runs = 0;
+      await scheduler.run('c', SyncPriority.team, () async {
+        runs++;
+        await request(limited: runs == 1);
+      });
+      expect(runs, 2);
+    });
+
+    test('una pausa de más de 5 min no se espera sola', () async {
+      final scheduler = build();
+      var runs = 0;
+
+      await expectLater(
+        scheduler.run('ronda', SyncPriority.visible, () async {
+          runs++;
+          await request(limited: true, retryAfter: const Duration(minutes: 6));
+        }),
+        throwsA(isA<RateLimitFailure>()),
+      );
+
+      expect(runs, 1);
+      expect(scheduler.pending, 0);
+    });
+
+    test('los errores que no son 429 no se reintentan', () async {
+      final scheduler = build();
+      var runs = 0;
+
+      await expectLater(
+        scheduler.run('ronda', SyncPriority.visible, () async {
+          runs++;
+          throw const ServerFailure(detail: 'HTTP 503', statusCode: 503);
+        }),
+        throwsA(isA<ServerFailure>()),
+      );
+
+      expect(runs, 1);
+    });
+
+    test(
+      'durante la pausa no empieza nada; al reanudar va primero el P0',
+      () async {
+        final wake = Completer<void>();
+        final scheduler = build(maxConcurrent: 1, delay: (_) => wake.future);
+        final order = <String>[];
+        var teamRuns = 0;
+
+        final team = scheduler.run('equipo', SyncPriority.team, () async {
+          order.add('equipo');
+          await request(limited: ++teamRuns == 1);
+        });
+        await Future<void>.delayed(Duration.zero);
+        final visible = scheduler.run(
+          'visible',
+          SyncPriority.visible,
+          () async {
+            order.add('visible');
+            await request();
+          },
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(order, ['equipo'], reason: 'nada empieza durante la pausa');
+        expect(scheduler.pending, 2);
+
+        clock.advance(const Duration(seconds: 60));
+        wake.complete();
+        await Future.wait([team, visible]);
+
+        expect(order, ['equipo', 'visible', 'equipo']);
+      },
+    );
+
+    test('al reanudar, las consultas salen de a una cada 2,4 s', () async {
+      final scheduler = build();
+      final start = clock.now();
+      final sent = <DateTime>[];
+      var limited = true;
+
+      await Future.wait([
+        for (var i = 0; i < 6; i++)
+          scheduler.run('ronda:$i', SyncPriority.context, () async {
+            final sentAt = await limiter.acquire();
+            if (limited) {
+              limited = false;
+              limiter.rateLimited(sentAt: sentAt);
+              throw const RateLimitFailure(detail: 'HTTP 429 (test)');
+            }
+            sent.add(sentAt);
+          }),
+      ]);
+
+      // ronda:0 recibió el 429 y ronda:1 ya tenía turno: las dos vuelven a
+      // salir después de la pausa, de a una.
+      expect(sent, hasLength(6));
+      final resumed = start.add(const Duration(seconds: 60));
+      expect(sent.first.isBefore(resumed), isFalse);
+      for (var i = 1; i < sent.length; i++) {
+        expect(
+          sent[i].difference(sent[i - 1]),
+          greaterThanOrEqualTo(const Duration(milliseconds: 2400)),
+        );
+      }
+    });
+
+    test('un pedido de la misma clave durante la espera se une', () async {
+      final wake = Completer<void>();
+      final scheduler = build(delay: (_) => wake.future);
+      var runs = 0;
+      Future<void> task() async {
+        runs++;
+        await request(limited: runs == 1);
+      }
+
+      final first = scheduler.run('ronda', SyncPriority.team, task);
+      await Future<void>.delayed(Duration.zero);
+      final second = scheduler.run('ronda', SyncPriority.visible, task);
+      clock.advance(const Duration(seconds: 60));
+      wake.complete();
+      await Future.wait([first, second]);
+
+      expect(runs, 2);
+    });
+
+    test('cancelar durante la espera descarta el reintento', () async {
+      final scheduler = build(delay: (_) => Completer<void>().future);
+      final token = CancelToken();
+      var runs = 0;
+
+      final job = scheduler.run('ronda', SyncPriority.team, () async {
+        runs++;
+        await request(limited: true);
+      }, cancelToken: token);
+      await Future<void>.delayed(Duration.zero);
+      expect(scheduler.pending, 1);
+      token.cancel();
+
+      await expectLater(job, throwsA(isA<SyncCancelled>()));
+      expect(runs, 1);
+      expect(scheduler.pending, 0);
+    });
+
+    test('un trabajo cancelado mientras corría no se reintenta', () async {
+      final scheduler = build();
+      final token = CancelToken();
+      final gate = Completer<void>();
+      var runs = 0;
+
+      final job = scheduler.run('ronda', SyncPriority.team, () async {
+        runs++;
+        await gate.future;
+        await request(limited: true);
+      }, cancelToken: token);
+      await Future<void>.delayed(Duration.zero);
+      token.cancel();
+      gate.complete();
+
+      await expectLater(job, throwsA(isA<RateLimitFailure>()));
+      expect(runs, 1);
+      expect(scheduler.pending, 0);
     });
   });
 

@@ -33,7 +33,8 @@ String recordedFixtureFor(Uri url) {
 
 /// Repositorios reales sobre una base en memoria y un cliente HTTP que
 /// responde con las respuestas grabadas. Registra cada petición; con
-/// [offline] simula la falta de red.
+/// [offline] simula la falta de red y con [respond], otra respuesta (p. ej.
+/// un HTTP 429).
 class RecordedApi {
   RecordedApi({required this.clock, required this.db});
 
@@ -45,22 +46,37 @@ class RecordedApi {
   final requestTimes = <DateTime>[];
   var offline = false;
 
+  /// Respuesta propia para una petición; `null` = la grabada.
+  http.Response? Function(Uri url)? respond;
+
+  late final rateLimiter = RateLimiter(
+    maxRequests: 25,
+    clock: clock,
+    delay: clock.delay,
+  );
+
   late final client = TheSportsDbClient(
     config: const AppConfig(apiKey: '123', enableDiagnostics: false),
     httpClient: MockClient((request) async {
       if (offline) throw http.ClientException('Sin red (test)');
       requests.add(request.url);
       requestTimes.add(clock.now());
+      if (respond?.call(request.url) case final response?) return response;
       return http.Response.bytes(
         fixtureBytes(recordedFixtureFor(request.url)),
         200,
       );
     }),
-    rateLimiter: RateLimiter(maxRequests: 25, clock: clock, delay: clock.delay),
+    rateLimiter: rateLimiter,
     retryDelay: clock.delay,
+    clock: clock,
   );
 
-  late final scheduler = SyncScheduler(clock: clock, delay: clock.delay);
+  late final scheduler = SyncScheduler(
+    clock: clock,
+    delay: clock.delay,
+    rateLimit: rateLimiter,
+  );
   late final metadata = QueryMetadataStore(db);
 
   late final matches = MatchRepositoryImpl(
@@ -80,16 +96,26 @@ class RecordedApi {
     clock: clock,
   );
 
-  /// Peticiones como `4406:r12`, `lookupteam:135156`…
-  List<String> get requestLabels => [
-    for (final u in requests)
-      switch (u.pathSegments.last) {
-        'eventsround.php' =>
-          '${u.queryParameters['id']}:r${u.queryParameters['r']}'
-              ':s${u.queryParameters['s']}',
-        final endpoint =>
-          '${endpoint.replaceAll('.php', '')}:'
-              '${u.queryParameters['id'] ?? u.queryParameters['t']}',
-      },
-  ];
+  /// Peticiones como `4406:r12:s2026`, `lookupteam:135156`…
+  List<String> get requestLabels => [for (final u in requests) labelOf(u)];
+
+  static String labelOf(Uri u) => switch (u.pathSegments.last) {
+    'eventsround.php' =>
+      '${u.queryParameters['id']}:r${u.queryParameters['r']}'
+          ':s${u.queryParameters['s']}',
+    final endpoint =>
+      '${endpoint.replaceAll('.php', '')}:'
+          '${u.queryParameters['id'] ?? u.queryParameters['t']}',
+  };
+
+  /// Responde HTTP 429 a las primeras [times] peticiones de [label] (ver
+  /// [labelOf]); las demás, con lo grabado.
+  void limit(String label, {int times = 1}) {
+    var left = times;
+    respond = (url) {
+      if (left == 0 || labelOf(url) != label) return null;
+      left--;
+      return http.Response('{"error": "Too Many Requests"}', 429);
+    };
+  }
 }

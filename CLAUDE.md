@@ -120,7 +120,7 @@ App Flutter (Android + Web) de uso personal para consultar partidos del fútbol 
 ## Datos locales
 - sembast: archivo en Android, IndexedDB en Web (`lib/core/storage/local_database.dart`). Tests: `newDatabaseFactoryMemory()`.
 - Ajustes (tema): store `settings`, `SettingsBloc` global; `main` los lee antes de `runApp` para que el tema no parpadee.
-- Los repositorios son stale-while-revalidate; los TTL están en `CacheClass`. Todo refresco pasa por `SyncScheduler` (P0 visible, P1 contexto, P2 equipo: 10/min, de a uno, en pausa con la app oculta, cancelable con `CancelToken`).
+- Los repositorios son stale-while-revalidate; los TTL están en `CacheClass`. Todo refresco pasa por `SyncScheduler` (P0 visible, P1 contexto, P2 equipo: 10/min, de a uno, en pausa con la app oculta, cancelable con `CancelToken`). Un trabajo que falla con `RateLimitFailure` vuelve a la cola hasta 2 veces (Fase R2): una tarea de `run` puede ejecutarse más de una vez; lo ya respondido dentro de ella se guarda en la propia función (punteros: `nextResponse`). Tests de 429 con `RecordedApi.limit` (`test/core/sync/rate_limit_recovery_test.dart`).
 - El scheduler une pedidos de una clave solo mientras el trabajo está en cola o en curso: la vigencia leída antes de `run` puede quedar vieja. Las rondas la vuelven a comprobar dentro del trabajo (`MatchRepositoryImpl._refreshRoundIfNeeded`, con la regla del refresco manual si un forzado espera); tests en `match_repository_impl_test.dart` (HITO_E §27).
 - Cuidado con `whenComplete(() => map.remove(key))`: si devuelve el Future quitado, `whenComplete` lo espera y se bloquea. Usar cuerpo de bloque.
 

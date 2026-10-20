@@ -116,7 +116,7 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 
 ## Estado de implementación (Fase 9, 12/10/2026) — Estabilización
 
-- **Pausa por 429**: el `RateLimiter` expone la pausa (`RateLimitStatus`); mientras dura, la app avisa arriba hasta qué hora y las consultas siguen solas al terminar. La consulta que recibió el 429 falla con `RateLimitFailure` (la pantalla lo muestra con «Reintentar»); las demás esperan en la cola. Sin peticiones nuevas.
+- **Pausa por 429**: el `RateLimiter` expone la pausa (`RateLimitStatus`); mientras dura, la app avisa arriba hasta qué hora y las consultas siguen solas al terminar. La consulta que recibió el 429 falla con `RateLimitFailure`; las demás esperan en la cola. Sin peticiones nuevas. **Desde la Fase R2** el `SyncScheduler` reencola ese trabajo (misma prioridad y orden, la clave sigue uniendo pedidos) hasta 2 veces si alguien lo espera y la pausa no pasa de 5 min; durante la pausa no empieza ningún trabajo y al reanudar elige por prioridad. Agotados los reintentos, falla con «Reintentar» y los 429 de la ventana que sigue a esa pausa fallan sin reintento (no se encadenan esperas). Los punteros (`next` + `last` en un trabajo) guardan `next` ya respondido: un reintento solo repite `last`.
 - **Refresco manual dentro de los 30 s**: no consulta la red (regla de §5.5) y ahora lo dice («Ya está actualizado»). Se detecta en la pantalla comparando la hora de descarga antes y después (Inicio: la de cada competición).
 - Sin cambios en TTL, prioridades ni presupuestos (Inicio ≤ 12 en frío, 0 en caliente; tests de presupuesto sin cambios).
 

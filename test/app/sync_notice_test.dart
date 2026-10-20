@@ -48,10 +48,17 @@ void main() {
 
     limited = true;
     await tester.tap(find.byTooltip('Actualizar'));
-    // Cada 429 pausa las consultas un minuto (y se reintenta dos veces).
-    for (var i = 0; i < 10; i++) {
+    // Fase R2: la fecha en curso se reintenta sola dos veces (pausas de 60
+    // y 120 s); agotados los reintentos, la ronda siguiente falla sin
+    // encadenar otras esperas. «Reintentar» llega en minutos, no en un
+    // cuarto de hora.
+    final retry = find.widgetWithText(TextButton, 'Reintentar');
+    var minutes = 0;
+    while (retry.evaluate().isEmpty && minutes < 15) {
       await tester.pump(const Duration(minutes: 1));
+      minutes++;
     }
+    expect(minutes, lessThanOrEqualTo(8));
     await tester.pumpAndSettle();
 
     final text = bannerText(tester);

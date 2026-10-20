@@ -38,21 +38,29 @@ void main() {
     return http.Response.bytes(fixtureBytes(name), 200);
   }
 
-  GetHomeFeed build() {
+  /// [respond]: otra respuesta para una petición (p. ej. un HTTP 429);
+  /// `null` = la grabada.
+  GetHomeFeed build({http.Response? Function(Uri url)? respond}) {
+    final limiter = RateLimiter(
+      maxRequests: 25,
+      clock: clock,
+      delay: clock.delay,
+    );
     final client = TheSportsDbClient(
       config: const AppConfig(apiKey: '123', enableDiagnostics: false),
-      httpClient: MockClient((request) {
+      httpClient: MockClient((request) async {
         requests.add(request.url);
-        return fixtureHandler(request);
+        return respond?.call(request.url) ?? await fixtureHandler(request);
       }),
-      rateLimiter: RateLimiter(
-        maxRequests: 25,
-        clock: clock,
-        delay: clock.delay,
-      ),
+      rateLimiter: limiter,
       retryDelay: clock.delay,
+      clock: clock,
     );
-    final scheduler = SyncScheduler();
+    final scheduler = SyncScheduler(
+      clock: clock,
+      delay: clock.delay,
+      rateLimit: limiter,
+    );
     final metadata = QueryMetadataStore(db);
     return GetHomeFeed(
       competitions: CompetitionRepositoryImpl(
@@ -95,6 +103,33 @@ void main() {
       {for (final u in requests) u.queryParameters['id']},
       {'4406', '4616', '4500'},
     );
+    expect(feed.competitions.map((c) => c.competition.id), [4406, 4616, 4500]);
+  });
+
+  test('Fase R2: un 429 en un puntero se reintenta solo: 13 peticiones y '
+      'ninguna competición con error', () async {
+    var limited = false;
+    final feed = await build(
+      respond: (url) {
+        if (limited || !url.path.endsWith('eventspastleague.php')) return null;
+        limited = true;
+        return http.Response('{"error": "Too Many Requests"}', 429);
+      },
+    )(now: clock.now()).last;
+
+    expect(requests, hasLength(13));
+    // El puntero ya respondido no se vuelve a pedir.
+    final past = [
+      for (final u in requests)
+        if (u.path.endsWith('eventspastleague.php')) u.queryParameters['id'],
+    ];
+    expect(past, hasLength(4));
+    expect(past.toSet(), hasLength(3));
+    expect(
+      requests.where((u) => u.path.endsWith('eventsnextleague.php')),
+      hasLength(3),
+    );
+    expect(feed.failedCompetitions, isEmpty);
     expect(feed.competitions.map((c) => c.competition.id), [4406, 4616, 4500]);
   });
 

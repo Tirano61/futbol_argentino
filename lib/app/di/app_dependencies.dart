@@ -68,7 +68,7 @@ class AppDependencies {
       rateLimiter: rateLimiter,
       clock: clock,
     );
-    final scheduler = SyncScheduler(clock: clock);
+    final scheduler = SyncScheduler(clock: clock, rateLimit: rateLimiter);
     final metadata = QueryMetadataStore(database);
     final matchLocal = MatchLocalDataSource(database);
 
