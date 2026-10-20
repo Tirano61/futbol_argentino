@@ -66,6 +66,7 @@ class AppDependencies {
       config: appConfig,
       httpClient: client,
       rateLimiter: rateLimiter,
+      clock: clock,
     );
     final scheduler = SyncScheduler(clock: clock);
     final metadata = QueryMetadataStore(database);

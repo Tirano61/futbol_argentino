@@ -215,3 +215,7 @@ Grabadas en `test/fixtures/api/` (sección «Hito D · Fase D1» del README). De
 ### Fase D7 (17/10/2026, sin grabaciones nuevas)
 - Las semifinales 2026 siguen en curso (vueltas el 21 y 22/10) y `r=200` de las dos copas sigue vacía: las finales 2026 se graban en la tarea D-F, en una instantánea (`test/fixtures/api/snapshot_2026MMDD/`).
 - 429 frecuentes con la IP compartida (tablet + PC): en Android la app pausa y sigue; en Web el 429 llega sin CORS y el navegador lo informa como error de red («Sin conexión»), como en D5. «Reintentar» lo resuelve.
+
+### Límite de peticiones — Fase R1 (19/10/2026, sin grabaciones nuevas)
+- Sigue sin verificar si TheSportsDB manda `Retry-After` en el 429, y cómo cuenta la ventana (fija o deslizante, por IP o por clave). La documentación solo dice «30/min, esperar 1 minuto». Los bloqueos observados fueron de ~70 s (Fase 8) y ~2 min (D7), y los 429 coincidieron con la IP compartida (tablet + PC).
+- Desde R1 la app lee `Retry-After` (segundos o fecha HTTP) y lo escribe en el log de depuración (`TheSportsDB 429: Retry-After=…`). **Pendiente (V22)**: cuando aparezca un 429 real en Android, anotar los encabezados y el cuerpo y grabarlos en una instantánea (`snapshot_AAAAMMDD/`). No se provocan 429 a propósito. En Web el 429 llega sin CORS: no se pueden leer sus encabezados.

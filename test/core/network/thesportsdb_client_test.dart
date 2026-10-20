@@ -16,16 +16,13 @@ import '../../helpers/fixtures.dart';
 void main() {
   late FakeClock clock;
   late List<Uri> requests;
+  late RateLimiter limiter;
 
   TheSportsDbClient buildClient(
     Future<http.Response> Function(http.Request request) handler, {
     Duration timeout = const Duration(seconds: 15),
   }) {
-    final limiter = RateLimiter(
-      maxRequests: 25,
-      clock: clock,
-      delay: clock.delay,
-    );
+    limiter = RateLimiter(maxRequests: 25, clock: clock, delay: clock.delay);
     return TheSportsDbClient(
       config: AppConfig(
         apiKey: '123',
@@ -39,8 +36,12 @@ void main() {
       rateLimiter: limiter,
       retryDelay: clock.delay,
       random: Random(0),
+      clock: clock,
     );
   }
+
+  http.Response tooMany([Map<String, String> headers = const {}]) =>
+      http.Response('{}', 429, headers: headers);
 
   http.Response jsonResponse(List<int> bytes, [int status = 200]) =>
       http.Response.bytes(
@@ -88,14 +89,15 @@ void main() {
   });
 
   test('HTTP 429: no reintenta y pausa el rate limiter 60 s', () async {
-    final client = buildClient((_) async => http.Response('{}', 429));
+    final client = buildClient((_) async => tooMany());
 
     await expectLater(
       client.getJson('eventsround.php'),
       throwsA(
         isA<ApiException>()
             .having((e) => e.type, 'type', ApiExceptionType.rateLimited)
-            .having((e) => e.statusCode, 'statusCode', 429),
+            .having((e) => e.statusCode, 'statusCode', 429)
+            .having((e) => e.retryAfter, 'retryAfter', isNull),
       ),
     );
     expect(requests, hasLength(1));
@@ -107,6 +109,116 @@ void main() {
       throwsA(isA<ApiException>()),
     );
     expect(clock.now().difference(before), const Duration(seconds: 60));
+  });
+
+  group('HTTP 429 y Retry-After', () {
+    test('en segundos: pausa lo que pide el servidor', () async {
+      final client = buildClient((_) async => tooMany({'retry-after': '30'}));
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(
+          isA<ApiException>()
+              .having(
+                (e) => e.retryAfter,
+                'retryAfter',
+                const Duration(seconds: 30),
+              )
+              .having((e) => e.message, 'message', contains('pausa 30 s')),
+        ),
+      );
+      expect(requests, hasLength(1));
+      expect(limiter.pausedUntil, clock.now().add(const Duration(seconds: 30)));
+    });
+
+    test('como fecha HTTP: medida contra el encabezado Date', () async {
+      final client = buildClient(
+        (_) async => tooMany({
+          'retry-after': 'Sun, 11 Oct 2026 19:51:30 GMT',
+          'date': 'Sun, 11 Oct 2026 19:50:00 GMT',
+        }),
+      );
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(seconds: 90),
+          ),
+        ),
+      );
+      expect(limiter.pausedUntil, clock.now().add(const Duration(seconds: 90)));
+    });
+
+    test('inválido: espera propia de 60 s', () async {
+      final client = buildClient(
+        (_) async => tooMany({'retry-after': 'pronto'}),
+      );
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(
+          isA<ApiException>().having((e) => e.retryAfter, 'retryAfter', null),
+        ),
+      );
+      expect(limiter.pausedUntil, clock.now().add(const Duration(seconds: 60)));
+    });
+
+    test('sin encabezado: la pausa crece si se repite el 429 y vuelve a 60 s '
+        'después de una respuesta correcta', () async {
+      final responses = [429, 429, 200, 429, 200];
+      final client = buildClient(
+        (_) async => responses.removeAt(0) == 429
+            ? tooMany()
+            : jsonResponse(utf8.encode('{"events": null}')),
+      );
+
+      for (var i = 0; i < 5; i++) {
+        await client.getJson('eventsround.php').then((_) {}, onError: (_) {});
+      }
+
+      expect(requests, hasLength(5));
+      expect(clock.delays, [
+        const Duration(seconds: 60),
+        const Duration(seconds: 120),
+        // Primera salida después de la pausa: modo prudente.
+        const Duration(milliseconds: 2400),
+        const Duration(seconds: 60),
+      ]);
+    });
+
+    test('dos 429 simultáneos: una sola pausa y un solo escalón', () async {
+      final gate = Completer<void>();
+      final client = buildClient((_) async {
+        await gate.future;
+        return tooMany();
+      });
+      final start = clock.now();
+
+      final first = client.getJson('eventsround.php');
+      final second = client.getJson('eventsround.php');
+      while (requests.length < 2) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      clock.advance(const Duration(milliseconds: 500));
+      gate.complete();
+      for (final call in [first, second]) {
+        await expectLater(call, throwsA(isA<ApiException>()));
+      }
+
+      final until = start.add(const Duration(milliseconds: 60500));
+      expect(limiter.pausedUntil, until);
+
+      // El 429 siguiente es el segundo escalón (120 s), no el tercero.
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(isA<ApiException>()),
+      );
+      expect(clock.now(), until);
+      expect(limiter.pausedUntil, until.add(const Duration(seconds: 120)));
+    });
   });
 
   test('HTTP 500 transitorio: reintenta con backoff y se recupera', () async {

@@ -6,8 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../time/clock.dart';
 import 'api_exception.dart';
 import 'rate_limiter.dart';
+import 'retry_after.dart';
 
 /// Respuesta exitosa (HTTP 2xx) con JSON válido cuya raíz es un objeto.
 class ApiResponse {
@@ -32,23 +34,25 @@ class TheSportsDbClient {
     required RateLimiter rateLimiter,
     Delay retryDelay = _realDelay,
     Random? random,
+    Clock clock = const SystemClock(),
   }) : _config = config,
        _http = httpClient,
        _rateLimiter = rateLimiter,
        _retryDelay = retryDelay,
-       _random = random ?? Random();
+       _random = random ?? Random(),
+       _clock = clock;
 
   /// Esperas antes de cada reintento (se les suma hasta 500 ms al azar).
   static const retryBackoff = [Duration(seconds: 1), Duration(seconds: 3)];
-
-  /// Pausa obligatoria tras un HTTP 429.
-  static const rateLimitPause = Duration(seconds: 60);
 
   final AppConfig _config;
   final http.Client _http;
   final RateLimiter _rateLimiter;
   final Delay _retryDelay;
   final Random _random;
+
+  /// Para una fecha de `Retry-After` sin encabezado `Date`.
+  final Clock _clock;
 
   /// GET a `<base>/<endpoint>?<query>`. Lanza [ApiException] si falla.
   Future<ApiResponse> getJson(
@@ -77,7 +81,7 @@ class TheSportsDbClient {
   }
 
   Future<ApiResponse> _send(Uri uri) async {
-    await _rateLimiter.acquire();
+    final sentAt = await _rateLimiter.acquire();
     debugPrint('GET $uri');
 
     final stopwatch = Stopwatch()..start();
@@ -128,16 +132,31 @@ class TheSportsDbClient {
     String body() => utf8.decode(response.bodyBytes, allowMalformed: true);
 
     if (response.statusCode == 429) {
-      _rateLimiter.pauseFor(rateLimitPause);
+      final header = response.headers['retry-after'];
+      final retryAfter = parseRetryAfter(
+        header,
+        date: response.headers['date'],
+        now: _clock.now(),
+      );
+      final pause = _rateLimiter.rateLimited(
+        sentAt: sentAt,
+        retryAfter: retryAfter,
+      );
+      debugPrint(
+        'TheSportsDB 429: Retry-After=${header ?? '(sin encabezado)'}, '
+        'pausa ${pause.inSeconds} s',
+      );
       throw ApiException(
         type: ApiExceptionType.rateLimited,
         message:
             'TheSportsDB respondió HTTP 429 (límite de peticiones). '
-            'Se pausan las consultas ${rateLimitPause.inSeconds} s.',
+            '${header != null ? 'Retry-After: $header. ' : ''}'
+            'Consultas en pausa ${pause.inSeconds} s.',
         uri: uri,
         statusCode: 429,
         elapsed: elapsed,
         rawBody: body(),
+        retryAfter: retryAfter,
       );
     }
 
@@ -153,6 +172,7 @@ class TheSportsDbClient {
         rawBody: body(),
       );
     }
+    _rateLimiter.recordAccepted(sentAt);
 
     Never formatError(String message) => throw ApiException(
       type: ApiExceptionType.format,

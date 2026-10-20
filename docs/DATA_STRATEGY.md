@@ -59,7 +59,7 @@ Stores: `events` (key `idEvent`), `teams`, `competitions`, `query_meta` (`"round
 Flujo stale-while-revalidate: caché inmediata → si vencida, red → upsert y nueva emisión → si falla, caché + `refreshError`. Refresco manual ignora TTL (mínimo 30 s por clave).
 
 ### 5.6 Cliente HTTP
-`getJson(endpoint, params)`: base + clave desde `AppConfig`; timeout 15 s; `RateLimiter` 25/min con cola y pausa 60 s ante 429; reintentos (1 s, 3 s + jitter, máx. 2) **solo** para timeout, conexión y 5xx; `ApiException` tipada; log de URL/status/tiempo en debug.
+`getJson(endpoint, params)`: base + clave desde `AppConfig`; timeout 15 s; `RateLimiter` 25/min con cola y pausa ante 429 (`Retry-After` si llega, acotado a 1 s–10 min; si no, 60 → 120 → 240 s con 429 seguidos, vuelve a 60 s tras una respuesta aceptada enviada después de la pausa; un 429 de una consulta enviada antes de la pausa vigente no la escala; al reanudar, una consulta cada 2,4 s durante una ventana — Fase R1); reintentos (1 s, 3 s + jitter, máx. 2) **solo** para timeout, conexión y 5xx; `ApiException` tipada; log de URL/status/tiempo en debug.
 
 ### 5.7 Búsqueda de equipos
 Índice local de `TeamRef` derivado de los eventos guardados (3 peticiones cubren Primera, Nacional y Copa), normalizado sin acentos, por subcadena ("river" → River Plate; "gimnasia" → las tres). Sin resultados locales y ≥ 3 letras → respaldo `searchteams` filtrado a Argentina.
@@ -77,7 +77,7 @@ Un planificador único en `core/sync/` que ejecuta **trabajos de una petición**
 - **Incremental y reanudable**: el progreso es `query_meta`; tras reiniciar solo se piden rondas faltantes o vencidas; `closed` no se repite salvo refresco manual.
 - **Sin repeticiones**: trabajos deduplicados por clave; peticiones en vuelo compartidas.
 - **Cancelable**: `CancelToken` por dueño (BLoC/pantalla); salir de la ficha cancela sus P2; app en segundo plano pausa la cola; P0 se adelanta a todo.
-- **Rate limiter**: tope global 25/min; P2+P3 ≤ 10/min para reservar cupo a P0/P1; ante 429 pausa 60 s y se sigue con caché.
+- **Rate limiter**: tope global 25/min; P2+P3 ≤ 10/min para reservar cupo a P0/P1; ante 429 pausa (ver §5.6) y se sigue con caché.
 - **Progreso visible no bloqueante**: «Completando historial… 12/23».
 - **Por hitos**: Hito A = P0 + P1 con cola simple; Hito B = P2 y cancelación por pantalla; P3 = post-MVP.
 

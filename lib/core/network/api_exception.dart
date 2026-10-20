@@ -24,6 +24,7 @@ class ApiException implements Exception {
     this.statusCode,
     this.elapsed,
     this.rawBody,
+    this.retryAfter,
   });
 
   final ApiExceptionType type;
@@ -34,6 +35,10 @@ class ApiException implements Exception {
 
   /// Cuerpo recibido del servidor, si lo hubo.
   final String? rawBody;
+
+  /// Espera que pidió el servidor en `Retry-After` (HTTP 429), si la pidió
+  /// y se entendió.
+  final Duration? retryAfter;
 
   /// Si vale la pena reintentar: fallas transitorias del servidor o de red.
   /// En Web un `ClientException` puede ser CORS, así que no se reintenta.
