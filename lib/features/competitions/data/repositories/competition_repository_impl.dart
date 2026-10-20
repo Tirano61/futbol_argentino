@@ -9,6 +9,7 @@ import '../../../../core/storage/local_database.dart';
 import '../../../../core/sync/sync_scheduler.dart';
 import '../../../../core/time/clock.dart';
 import '../../../matches/data/mappers/event_mapper.dart';
+import '../../../matches/data/models/event_dto.dart';
 import '../../domain/catalog/competition_catalog.dart';
 import '../../domain/entities/competition.dart';
 import '../../domain/repositories/competition_repository.dart';
@@ -84,6 +85,9 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
   }) {
     final key = pointersKey(competitionId);
     final record = AppStores.schedulePointers.record(competitionId);
+    // Si `eventspastleague` da 429, el scheduler vuelve a ejecutar este
+    // mismo refresco: `eventsnextleague` ya respondido no se pide de nuevo.
+    (EventDto?,)? nextResponse;
 
     return _cached(
       key: key,
@@ -95,8 +99,8 @@ class CompetitionRepositoryImpl implements CompetitionRepository {
       },
       refresh: () async {
         final now = _clock.now();
-        final next = await remoteCall(
-          () => _remote.fetchNextEvent(competitionId),
+        final (next,) = nextResponse ??= (
+          await remoteCall(() => _remote.fetchNextEvent(competitionId)),
         );
         final last = await remoteCall(
           () => _remote.fetchLastEvent(competitionId),

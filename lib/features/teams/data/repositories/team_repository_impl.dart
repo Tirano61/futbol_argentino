@@ -120,6 +120,9 @@ class TeamRepositoryImpl implements TeamRepository {
     SyncPriority priority = SyncPriority.context,
   }) {
     final record = AppStores.teamPointers.record(teamId);
+    // Si `eventslast` da 429, el scheduler vuelve a ejecutar este mismo
+    // refresco: `eventsnext` ya respondido no se pide de nuevo.
+    (EventDto?,)? nextResponse;
     return _cached(
       key: teamPointersKey(teamId),
       cacheClass: CacheClass.pointers,
@@ -139,7 +142,9 @@ class TeamRepositoryImpl implements TeamRepository {
           return match != null && match.involvesTeam(teamId) ? match : null;
         }
 
-        final next = await remoteCall(() => _remote.fetchNextEvent(teamId));
+        final (next,) = nextResponse ??= (
+          await remoteCall(() => _remote.fetchNextEvent(teamId)),
+        );
         final last = await remoteCall(() => _remote.fetchLastEvent(teamId));
         await record.put(
           _db,
