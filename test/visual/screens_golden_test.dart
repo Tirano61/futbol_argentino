@@ -358,8 +358,138 @@ void main() {
           await tester.pumpAndSettle();
         });
       });
+
+      // Fase R3: TheSportsDB sigue respondiendo 429 y el scheduler agota
+      // los reintentos; la pausa del último 429 todavía corre.
+      testWidgets('límite agotado · 360 · $theme', (tester) async {
+        await withRealShadows(() async {
+          useBrightness(tester, brightness);
+          await pumpApp(
+            tester,
+            VisualSizes.phone,
+            respond: (url) =>
+                http.Response('{"error": "Too Many Requests"}', 429),
+            settle: false,
+          );
+          await _pumpUntilRetry(tester);
+          await expectScreen(tester, 'estado_limite_agotado_360_$theme');
+          await tester.pump(const Duration(minutes: 10));
+          await tester.pumpAndSettle();
+        });
+      });
     }
+
+    // Fase R3: el aviso de la pausa en teléfonos y con texto grande.
+    for (final (size, scale, brightness) in [
+      (VisualSizes.phoneWide, 1.0, Brightness.light),
+      (VisualSizes.phone, 2.0, Brightness.light),
+      (VisualSizes.phoneWide, 2.0, Brightness.dark),
+    ]) {
+      final name = [
+        'estado_limite',
+        '${size.width.toInt()}',
+        if (scale != 1) '${(scale * 100).toInt()}',
+        _themeName(brightness),
+      ].join('_');
+      testWidgets(name, (tester) async {
+        await withRealShadows(() async {
+          useBrightness(tester, brightness);
+          if (scale != 1) useTextScale(tester, scale);
+          var limited = false;
+          await pumpApp(
+            tester,
+            size,
+            respond: (url) {
+              if (limited) return null;
+              limited = true;
+              return http.Response('{"error": "Too Many Requests"}', 429);
+            },
+            settle: false,
+          );
+          await tester.pump(const Duration(seconds: 1));
+          await expectScreen(tester, name);
+          await tester.pump(const Duration(seconds: 61));
+          await tester.pumpAndSettle();
+        });
+      });
+    }
+
+    // Fase R3.1: bloqueo persistente con trabajos pendientes («último
+    // intento»), a 360 y con el texto al 200 %.
+    for (final scale in [1.0, 2.0]) {
+      final name = [
+        'estado_limite_ultimo_intento_360',
+        if (scale != 1) '200',
+        'claro',
+      ].join('_');
+      testWidgets(name, (tester) async {
+        await withRealShadows(() async {
+          useBrightness(tester, Brightness.light);
+          if (scale != 1) useTextScale(tester, scale);
+          await pumpApp(
+            tester,
+            VisualSizes.phone,
+            respond: (url) =>
+                http.Response('{"error": "Too Many Requests"}', 429),
+            settle: false,
+          );
+          final lastAttempt = find.textContaining('Último intento');
+          for (var i = 0; i < 60 && lastAttempt.evaluate().isEmpty; i++) {
+            await tester.pump(const Duration(seconds: 10));
+          }
+          expect(lastAttempt, findsOne);
+          await tester.pump();
+          await expectScreen(tester, name);
+          await tester.pump(const Duration(minutes: 10));
+          await tester.pumpAndSettle();
+        });
+      });
+    }
+
+    // Fase R3: con datos guardados (Tabla Anual), un 429 en «Actualizar».
+    testWidgets('límite con datos guardados · 360 · claro', (tester) async {
+      await withRealShadows(() async {
+        useBrightness(tester, Brightness.light);
+        var limited = false;
+        await pumpApp(
+          tester,
+          VisualSizes.phone,
+          respond: (url) {
+            if (!limited || !url.path.endsWith('eventsround.php')) return null;
+            limited = false;
+            return http.Response('{"error": "Too Many Requests"}', 429);
+          },
+        );
+        // El logo de la competición, como en las demás escenas.
+        await precacheCompetitionLogos(tester);
+        await goTo(
+          tester,
+          '/competiciones/4406?temporada=2026&vista=tabla&tabla=anual',
+          wait: const Duration(minutes: 2),
+        );
+        limited = true;
+        await tester.tap(find.byTooltip('Actualizar'));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 1));
+        await expectScreen(tester, 'estado_limite_guardado_360_claro');
+        await tester.pump(const Duration(minutes: 2));
+        await tester.pumpAndSettle();
+      });
+    });
   });
+}
+
+/// Deja pasar el tiempo de a 10 s hasta que aparece «Reintentar» (el
+/// scheduler agotó los reintentos), como mucho 30 minutos: con un 429
+/// persistente, el Inicio en frío tarda unos 24 (cada consulta nueva abre
+/// otra pausa de 240 s).
+Future<void> _pumpUntilRetry(WidgetTester tester) async {
+  final retry = find.text('Reintentar');
+  for (var i = 0; i < 180 && retry.evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(seconds: 10));
+  }
+  expect(retry, findsWidgets);
+  await tester.pump();
 }
 
 String _themeName(Brightness b) => b == Brightness.light ? 'claro' : 'oscuro';

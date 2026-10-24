@@ -7,6 +7,7 @@ import '../../core/network/rate_limit_status.dart';
 import '../../core/platform/external_actions.dart';
 import '../../core/network/rate_limiter.dart';
 import '../../core/network/thesportsdb_client.dart';
+import '../../core/sync/observed_sync_scheduler.dart';
 import '../../core/sync/sync_scheduler.dart';
 import '../../core/time/clock.dart';
 import '../../features/competitions/data/datasources/competition_remote_data_source.dart';
@@ -36,6 +37,7 @@ class AppDependencies {
     required this.database,
     required this.apiClient,
     required this.rateLimitStatus,
+    required this.rateLimitRecovery,
     required this.syncScheduler,
     required this.matchRepository,
     required this.competitionRepository,
@@ -68,7 +70,10 @@ class AppDependencies {
       rateLimiter: rateLimiter,
       clock: clock,
     );
-    final scheduler = SyncScheduler(clock: clock, rateLimit: rateLimiter);
+    final scheduler = ObservedSyncScheduler(
+      clock: clock,
+      rateLimit: rateLimiter,
+    );
     final metadata = QueryMetadataStore(database);
     final matchLocal = MatchLocalDataSource(database);
 
@@ -78,6 +83,7 @@ class AppDependencies {
       database: database,
       apiClient: apiClient,
       rateLimitStatus: rateLimiter,
+      rateLimitRecovery: scheduler,
       syncScheduler: scheduler,
       matchRepository: MatchRepositoryImpl(
         remote: MatchRemoteDataSource(apiClient),
@@ -117,6 +123,10 @@ class AppDependencies {
 
   /// Pausa por HTTP 429 (para avisarla en pantalla).
   final RateLimitStatus rateLimitStatus;
+
+  /// Si el scheduler dejó de reintentar un trabajo en la pausa vigente
+  /// (para no prometer un reintento automático; Fase R3).
+  final RateLimitRecovery rateLimitRecovery;
 
   /// Cola de sincronización (se pausa con la app en segundo plano).
   final SyncScheduler syncScheduler;

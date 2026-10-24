@@ -224,6 +224,40 @@ void main() {
       'La consulta tardó demasiado',
     );
     expect(title(const RateLimitFailure(detail: '')), 'Demasiadas consultas');
+    // Fase R3.1: «varios intentos» solo si los hubo.
+    String message(RateLimitFailure f) => failureMessage(f).message;
+    expect(
+      message(
+        const RateLimitFailure(
+          detail: '',
+          reason: RateLimitReason.retriesExhausted,
+        ),
+      ),
+      'No fue posible completar la actualización después de varios intentos. '
+      'Probá de nuevo en unos minutos.',
+    );
+    expect(
+      message(
+        const RateLimitFailure(
+          detail: '',
+          reason: RateLimitReason.persistentBlock,
+        ),
+      ),
+      'TheSportsDB sigue limitando las consultas. Probá de nuevo en unos '
+      'minutos.',
+    );
+    expect(
+      message(
+        RateLimitFailure(
+          detail: '',
+          reason: RateLimitReason.longPause,
+          // 17:06 de Argentina.
+          retryAt: DateTime.utc(2026, 10, 11, 20, 6),
+        ),
+      ),
+      'TheSportsDB pidió esperar hasta las 17:06. Probá de nuevo después de '
+      'esa hora.',
+    );
     expect(
       title(const ServerFailure(detail: '', statusCode: 503)),
       'TheSportsDB no respondió bien',
