@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
+import 'package:http/http.dart' as http;
 import 'package:futbol_argentino/core/sync/sync_scheduler.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
 import 'package:futbol_argentino/features/competitions/domain/usecases/watch_competition_calendar.dart';
@@ -158,6 +160,27 @@ void main() {
     expect(api.requestLabels, contains('4406:r12:s2026'));
     expect(calendar.progress.fetched, greaterThan(0));
     expect(calendar.roundsPending, 0);
+  });
+
+  /// Fase R3.1: toda consulta de rondas responde HTTP 429.
+  void limitAllRounds() =>
+      api.respond = (url) => url.path.endsWith('eventsround.php')
+      ? http.Response('{"error": "Too Many Requests"}', 429)
+      : null;
+
+  test('Fase R3.1: 429 persistente en «Actualizar»: 3 intentos de la fecha '
+      'en juego y nada más; lo guardado sigue', () async {
+    await watch(primera, download: true).last;
+    clock.advance(const Duration(minutes: 10));
+    api.requests.clear();
+    limitAllRounds();
+
+    final calendar = await watch(primera, forceRefresh: true).last;
+
+    expect(api.requestLabels, List.filled(3, '4406:r12:s2026'));
+    expect(calendar.progress.isRunning, isFalse);
+    expect(calendar.progress.failure, isA<RateLimitFailure>());
+    expect(calendar.matches, isNotEmpty);
   });
 
   test('cada partido con su fase y su etapa, sin red', () async {

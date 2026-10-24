@@ -36,11 +36,18 @@ Future<void> _realDelay(Duration duration) => Future<void>.delayed(duration);
 ///
 /// Un trabajo que falla con `RateLimitFailure` (HTTP 429) vuelve a la cola
 /// con su prioridad y su orden, hasta [maxRateLimitRetries] veces, si la
-/// pausa no supera [maxRateLimitWait] y alguien lo sigue esperando. Si un
-/// trabajo agota sus reintentos, los 429 de la ventana siguiente fallan sin
-/// reintento.
+/// pausa no supera [maxRateLimitWait] y alguien lo sigue esperando.
 /// Mientras dura la pausa de [rateLimit] no empieza ningún trabajo: al
 /// reanudar, la cola elige por prioridad.
+///
+/// Fase R3.1: después de un 429, empieza un solo trabajo por vez hasta una
+/// respuesta aceptada (la sonda). Bloqueo persistente
+/// ([isRateLimitBlocked]): con [persistentRateLimits] 429 seguidos del
+/// limitador (de cualquier trabajo) ningún 429 se reintenta; si la sonda
+/// responde, todo sigue; si vuelve a dar 429, los trabajos en cola fallan
+/// sin consultar y, hasta que termine esa pausa, también los pedidos nuevos
+/// (una pantalla que encadena pedidos tras un fallo no espera otra pausa de
+/// 240 s por cada uno). Pasada la pausa, el primer pedido es otra sonda.
 class SyncScheduler {
   SyncScheduler({
     this.maxConcurrent = 2,
@@ -69,6 +76,11 @@ class SyncScheduler {
   /// sola: el trabajo falla y queda «Reintentar».
   static const maxRateLimitWait = Duration(minutes: 5);
 
+  /// 429 seguidos que confirman un bloqueo persistente: más de 3 min de
+  /// límite (pausas de 60 y 120 s y el tercero), el escalón en que el
+  /// limitador pasa a 240 s.
+  static const persistentRateLimits = maxRateLimitRetries + 1;
+
   final _queue = <_Job>[];
   final _byKey = <String, _Job>{};
   final _backgroundStarts = Queue<DateTime>();
@@ -79,12 +91,9 @@ class SyncScheduler {
   var _wakeScheduled = false;
   var _rateLimitWakeScheduled = false;
 
-  /// Un trabajo agotó sus reintentos: hasta esta hora (la ventana que sigue
-  /// a esa pausa) los 429 no se reintentan. Así un límite persistente lleva
-  /// a «Reintentar» en minutos y no encadena las esperas de cada trabajo
-  /// (no se reinicia con un trabajo que termina bien: puede no haber
-  /// consultado nada).
-  DateTime? _noRetryUntil;
+  /// Falló la sonda de un bloqueo persistente: hasta esta hora (el fin de
+  /// la pausa de ese 429) los pedidos nuevos fallan sin consultar.
+  DateTime? _failFastUntil;
 
   /// Ejecuta [task] o se suma a un trabajo con la misma [key] ya pendiente
   /// o en curso (y le sube la prioridad si todavía está en cola).
@@ -103,6 +112,12 @@ class SyncScheduler {
       return Future.error(const SyncCancelled());
     }
     var job = _byKey[key];
+    final failFastUntil = _failFastUntil;
+    if (job == null &&
+        failFastUntil != null &&
+        _clock.now().isBefore(failFastUntil)) {
+      return Future.error(_persistentBlock);
+    }
     if (job != null) {
       if (priority.index < job.priority.index && _queue.contains(job)) {
         job.priority = priority;
@@ -124,6 +139,10 @@ class SyncScheduler {
   int get pending => _byKey.length;
 
   bool get isPaused => _paused;
+
+  /// TheSportsDB sigue limitando: [persistentRateLimits] o más 429 seguidos.
+  bool get isRateLimitBlocked =>
+      (_rateLimit?.consecutiveRateLimits ?? 0) >= persistentRateLimits;
 
   /// App en segundo plano: no empiezan trabajos P2 (los P0/P1 siguen).
   void pause() => _paused = true;
@@ -152,7 +171,11 @@ class SyncScheduler {
           : a.sequence - b.sequence,
     );
     if (_queue.isNotEmpty && _waitingRateLimit()) return;
-    while (_running < maxConcurrent && _queue.isNotEmpty) {
+    // Después de un 429, de a uno hasta una respuesta aceptada: el primero
+    // hace de sonda y ningún otro queda esperando dentro del limitador
+    // (cada uno pagaría otra pausa).
+    while (_running < (_inRateLimitEpisode ? 1 : maxConcurrent) &&
+        _queue.isNotEmpty) {
       final job = _queue.first;
       final background = job.priority.isBackground;
       // La cola está ordenada: detrás de un P2 solo hay otros P2.
@@ -173,8 +196,13 @@ class SyncScheduler {
             onError: (Object error, StackTrace stack) {
               if (_retriesAfterRateLimit(job, error)) {
                 requeued = true;
-              } else {
-                job.completer.completeError(error, stack);
+                return;
+              }
+              job.completer.completeError(_withReason(job, error), stack);
+              // La sonda volvió a dar 429: los demás fallarían igual.
+              if (error is RateLimitFailure && _probeFailed) {
+                _failFastUntil = _rateLimit?.pausedUntil;
+                _failQueued();
               }
             },
           )
@@ -189,24 +217,68 @@ class SyncScheduler {
   }
 
   /// Si el trabajo vuelve a la cola tras un HTTP 429: quedan reintentos,
-  /// alguien lo espera y la pausa es razonable.
+  /// alguien lo espera, la pausa es razonable y no hay bloqueo persistente.
   bool _retriesAfterRateLimit(_Job job, Object error) {
-    if (error is! RateLimitFailure || job.isAbandoned) return false;
-    final now = _clock.now();
-    final until = _rateLimit?.pausedUntil;
-    if (job.rateLimitRetries >= maxRateLimitRetries) {
-      _noRetryUntil = (until ?? now).add(window);
-      return false;
-    }
-    final noRetryUntil = _noRetryUntil;
-    if (noRetryUntil != null && now.isBefore(noRetryUntil)) return false;
-    if (until != null && until.difference(now) > maxRateLimitWait) {
+    if (error is! RateLimitFailure ||
+        job.isAbandoned ||
+        isRateLimitBlocked ||
+        job.rateLimitRetries >= maxRateLimitRetries ||
+        _longPause) {
       return false;
     }
     job.rateLimitRetries++;
     _queue.add(job);
     return true;
   }
+
+  /// La pausa vigente supera [maxRateLimitWait].
+  bool get _longPause {
+    final until = _rateLimit?.pausedUntil;
+    return until != null && until.difference(_clock.now()) > maxRateLimitWait;
+  }
+
+  /// Hubo un 429 sin una respuesta aceptada después.
+  bool get _inRateLimitEpisode => (_rateLimit?.consecutiveRateLimits ?? 0) > 0;
+
+  /// Un 429 con el bloqueo ya confirmado antes de esa consulta.
+  bool get _probeFailed =>
+      (_rateLimit?.consecutiveRateLimits ?? 0) > persistentRateLimits;
+
+  /// El error de un 429 que no se reintenta, con el motivo (para el
+  /// mensaje: no decir «varios intentos» si hubo uno).
+  Object _withReason(_Job job, Object error) {
+    if (error is! RateLimitFailure || job.isAbandoned) return error;
+    if (_longPause) {
+      return error.withReason(
+        RateLimitReason.longPause,
+        retryAt: _rateLimit?.pausedUntil,
+      );
+    }
+    if (job.rateLimitRetries >= maxRateLimitRetries) {
+      return error.withReason(RateLimitReason.retriesExhausted);
+    }
+    if (isRateLimitBlocked) {
+      return error.withReason(RateLimitReason.persistentBlock);
+    }
+    return error;
+  }
+
+  /// Termina los trabajos en cola (también los que esperaban un reintento)
+  /// sin consultar: el bloqueo sigue después de una pausa de 240 s.
+  void _failQueued() {
+    final queued = [..._queue];
+    _queue.clear();
+    for (final job in queued) {
+      _byKey.remove(job.key);
+      job.completer.completeError(_persistentBlock);
+    }
+  }
+
+  /// El error de un trabajo que no llegó a consultar.
+  static const _persistentBlock = RateLimitFailure(
+    detail: 'No se consultó: TheSportsDB sigue limitando las consultas.',
+    reason: RateLimitReason.persistentBlock,
+  );
 
   /// Consultas en pausa por HTTP 429: no empieza nada (las que empezaran
   /// esperarían en el limitador en orden de llegada) y se vuelve a mirar la

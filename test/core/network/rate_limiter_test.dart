@@ -275,6 +275,72 @@ void main() {
     });
   });
 
+  // Fase R3.1: la racha de 429 seguidos que usa el scheduler para dar un
+  // bloqueo por persistente. Las pausas no cambian.
+  group('429 seguidos (consecutiveRateLimits)', () {
+    const s = Duration(seconds: 1);
+
+    /// Una consulta que sale y recibe 429; devuelve la pausa.
+    Future<Duration> limited() async {
+      final sentAt = await limiter.acquire();
+      clock.advance(const Duration(milliseconds: 300));
+      return limiter.rateLimited(sentAt: sentAt);
+    }
+
+    test('cuenta los 429 seguidos con las mismas pausas de R1', () async {
+      expect(limiter.consecutiveRateLimits, 0);
+      final pauses = [for (var i = 0; i < 4; i++) await limited()];
+
+      expect(pauses, [s * 60, s * 120, s * 240, s * 240]);
+      expect(limiter.consecutiveRateLimits, 4);
+    });
+
+    test('dos 429 de consultas que salieron juntas cuentan uno', () async {
+      final first = await limiter.acquire();
+      final second = await limiter.acquire();
+      clock.advance(s);
+      limiter.rateLimited(sentAt: first);
+      clock.advance(s);
+      limiter.rateLimited(sentAt: second);
+
+      expect(limiter.consecutiveRateLimits, 1);
+    });
+
+    test('una respuesta aceptada después de la pausa la vuelve a 0', () async {
+      await limited();
+      await limited();
+      limiter.recordAccepted(await limiter.acquire());
+
+      expect(limiter.consecutiveRateLimits, 0);
+      await limited();
+      expect(limiter.consecutiveRateLimits, 1);
+    });
+
+    test('pasada una ventana desde el fin de la pausa, se lee 0 y el 429 '
+        'siguiente empieza otro episodio (la pausa sigue escalada)', () async {
+      for (var i = 0; i < 3; i++) {
+        await limited();
+      }
+      expect(limiter.consecutiveRateLimits, 3);
+
+      // Termina la pausa de 240 s y pasa más de un minuto sin consultas.
+      clock.advance(const Duration(minutes: 6));
+      expect(limiter.consecutiveRateLimits, 0);
+
+      expect(await limited(), s * 240, reason: 'R1 sin cambios');
+      expect(limiter.consecutiveRateLimits, 1);
+    });
+
+    test('un 429 enseguida después de la pausa sigue el episodio', () async {
+      await limited();
+      await limited();
+      // `acquire` espera la pausa de 120 s y sale enseguida.
+      await limited();
+
+      expect(limiter.consecutiveRateLimits, 3);
+    });
+  });
+
   test('mientras dura la espera por el tope, informa hasta cuándo', () async {
     final gate = Completer<void>();
     final limiter = RateLimiter(

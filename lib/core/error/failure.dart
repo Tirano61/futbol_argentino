@@ -42,6 +42,19 @@ final class NetworkFailure extends Failure {
   final NetworkIssue issue;
 }
 
+/// Por qué el scheduler dejó de reintentar un HTTP 429 (Fase R3.1).
+enum RateLimitReason {
+  /// El trabajo hizo sus 3 intentos.
+  retriesExhausted,
+
+  /// TheSportsDB sigue limitando (3 o más 429 seguidos de cualquier
+  /// trabajo): este pudo hacer menos intentos o ninguno.
+  persistentBlock,
+
+  /// TheSportsDB pidió esperar más de 5 min (`Retry-After`): un intento.
+  longPause,
+}
+
 /// HTTP 429: se superó el límite de peticiones de TheSportsDB.
 final class RateLimitFailure extends Failure {
   const RateLimitFailure({
@@ -49,7 +62,25 @@ final class RateLimitFailure extends Failure {
     super.statusCode = 429,
     super.elapsed,
     super.responseBody,
+    this.reason,
+    this.retryAt,
   });
+
+  /// Por qué no se reintentó; `null` si no pasó por el scheduler.
+  final RateLimitReason? reason;
+
+  /// Fin de la pausa (UTC) con [RateLimitReason.longPause].
+  final DateTime? retryAt;
+
+  RateLimitFailure withReason(RateLimitReason reason, {DateTime? retryAt}) =>
+      RateLimitFailure(
+        detail: detail,
+        statusCode: statusCode,
+        elapsed: elapsed,
+        responseBody: responseBody,
+        reason: reason,
+        retryAt: retryAt,
+      );
 }
 
 /// Respuesta HTTP de error (distinta de 404 y 429).

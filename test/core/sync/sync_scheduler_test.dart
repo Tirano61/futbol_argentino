@@ -337,6 +337,288 @@ void main() {
       expect(scheduler.pending, 0);
     });
 
+    // Fase R3.1: bloqueo persistente (3 HTTP 429 seguidos de cualquier
+    // trabajo): sin reintentos, una sola sonda y, si falla, la cola termina.
+    group('bloqueo persistente', () {
+      /// Resultado de un trabajo: `null` si terminó bien, o el error.
+      Future<Object?> outcome(Future<void> job) =>
+          job.then<Object?>((_) => null, onError: (Object e) => e);
+
+      RateLimitReason? reasonOf(Object? error) =>
+          error is RateLimitFailure ? error.reason : null;
+
+      /// El limitador ya vio tres 429 seguidos (la pausa de 240 s corre).
+      Future<void> confirmBlock(SyncScheduler scheduler) async {
+        for (var i = 0; i < 3; i++) {
+          final sentAt = await limiter.acquire();
+          clock.advance(const Duration(milliseconds: 300));
+          limiter.rateLimited(sentAt: sentAt);
+        }
+        expect(limiter.consecutiveRateLimits, 3);
+        expect(scheduler.isRateLimitBlocked, isTrue);
+      }
+
+      test('tres trabajos con 429 persistente: 4 consultas y todos con '
+          'error (antes, hasta 9, de a una cada 4 min)', () async {
+        final scheduler = build();
+        var requests = 0;
+        Future<void> task() async {
+          requests++;
+          await request(limited: true);
+        }
+
+        final results = await Future.wait([
+          for (final key in ['a', 'b', 'c'])
+            outcome(scheduler.run(key, SyncPriority.context, task)),
+        ]);
+
+        expect(requests, 4);
+        expect(results, everyElement(isA<RateLimitFailure>()));
+        expect(results.map(reasonOf), everyElement(isNotNull));
+        expect(scheduler.pending, 0);
+        expect(scheduler.isRateLimitBlocked, isTrue);
+      });
+
+      test(
+        'si la sonda responde, la cola sigue sola y la racha vuelve a 0',
+        () async {
+          final scheduler = build();
+          var requests = 0;
+          Future<void> task() async {
+            requests++;
+            // Solo las 3 primeras consultas chocan con el límite.
+            await request(limited: requests <= 3);
+          }
+
+          final results = await Future.wait([
+            for (final key in ['a', 'b', 'c'])
+              outcome(scheduler.run(key, SyncPriority.context, task)),
+          ]);
+
+          // El trabajo del tercer 429 no se reintenta; los demás terminan.
+          expect(results.whereType<RateLimitFailure>(), hasLength(1));
+          expect(results.where((r) => r == null), hasLength(2));
+          expect(limiter.consecutiveRateLimits, 0);
+          expect(scheduler.isRateLimitBlocked, isFalse);
+        },
+      );
+
+      test('con el bloqueo confirmado sale una sola sonda; si vuelve a dar '
+          '429, los demás terminan sin consultar', () async {
+        final wake = Completer<void>();
+        final scheduler = build(maxConcurrent: 3, delay: (_) => wake.future);
+        await confirmBlock(scheduler);
+
+        var running = 0;
+        var maxRunning = 0;
+        final started = <String>[];
+        final jobs = [
+          for (final (key, priority) in [
+            ('p2', SyncPriority.team),
+            ('p1', SyncPriority.context),
+            ('p0', SyncPriority.visible),
+          ])
+            outcome(
+              scheduler.run(key, priority, () async {
+                started.add(key);
+                running++;
+                if (running > maxRunning) maxRunning = running;
+                try {
+                  await request(limited: true);
+                } finally {
+                  running--;
+                }
+              }),
+            ),
+        ];
+        // Termina la pausa de 240 s.
+        clock.advance(const Duration(minutes: 4));
+        wake.complete();
+        final results = await Future.wait(jobs);
+
+        expect(maxRunning, 1);
+        expect(started, ['p0'], reason: 'la sonda es el de más prioridad');
+        expect(results, everyElement(isA<RateLimitFailure>()));
+        expect(
+          results.map(reasonOf),
+          everyElement(RateLimitReason.persistentBlock),
+        );
+        expect(scheduler.pending, 0);
+      });
+
+      test(
+        'con la sonda fallida, los pedidos nuevos fallan en el acto hasta '
+        'que termina esa pausa; después, el primero vuelve a ser sonda',
+        () async {
+          final scheduler = build();
+          await confirmBlock(scheduler);
+          // La sonda (al terminar la pausa de 240 s) vuelve a dar 429.
+          expect(
+            await outcome(
+              scheduler.run('sonda', SyncPriority.visible, () async {
+                await request(limited: true);
+              }),
+            ),
+            isA<RateLimitFailure>(),
+          );
+          final pauseEnd = limiter.pausedUntil!;
+
+          var runs = 0;
+          final early = await outcome(
+            scheduler.run('nuevo', SyncPriority.visible, () async {
+              runs++;
+              await request();
+            }),
+          );
+          expect(runs, 0, reason: 'no consulta');
+          expect(reasonOf(early), RateLimitReason.persistentBlock);
+
+          clock.advance(pauseEnd.difference(clock.now()));
+          final later = await outcome(
+            scheduler.run('después', SyncPriority.visible, () async {
+              runs++;
+              await request();
+            }),
+          );
+          expect(runs, 1);
+          expect(later, isNull);
+          expect(scheduler.isRateLimitBlocked, isFalse);
+        },
+      );
+
+      test(
+        'un P0 que espera mientras un P2 confirma el bloqueo no se '
+        'descarta: es la sonda y, si TheSportsDB responde, termina bien',
+        () async {
+          final scheduler = build(maxConcurrent: 1);
+          // Dos 429 seguidos; la pausa ya terminó (sigue el episodio).
+          for (var i = 0; i < 2; i++) {
+            final sentAt = await limiter.acquire();
+            clock.advance(const Duration(milliseconds: 300));
+            limiter.rateLimited(sentAt: sentAt);
+          }
+          clock.advance(const Duration(minutes: 2));
+
+          final gate = Completer<void>();
+          final p2 = outcome(
+            scheduler.run('p2', SyncPriority.team, () async {
+              await gate.future;
+              await request(limited: true);
+            }),
+          );
+          await Future<void>.delayed(Duration.zero);
+          var p0Runs = 0;
+          final p0 = outcome(
+            scheduler.run('p0', SyncPriority.visible, () async {
+              p0Runs++;
+              await request();
+            }),
+          );
+          // El tercer 429 (el del P2) confirma el bloqueo.
+          gate.complete();
+
+          expect(reasonOf(await p2), RateLimitReason.persistentBlock);
+          expect(await p0, isNull);
+          expect(p0Runs, 1);
+          expect(limiter.consecutiveRateLimits, 0);
+          expect(scheduler.isRateLimitBlocked, isFalse);
+        },
+      );
+
+      test('un P0 que llega con el bloqueo confirmado: un intento y el '
+          'motivo «sigue limitando», no «varios intentos»', () async {
+        final scheduler = build();
+        await confirmBlock(scheduler);
+        var runs = 0;
+        final result = await outcome(
+          scheduler.run('p0', SyncPriority.visible, () async {
+            runs++;
+            await request(limited: true);
+          }),
+        );
+
+        expect(runs, 1);
+        expect(reasonOf(result), RateLimitReason.persistentBlock);
+      });
+
+      test(
+        'el trabajo que hizo sus 3 intentos: motivo «varios intentos»',
+        () async {
+          final scheduler = build();
+          final result = await outcome(
+            scheduler.run('ronda', SyncPriority.team, () async {
+              await request(limited: true);
+            }),
+          );
+
+          expect(reasonOf(result), RateLimitReason.retriesExhausted);
+        },
+      );
+
+      test(
+        'dos pedidos de la misma clave durante el bloqueo: una consulta',
+        () async {
+          final scheduler = build();
+          await confirmBlock(scheduler);
+          var runs = 0;
+          Future<void> task() async {
+            runs++;
+            await request();
+          }
+
+          final results = await Future.wait([
+            outcome(scheduler.run('ronda', SyncPriority.visible, task)),
+            outcome(scheduler.run('ronda', SyncPriority.team, task)),
+          ]);
+
+          expect(runs, 1);
+          expect(results, [null, null]);
+        },
+      );
+
+      test(
+        'cancelado durante la pausa: se descarta, no termina con 429',
+        () async {
+          final scheduler = build();
+          await confirmBlock(scheduler);
+          final token = CancelToken();
+          var runs = 0;
+          final job = outcome(
+            scheduler.run('ronda', SyncPriority.team, () async {
+              runs++;
+              await request(limited: true);
+            }, cancelToken: token),
+          );
+          token.cancel();
+
+          expect(await job, isA<SyncCancelled>());
+          expect(runs, 0);
+          expect(scheduler.pending, 0);
+        },
+      );
+
+      test('Retry-After de más de 5 min: un intento, motivo y hora; los demás '
+          'siguen después de la pausa', () async {
+        final scheduler = build(maxConcurrent: 1);
+        final long = outcome(
+          scheduler.run('largo', SyncPriority.visible, () async {
+            await request(
+              limited: true,
+              retryAfter: const Duration(minutes: 6),
+            );
+          }),
+        );
+        final other = outcome(
+          scheduler.run('otro', SyncPriority.visible, () => request()),
+        );
+
+        final failure = await long;
+        expect(reasonOf(failure), RateLimitReason.longPause);
+        expect((failure! as RateLimitFailure).retryAt, isNotNull);
+        expect(await other, isNull);
+      });
+    });
+
     test('los errores que no son 429 no se reintentan', () async {
       final scheduler = build();
       var runs = 0;

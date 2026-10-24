@@ -134,6 +134,9 @@ class WatchStandings {
       cancelToken: cancelToken,
       rounds: format.regularRounds,
       forceRefresh: forceRefresh,
+      // Un 429 en el paso forzado ya agotó lo que el scheduler intenta: el
+      // resto de la descarga fallaría igual, después de otra pausa (R3.1).
+      fetch: forcedFailure is! RateLimitFailure,
     )) {
       final p = completion.progress;
       yield _build(

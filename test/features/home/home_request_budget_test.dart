@@ -106,6 +106,24 @@ void main() {
     expect(feed.competitions.map((c) => c.competition.id), [4406, 4616, 4500]);
   });
 
+  test('Fase R3.1: 429 persistente en frío: confirmado el bloqueo, ninguna '
+      'competición se reintenta (antes 8 peticiones, unos 24 min)', () async {
+    final feed = await build(
+      respond: (_) => http.Response('{"error": "Too Many Requests"}', 429),
+    )(now: clock.now()).last;
+
+    // La primera hace sus 3 intentos (60 y 120 s de pausa) y confirma el
+    // bloqueo; cada una de las otras, a lo sumo una consulta. Con este
+    // reloj las esperas son instantáneas y una competición puede llegar
+    // a la cola después de la sonda (en la app llegan juntas: 4 consultas,
+    // `test/app/error_states_test.dart`).
+    String id(Uri u) => u.queryParameters['id']!;
+    expect(requests.take(3).map(id), ['4406', '4406', '4406']);
+    expect(requests.skip(3).map(id).toSet(), hasLength(requests.length - 3));
+    expect(requests.length, lessThanOrEqualTo(5));
+    expect(feed.failedCompetitions, hasLength(3));
+  });
+
   test('Fase R2: un 429 en un puntero se reintenta solo: 13 peticiones y '
       'ninguna competición con error', () async {
     var limited = false;
