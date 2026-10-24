@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../layout/text_measure.dart';
 import '../theme/app_palette.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text.dart';
@@ -37,7 +38,14 @@ class InfoBanner extends StatelessWidget {
     this.action,
     this.tone = InfoTone.info,
     this.band = false,
-  });
+    this.compactText,
+  }) : assert(
+         compactText == null || action == null,
+         'La versión corta se elige midiendo el texto sin acción.',
+       );
+
+  /// Renglones de [text] a partir de los que se muestra [compactText].
+  static const compactAfterLines = 4;
 
   /// Si es `null`, el del [tone].
   final IconData? icon;
@@ -48,6 +56,11 @@ class InfoBanner extends StatelessWidget {
   /// Franja a todo el ancho y sin bordes redondeados, que cubre también la
   /// barra de estado (el aviso de límite de consultas, arriba de la app).
   final bool band;
+
+  /// Versión más corta de [text], para cuando [text] ocupa más de
+  /// [compactAfterLines] renglones (texto grande en un teléfono): el aviso
+  /// no tapa media pantalla. Los lectores de pantalla leen siempre [text].
+  final String? compactText;
 
   @override
   Widget build(BuildContext context) {
@@ -61,17 +74,36 @@ class InfoBanner extends StatelessWidget {
       InfoTone.error => (Icons.error_outline, colors.error),
     };
 
+    final style = theme.textTheme.bannerMessage.copyWith(
+      color: colors.onSurface,
+    );
+    final compactText = this.compactText;
     final message = Row(
       children: [
         Icon(icon ?? defaultIcon, color: iconColor, size: AppSizes.bannerIcon),
         const SizedBox(width: AppSpacing.md),
         Expanded(
-          child: Text(
-            text,
-            style: theme.textTheme.bannerMessage.copyWith(
-              color: colors.onSurface,
-            ),
-          ),
+          child: compactText == null
+              ? Text(text, style: style)
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final measure = TextMeasure.of(context);
+                    final width = constraints.maxWidth;
+                    final fits =
+                        measure.height(text, style, width) <=
+                        measure.height(
+                          text,
+                          style,
+                          width,
+                          maxLines: compactAfterLines,
+                        );
+                    return Text(
+                      fits ? text : compactText,
+                      semanticsLabel: fits ? null : text,
+                      style: style,
+                    );
+                  },
+                ),
         ),
       ],
     );

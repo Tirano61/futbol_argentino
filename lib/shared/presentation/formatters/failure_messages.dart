@@ -1,4 +1,5 @@
 import '../../../core/error/failure.dart';
+import '../../../core/time/argentina_time.dart';
 
 /// Mensaje para el usuario según el tipo de error.
 ({String title, String message}) failureMessage(Failure failure) =>
@@ -11,10 +12,31 @@ import '../../../core/error/failure.dart';
         title: 'Sin conexión',
         message: 'No se pudo conectar con TheSportsDB. Revisá tu conexión.',
       ),
+      // Llega a la pantalla solo cuando el scheduler dejó de reintentar
+      // (Fase R2): no se promete otro intento automático. Solo se dice
+      // «varios intentos» si los hubo (Fase R3.1).
+      RateLimitFailure(
+        reason: RateLimitReason.longPause,
+        retryAt: final retryAt?,
+      ) =>
+        (
+          title: 'Demasiadas consultas',
+          message:
+              'TheSportsDB pidió esperar hasta las '
+              '${ArgentinaTime.formatTime(retryAt)}. Probá de nuevo después '
+              'de esa hora.',
+        ),
+      RateLimitFailure(reason: RateLimitReason.persistentBlock) => (
+        title: 'Demasiadas consultas',
+        message:
+            'TheSportsDB sigue limitando las consultas. Probá de nuevo en '
+            'unos minutos.',
+      ),
       RateLimitFailure() => (
         title: 'Demasiadas consultas',
         message:
-            'Se superó el límite de TheSportsDB. Probá de nuevo en un minuto.',
+            'No fue posible completar la actualización después de varios '
+            'intentos. Probá de nuevo en unos minutos.',
       ),
       ServerFailure(:final statusCode) => (
         title: 'TheSportsDB no respondió bien',

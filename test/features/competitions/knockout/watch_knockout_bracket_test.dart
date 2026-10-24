@@ -1,6 +1,8 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
+import 'package:http/http.dart' as http;
 import 'package:futbol_argentino/core/time/clock.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/phase.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
@@ -135,6 +137,37 @@ void main() {
       );
     });
   });
+
+  /// Fase R3.1: toda consulta de rondas responde HTTP 429.
+  void limitAllRounds() =>
+      api.respond = (url) => url.path.endsWith('eventsround.php')
+      ? http.Response('{"error": "Too Many Requests"}', 429)
+      : null;
+
+  test(
+    'Fase R3.1: Libertadores, 429 persistente en «Actualizar»: 3 intentos '
+    'de la semifinal en juego y nada más; el cuadro guardado sigue',
+    () async {
+      clock.advance(continentalRecordingTime.difference(clock.now()));
+      await watch(4501);
+      clock.advance(const Duration(minutes: 10));
+      api.requests.clear();
+      limitAllRounds();
+
+      final view = await WatchKnockoutBracket(api.matches)(
+        4501,
+        const Season(2026),
+        now: clock.now(),
+        cancelToken: CancelToken(),
+        forceRefresh: true,
+      ).last;
+
+      expect(rounds(), List.filled(3, '4501:r150'));
+      expect(view.progress.isRunning, isFalse);
+      expect(view.progress.failure, isA<RateLimitFailure>());
+      expect(view.brackets, isNotEmpty);
+    },
+  );
 
   test('Nacional: sin cuadro verificado y sin peticiones', () async {
     final view = await watch(4616);

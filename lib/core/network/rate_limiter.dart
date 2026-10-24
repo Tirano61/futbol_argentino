@@ -60,6 +60,11 @@ class RateLimiter implements RateLimitStatus {
   DateTime? _rateLimitedAt;
   var _strikes = 0;
 
+  /// 429 seguidos del episodio (Fase R3.1). Como [_strikes], pero un 429 de
+  /// una consulta enviada más de una ventana después del fin de la pausa
+  /// anterior empieza otro episodio. No cambia las pausas.
+  var _streak = 0;
+
   /// Hasta cuándo las peticiones salen espaciadas (la ventana que sigue a
   /// una pausa).
   DateTime? _cautiousUntil;
@@ -76,6 +81,13 @@ class RateLimiter implements RateLimitStatus {
 
   @override
   Stream<DateTime> get pauses => _pauses.stream;
+
+  @override
+  int get consecutiveRateLimits {
+    final until = _pausedUntil;
+    if (until == null || !_clock.now().isBefore(until.add(window))) return 0;
+    return _streak;
+  }
 
   @override
   DateTime? get throttledUntil {
@@ -116,6 +128,11 @@ class RateLimiter implements RateLimitStatus {
     final sameSignal = pauseStart != null && sentAt.isBefore(pauseStart);
     if (!sameSignal) {
       _strikes++;
+      final previousEnd = _pausedUntil;
+      if (previousEnd != null && sentAt.isAfter(previousEnd.add(window))) {
+        _streak = 0;
+      }
+      _streak++;
       _rateLimitedAt = _clock.now();
     }
     if (retryAfter != null) {
@@ -130,7 +147,10 @@ class RateLimiter implements RateLimitStatus {
   /// de la última pausa por 429, la próxima vuelve a la primera espera.
   void recordAccepted(DateTime sentAt) {
     final pauseStart = _rateLimitedAt;
-    if (pauseStart == null || !sentAt.isBefore(pauseStart)) _strikes = 0;
+    if (pauseStart == null || !sentAt.isBefore(pauseStart)) {
+      _strikes = 0;
+      _streak = 0;
+    }
   }
 
   static Duration _clampRetryAfter(Duration value) => value < minRetryAfter

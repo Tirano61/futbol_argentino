@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/sync/cancel_token.dart';
+import 'package:http/http.dart' as http;
 import 'package:futbol_argentino/features/competitions/domain/catalog/competition_catalog.dart';
 import 'package:futbol_argentino/features/competitions/domain/entities/season.dart';
 import 'package:futbol_argentino/features/competitions/domain/usecases/watch_standings.dart';
@@ -103,6 +104,29 @@ void main() {
     // Al 11/10 solo la fecha 12 tiene partidos de ayer/hoy sin terminar.
     expect(api.requestLabels, ['4406:r12:s2026']);
     expect(last.progress.fetched, 1);
+  });
+
+  /// Fase R3.1: toda consulta de rondas responde HTTP 429.
+  void limitAllRounds() =>
+      api.respond = (url) => url.path.endsWith('eventsround.php')
+      ? http.Response('{"error": "Too Many Requests"}', 429)
+      : null;
+
+  test('Fase R3.1: 429 persistente en «Actualizar»: la fecha forzada se '
+      'intenta 3 veces y la descarga no sigue (antes, otra pausa de 240 s '
+      'por una ronda más)', () async {
+    await watch(4406, 2026).last;
+    // La fecha 12 (en juego) y las próximas quedan vencidas.
+    clock.advance(const Duration(minutes: 10));
+    api.requests.clear();
+    limitAllRounds();
+
+    final last = await watch(4406, 2026, forceRefresh: true).last;
+
+    expect(api.requestLabels, List.filled(3, '4406:r12:s2026'));
+    expect(last.progress.isRunning, isFalse);
+    expect(last.progress.failure, isA<RateLimitFailure>());
+    expect(last.hasMatches, isTrue, reason: 'se muestra lo guardado');
   });
 
   test(
