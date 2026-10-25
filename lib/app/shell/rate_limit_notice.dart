@@ -19,6 +19,11 @@ import '../../shared/presentation/widgets/info_banner.dart';
 /// queda nada y se abandonó un trabajo en la pausa, dice que la
 /// actualización no se completó (la pantalla ofrece «Reintentar»). La hora
 /// cambia sola si la pausa se alarga; no hay cuenta regresiva.
+///
+/// Fase R4 (Web): durante la espera por la sospecha de un 429 oculto por
+/// CORS no se afirma un límite (el código HTTP no se conoce): se dice que
+/// la consulta falló, las dos causas posibles y, solo si algo la espera, a
+/// qué hora se intenta de nuevo.
 class RateLimitNotice extends StatefulWidget {
   const RateLimitNotice({super.key, required this.child});
 
@@ -47,6 +52,7 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
   late final Clock _clock = context.read<Clock>();
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _pause = _Wait();
+  final _suspicion = _Wait();
   final _throttle = _Wait();
 
   @override
@@ -54,15 +60,20 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
     super.initState();
     _subscriptions
       ..add(_status.pauses.listen((until) => _show(_pause, until)))
+      ..add(_status.suspicions.listen((until) => _show(_suspicion, until)))
       ..add(_status.throttles.listen((until) => _show(_throttle, until)))
-      // Trabajos que llegan o terminan y abandonos: durante la pausa cambia
-      // qué se promete (sin pausa no se muestra nada de esto).
+      // Trabajos que llegan o terminan y abandonos: durante la pausa (o la
+      // espera por sospecha) cambia qué se promete; sin ellas no se muestra
+      // nada de esto.
       ..add(
         _recovery.changes.listen((_) {
-          if (_pause.until != null) setState(() {});
+          if (_pause.until != null || _suspicion.until != null) {
+            setState(() {});
+          }
         }),
       );
     if (_status.pausedUntil case final until?) _show(_pause, until);
+    if (_status.suspectedUntil case final until?) _show(_suspicion, until);
     if (_status.throttledUntil case final until?) _show(_throttle, until);
   }
 
@@ -82,6 +93,7 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
       subscription.cancel();
     }
     _pause.timer?.cancel();
+    _suspicion.timer?.cancel();
     _throttle.timer?.cancel();
     super.dispose();
   }
@@ -138,12 +150,36 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
     );
   }
 
+  /// La espera por la sospecha de un 429 oculto (Fase R4): no lo da por
+  /// confirmado y promete otro intento solo si algo lo espera; si no, no
+  /// avisa nada (la pantalla muestra su error).
+  _Notice? _suspicionNotice(DateTime until) {
+    if (!_recovery.hasPendingWork) return null;
+    final time = ArgentinaTime.formatTime(until);
+    return (
+      icon: Icons.sync_problem,
+      text:
+          'No se pudo consultar TheSportsDB. Puede deberse a la conexión o a '
+          'un límite temporal. Se intentará nuevamente a las $time.',
+      compactText:
+          'No se pudo consultar TheSportsDB. Nuevo intento a las $time.',
+      tone: InfoTone.warning,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // La pausa por 429 manda: es más larga y dice hasta qué hora.
-    final _Notice? notice = switch ((_pause.until, _throttle.until)) {
-      (final until?, _) => _pauseNotice(until),
-      (null, _?) => (
+    // La pausa por 429 manda: es más larga y dice hasta qué hora. Una
+    // sospecha no es un 429 confirmado: va después. Mientras dura no sale
+    // ninguna consulta, así que no hay espera por el tope.
+    final _Notice? notice = switch ((
+      _pause.until,
+      _suspicion.until,
+      _throttle.until,
+    )) {
+      (final until?, _, _) => _pauseNotice(until),
+      (null, final until?, _) => _suspicionNotice(until),
+      (null, null, _?) => (
         icon: Icons.hourglass_top,
         text:
             'Muchas consultas seguidas: para no pasar el límite de '
@@ -152,7 +188,7 @@ class _RateLimitNoticeState extends State<RateLimitNotice> {
             'Muchas consultas seguidas: se sigue en menos de un minuto.',
         tone: InfoTone.info,
       ),
-      (null, null) => null,
+      (null, null, null) => null,
     };
     // La estructura no cambia con el aviso: el contenido conserva su
     // estado.

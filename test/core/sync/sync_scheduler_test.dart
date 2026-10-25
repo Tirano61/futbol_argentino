@@ -755,6 +755,419 @@ void main() {
       expect(runs, 1);
       expect(scheduler.pending, 0);
     });
+
+    // Fase R4 (Web): una falla de red ambigua poco después de una respuesta
+    // aceptada es sospecha de 429 oculto por CORS: una espera de 60 s y un
+    // reintento, de a uno, sin contar como 429.
+    group('posible 429 oculto', () {
+      const pause = RateLimiter.suspicionPause;
+
+      /// Hora de envío de cada consulta.
+      late List<DateTime> sent;
+
+      /// Esperas del scheduler que terminan solo con [releaseUntil].
+      late List<Completer<void>> held;
+
+      setUp(() {
+        sent = [];
+        held = [];
+      });
+
+      Future<void> heldDelay(Duration duration) {
+        final wake = Completer<void>();
+        held.add(wake);
+        return wake.future.then((_) => clock.advance(duration));
+      }
+
+      /// Termina las esperas retenidas, a medida que aparecen, hasta que
+      /// termina [work].
+      Future<void> releaseUntil(Future<void> work) async {
+        var done = false;
+        unawaited(work.then((_) => done = true, onError: (_) => done = true));
+        while (!done) {
+          for (final wake in [...held]) {
+            if (!wake.isCompleted) wake.complete();
+          }
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      Future<void> settle() async {
+        for (var i = 0; i < 10; i++) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      /// Una consulta como la del cliente en Web: pide turno y, si [fail],
+      /// falla como «Failed to fetch» (con [offline], el navegador informa
+      /// que no hay red). Con [hold], espera antes de responder.
+      Future<void> webRequest({
+        bool fail = false,
+        bool offline = false,
+        Future<void>? hold,
+      }) async {
+        final sentAt = await limiter.acquire();
+        sent.add(sentAt);
+        if (hold != null) await hold;
+        if (!fail) {
+          limiter.recordAccepted(sentAt);
+          return;
+        }
+        if (offline) {
+          throw const NetworkFailure(
+            issue: NetworkIssue.offline,
+            detail: 'Sin red (test)',
+          );
+        }
+        throw NetworkFailure(
+          issue: NetworkIssue.possibleCors,
+          detail: 'Failed to fetch (test)',
+          suspectedRateLimit: limiter.suspectRateLimit(sentAt: sentAt),
+        );
+      }
+
+      /// Resultado de un trabajo: `null` si terminó bien, o el error.
+      Future<Object?> outcome(Future<void> job) =>
+          job.then<Object?>((_) => null, onError: (Object e) => e);
+
+      Matcher networkFailure(NetworkIssue issue, {required bool suspected}) =>
+          isA<NetworkFailure>()
+              .having((f) => f.issue, 'issue', issue)
+              .having((f) => f.suspectedRateLimit, 'suspected', suspected);
+
+      /// Una respuesta aceptada poco antes (la condición de la sospecha).
+      Future<void> recentSuccess(SyncScheduler scheduler) async {
+        await scheduler.run('previa', SyncPriority.visible, webRequest);
+        clock.advance(const Duration(seconds: 30));
+      }
+
+      test('recuperación: una espera de 60 s y un reintento que '
+          'responde', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        var runs = 0;
+
+        await scheduler.run('ronda', SyncPriority.visible, () async {
+          runs++;
+          await webRequest(fail: runs == 1);
+        });
+
+        expect(runs, 2);
+        expect(clock.delays, [pause]);
+        expect(sent.last.difference(sent[1]), pause);
+        expect(limiter.inSuspicion, isFalse, reason: 'cerró el episodio');
+        expect(limiter.pausedUntil, isNull);
+        expect(limiter.consecutiveRateLimits, 0);
+        expect(scheduler.pending, 0);
+      });
+
+      test('sin una respuesta reciente: falla en el acto, como hoy', () async {
+        final scheduler = build();
+        var runs = 0;
+
+        final error = await outcome(
+          scheduler.run('ronda', SyncPriority.visible, () async {
+            runs++;
+            await webRequest(fail: true);
+          }),
+        );
+
+        expect(
+          error,
+          networkFailure(NetworkIssue.possibleCors, suspected: false),
+        );
+        expect(runs, 1);
+        expect(clock.delays, isEmpty);
+      });
+
+      test('conexión perdida: un solo reintento, error marcado y los pedidos '
+          'siguientes no abren otra espera', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        var runs = 0;
+
+        final error = await outcome(
+          scheduler.run('ronda', SyncPriority.visible, () async {
+            runs++;
+            await webRequest(fail: true);
+          }),
+        );
+
+        expect(runs, 2);
+        expect(
+          error,
+          networkFailure(NetworkIssue.possibleCors, suspected: true),
+        );
+        expect((error! as Failure).limitsQueries, isTrue);
+        expect(clock.delays, [pause]);
+
+        // Otro pedido dentro de los 2 min: sin espera ni reintento (sale
+        // espaciado: modo prudente).
+        runs = 0;
+        final next = await outcome(
+          scheduler.run('otra', SyncPriority.visible, () async {
+            runs++;
+            await webRequest(fail: true);
+          }),
+        );
+        expect(runs, 1);
+        expect(
+          next,
+          networkFailure(NetworkIssue.possibleCors, suspected: true),
+        );
+        expect(clock.delays, [pause, limiter.cautiousGap]);
+        expect(limiter.consecutiveRateLimits, 0);
+        expect(scheduler.isRateLimitBlocked, isFalse);
+      });
+
+      test('si en el reintento el navegador informa que no hay red: «sin '
+          'red», sin otro intento', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        var runs = 0;
+
+        final error = await outcome(
+          scheduler.run('ronda', SyncPriority.visible, () async {
+            runs++;
+            await webRequest(fail: true, offline: runs > 1);
+          }),
+        );
+
+        expect(runs, 2);
+        expect(error, networkFailure(NetworkIssue.offline, suspected: false));
+        expect(clock.delays, [pause]);
+      });
+
+      test('dos trabajos fallan juntos: una espera, una sonda y, si falla, '
+          'el otro termina sin consultar', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        final gate = Completer<void>();
+        final runs = <String, int>{'a': 0, 'b': 0};
+        Future<void> job(String key) async {
+          runs[key] = runs[key]! + 1;
+          await webRequest(
+            fail: true,
+            hold: runs[key] == 1 ? gate.future : null,
+          );
+        }
+
+        final a = outcome(
+          scheduler.run('a', SyncPriority.visible, () => job('a')),
+        );
+        final b = outcome(
+          scheduler.run('b', SyncPriority.visible, () => job('b')),
+        );
+        await settle();
+        clock.advance(const Duration(milliseconds: 300));
+        gate.complete();
+
+        final errors = await Future.wait([a, b]);
+        expect(runs, {'a': 2, 'b': 1});
+        expect(sent, hasLength(1 + 3), reason: 'la previa, 2 y la sonda');
+        for (final error in errors) {
+          expect(
+            error,
+            networkFailure(NetworkIssue.possibleCors, suspected: true),
+          );
+        }
+        expect(clock.delays, [pause], reason: 'una sola espera');
+        expect(scheduler.pending, 0);
+      });
+
+      test('si la sonda responde, los demás siguen espaciados', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        final gate = Completer<void>();
+        final runs = <String, int>{'a': 0, 'b': 0, 'c': 0};
+        Future<void> job(String key) async {
+          runs[key] = runs[key]! + 1;
+          final first = runs[key] == 1 && key != 'c';
+          await webRequest(fail: first, hold: first ? gate.future : null);
+        }
+
+        final jobs = [
+          for (final key in ['a', 'b'])
+            scheduler.run(key, SyncPriority.visible, () => job(key)),
+        ];
+        await settle();
+        gate.complete();
+        jobs.add(scheduler.run('c', SyncPriority.context, () => job('c')));
+        await Future.wait(jobs);
+
+        expect(runs, {'a': 2, 'b': 2, 'c': 1});
+        final afterPause = sent.sublist(3);
+        expect(afterPause, hasLength(3));
+        expect(afterPause[0].difference(sent[1]), pause);
+        expect(afterPause[1].difference(afterPause[0]), limiter.cautiousGap);
+        expect(afterPause[2].difference(afterPause[1]), limiter.cautiousGap);
+        expect(limiter.inSuspicion, isFalse);
+      });
+
+      test('mismo key durante la espera: un solo trabajo', () async {
+        final scheduler = build(delay: heldDelay);
+        await recentSuccess(scheduler);
+        var runs = 0;
+        Future<void> task() async {
+          runs++;
+          await webRequest(fail: runs == 1);
+        }
+
+        final first = scheduler.run('ronda', SyncPriority.context, task);
+        await settle();
+        expect(held, hasLength(1), reason: 'esperando');
+        final second = scheduler.run('ronda', SyncPriority.visible, task);
+        expect(scheduler.pending, 1);
+        await releaseUntil(Future.wait([first, second]));
+
+        expect(runs, 2);
+        expect(sent, hasLength(1 + 2));
+      });
+
+      test('cancelado durante la espera: no vuelve a consultar', () async {
+        final scheduler = build(delay: heldDelay);
+        await recentSuccess(scheduler);
+        final token = CancelToken();
+        var runs = 0;
+
+        final job = scheduler.run('ronda', SyncPriority.team, () async {
+          runs++;
+          await webRequest(fail: true);
+        }, cancelToken: token);
+        await settle();
+        expect(runs, 1);
+        expect(scheduler.pending, 1, reason: 'en la cola, esperando');
+        token.cancel();
+
+        await expectLater(job, throwsA(isA<SyncCancelled>()));
+        for (final wake in held) {
+          wake.complete();
+        }
+        await settle();
+        expect(runs, 1);
+        expect(sent, hasLength(1 + 1));
+        expect(scheduler.pending, 0);
+      });
+
+      test('al terminar la espera elige por prioridad y la sonda va '
+          'sola', () async {
+        final scheduler = build(delay: heldDelay);
+        await recentSuccess(scheduler);
+        final log = <String>[];
+        Future<void> job(String key, {bool fail = false}) async {
+          log.add('empieza $key');
+          try {
+            await webRequest(fail: fail);
+          } finally {
+            log.add('termina $key');
+          }
+        }
+
+        var first = true;
+        final jobs = [
+          scheduler
+              .run('p1', SyncPriority.context, () {
+                final fail = first;
+                first = false;
+                return job('p1', fail: fail);
+              })
+              .catchError((_) {}),
+        ];
+        await settle();
+        jobs
+          ..add(scheduler.run('p2', SyncPriority.team, () => job('p2')))
+          ..add(scheduler.run('p1b', SyncPriority.context, () => job('p1b')))
+          ..add(scheduler.run('p0', SyncPriority.visible, () => job('p0')));
+        await settle();
+        expect(log, [
+          'empieza p1',
+          'termina p1',
+        ], reason: 'nada empieza durante la espera');
+
+        await releaseUntil(Future.wait(jobs));
+
+        final starts = [
+          for (final entry in log)
+            if (entry.startsWith('empieza')) entry.substring(8),
+        ];
+        expect(starts, ['p1', 'p0', 'p1', 'p1b', 'p2']);
+        expect(
+          log.indexOf('termina p0'),
+          lessThan(log.lastIndexOf('empieza p1')),
+          reason: 'la sonda sola, hasta su respuesta',
+        );
+      });
+
+      test('un 429 visible durante el episodio sigue R2 sin cambios', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        var runs = 0;
+
+        await scheduler.run('ronda', SyncPriority.visible, () async {
+          runs++;
+          if (runs == 1) return webRequest(fail: true);
+          if (runs == 2) return request(limited: true);
+          return request();
+        });
+
+        expect(runs, 3);
+        expect(clock.delays, [pause, const Duration(seconds: 60)]);
+        expect(limiter.consecutiveRateLimits, 0);
+      });
+
+      test('una sospecha no cuenta para el bloqueo persistente', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        // Un 429 y después una sospecha: los 429 seguidos siguen en 1.
+        var runs = 0;
+        int? streak;
+        await scheduler.run('ronda', SyncPriority.visible, () async {
+          runs++;
+          if (runs == 1) return request(limited: true);
+          if (runs == 2) {
+            try {
+              await webRequest(fail: true);
+            } finally {
+              streak = limiter.consecutiveRateLimits;
+            }
+          }
+          await request();
+        });
+
+        expect(runs, 3);
+        expect(streak, 1);
+        expect(scheduler.isRateLimitBlocked, isFalse);
+      });
+
+      test('con el bloqueo persistente confirmado no hay reintento por '
+          'sospecha', () async {
+        final scheduler = build();
+        await recentSuccess(scheduler);
+        // 3 HTTP 429 seguidos (R3.1).
+        await outcome(
+          scheduler.run('l', SyncPriority.visible, () async {
+            await request(limited: true);
+          }),
+        );
+        expect(scheduler.isRateLimitBlocked, isTrue);
+        var runs = 0;
+
+        final error = await outcome(
+          scheduler.run('ronda', SyncPriority.visible, () async {
+            runs++;
+            await limiter.acquire();
+            throw const NetworkFailure(
+              issue: NetworkIssue.possibleCors,
+              detail: 'Failed to fetch (test)',
+              suspectedRateLimit: true,
+            );
+          }),
+        );
+
+        expect(runs, 1);
+        expect(error, isA<NetworkFailure>());
+      });
+    });
   });
 
   group('cancelación', () {

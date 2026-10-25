@@ -28,8 +28,13 @@ enum NetworkIssue {
   connection,
   timeout,
 
-  /// Solo en Web: el navegador no distingue CORS de un fallo de red.
+  /// Solo en Web: el navegador no distingue CORS de un fallo de red (ni un
+  /// HTTP 429 sin encabezados CORS, que oculta).
   possibleCors,
+
+  /// Solo en Web: el navegador informa que no hay red
+  /// (`navigator.onLine == false`, Fase R4).
+  offline,
 }
 
 final class NetworkFailure extends Failure {
@@ -37,9 +42,32 @@ final class NetworkFailure extends Failure {
     required this.issue,
     required super.detail,
     super.elapsed,
+    this.suspectedRateLimit = false,
   });
 
   final NetworkIssue issue;
+
+  /// Fase R4: un [NetworkIssue.possibleCors] que puede ser un HTTP 429
+  /// oculto por CORS (hubo una respuesta aceptada poco antes). Es una
+  /// sospecha, no un 429: el código HTTP no se conoce.
+  final bool suspectedRateLimit;
+
+  NetworkFailure withSuspectedRateLimit() => NetworkFailure(
+    issue: issue,
+    detail: detail,
+    elapsed: elapsed,
+    suspectedRateLimit: true,
+  );
+}
+
+extension FailureRateLimit on Failure {
+  /// Un HTTP 429 confirmado o la sospecha de uno oculto (Fase R4): seguir
+  /// descargando le sumaría consultas a un servidor que quizá limita.
+  bool get limitsQueries => switch (this) {
+    RateLimitFailure() => true,
+    NetworkFailure(:final suspectedRateLimit) => suspectedRateLimit,
+    _ => false,
+  };
 }
 
 /// Por qué el scheduler dejó de reintentar un HTTP 429 (Fase R3.1).

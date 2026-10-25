@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:sembast/sembast.dart';
 
@@ -57,6 +58,9 @@ class AppDependencies {
     Clock clock = const SystemClock(),
     BadgeImageResolver? badgeImages,
     ExternalActions? externalActions,
+    // Para los tests: la clasificación de errores de red de Web (Fase R4).
+    bool isWeb = kIsWeb,
+    bool Function()? browserOnline,
   }) {
     final appConfig = config ?? AppConfig.fromEnvironment();
     final client = httpClient ?? http.Client();
@@ -69,6 +73,8 @@ class AppDependencies {
       httpClient: client,
       rateLimiter: rateLimiter,
       clock: clock,
+      isWeb: isWeb,
+      browserOnline: browserOnline,
     );
     final scheduler = ObservedSyncScheduler(
       clock: clock,

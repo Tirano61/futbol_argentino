@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../time/clock.dart';
 import 'api_exception.dart';
+import 'browser_online.dart' as browser;
 import 'rate_limiter.dart';
 import 'retry_after.dart';
 
@@ -35,12 +36,16 @@ class TheSportsDbClient {
     Delay retryDelay = _realDelay,
     Random? random,
     Clock clock = const SystemClock(),
+    bool isWeb = kIsWeb,
+    bool Function()? browserOnline,
   }) : _config = config,
        _http = httpClient,
        _rateLimiter = rateLimiter,
        _retryDelay = retryDelay,
        _random = random ?? Random(),
-       _clock = clock;
+       _clock = clock,
+       _isWeb = isWeb,
+       _browserOnline = browserOnline ?? browser.browserOnline;
 
   /// Esperas antes de cada reintento (se les suma hasta 500 ms al azar).
   static const retryBackoff = [Duration(seconds: 1), Duration(seconds: 3)];
@@ -53,6 +58,12 @@ class TheSportsDbClient {
 
   /// Para una fecha de `Retry-After` sin encabezado `Date`.
   final Clock _clock;
+
+  /// En Web el navegador oculta la causa de un `ClientException` (Fase R4).
+  final bool _isWeb;
+
+  /// `navigator.onLine` en Web: solo `false` se toma como señal.
+  final bool Function() _browserOnline;
 
   /// GET a `<base>/<endpoint>?<query>`. Lanza [ApiException] si falla.
   Future<ApiResponse> getJson(
@@ -98,22 +109,15 @@ class TheSportsDbClient {
         elapsed: stopwatch.elapsed,
       );
     } on http.ClientException catch (e) {
-      // En Web, un bloqueo CORS y un fallo de red llegan como el mismo
-      // ClientException ("Failed to fetch"): el navegador no le expone la
-      // causa a Dart.
-      throw ApiException(
-        type: kIsWeb
-            ? ApiExceptionType.possibleCors
-            : ApiExceptionType.connection,
-        message: kIsWeb
-            ? '${e.runtimeType}: $e\n'
-                  'El navegador no informa la causa a la app: puede ser un '
-                  'bloqueo CORS o un fallo de red. Revisar la consola de '
-                  'Chrome (F12) para ver el motivo exacto.'
-            : '${e.runtimeType}: $e',
-        uri: uri,
-        elapsed: stopwatch.elapsed,
-      );
+      if (!_isWeb) {
+        throw ApiException(
+          type: ApiExceptionType.connection,
+          message: '${e.runtimeType}: $e',
+          uri: uri,
+          elapsed: stopwatch.elapsed,
+        );
+      }
+      throw _browserNetworkError(e, uri, sentAt, stopwatch.elapsed);
     } catch (e) {
       // Por ejemplo HandshakeException (TLS) en Android.
       throw ApiException(
@@ -204,6 +208,51 @@ class TheSportsDbClient {
       statusCode: response.statusCode,
       elapsed: elapsed,
       json: decoded,
+    );
+  }
+
+  /// En Web, un bloqueo CORS, un fallo de red y un HTTP 429 sin encabezados
+  /// CORS llegan como el mismo ClientException ("Failed to fetch"): el
+  /// navegador no le expone la causa ni la respuesta a Dart. Solo
+  /// `navigator.onLine == false` es seguro; lo demás es ambiguo y, poco
+  /// después de una respuesta aceptada, sospecha de 429 (Fase R4).
+  ApiException _browserNetworkError(
+    http.ClientException e,
+    Uri uri,
+    DateTime sentAt,
+    Duration elapsed,
+  ) {
+    if (!_browserOnline()) {
+      return ApiException(
+        type: ApiExceptionType.offline,
+        message:
+            '${e.runtimeType}: $e\n'
+            'El navegador informa que no hay red (navigator.onLine).',
+        uri: uri,
+        elapsed: elapsed,
+      );
+    }
+    final suspected = _rateLimiter.suspectRateLimit(sentAt: sentAt);
+    if (suspected) {
+      debugPrint(
+        'TheSportsDB: falla de red ambigua poco después de una respuesta '
+        'aceptada (posible 429 oculto por CORS), consultas en espera hasta '
+        '${_rateLimiter.suspectedUntil?.toIso8601String()}',
+      );
+    }
+    return ApiException(
+      type: ApiExceptionType.possibleCors,
+      message:
+          '${e.runtimeType}: $e\n'
+          'El navegador no informa la causa a la app: puede ser un bloqueo '
+          'CORS, un fallo de red o un HTTP 429 sin encabezados CORS. Revisar '
+          'la consola de Chrome (F12) para ver el motivo exacto.'
+          '${suspected ? '\nPosible 429 oculto: hubo una respuesta aceptada '
+                    'hace menos de '
+                    '${RateLimiter.suspicionLookback.inMinutes} min.' : ''}',
+      uri: uri,
+      elapsed: elapsed,
+      suspectedRateLimit: suspected,
     );
   }
 }

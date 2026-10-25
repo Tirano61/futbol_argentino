@@ -48,6 +48,13 @@ Future<void> _realDelay(Duration duration) => Future<void>.delayed(duration);
 /// sin consultar y, hasta que termine esa pausa, también los pedidos nuevos
 /// (una pantalla que encadena pedidos tras un fallo no espera otra pausa de
 /// 240 s por cada uno). Pasada la pausa, el primer pedido es otra sonda.
+///
+/// Fase R4 (Web): un trabajo que falla con la sospecha de un 429 oculto por
+/// CORS (`NetworkFailure.suspectedRateLimit`) vuelve a la cola una sola vez
+/// y espera la espera de sospecha del limitador; mientras el episodio siga
+/// abierto, de a uno. Si la sonda vuelve a fallar por red, los que esperaban
+/// ese reintento terminan con el mismo error sin consultar. No cuenta como
+/// 429: no cambia los reintentos ni el bloqueo persistente.
 class SyncScheduler {
   SyncScheduler({
     this.maxConcurrent = 2,
@@ -171,10 +178,11 @@ class SyncScheduler {
           : a.sequence - b.sequence,
     );
     if (_queue.isNotEmpty && _waitingRateLimit()) return;
-    // Después de un 429, de a uno hasta una respuesta aceptada: el primero
-    // hace de sonda y ningún otro queda esperando dentro del limitador
-    // (cada uno pagaría otra pausa).
-    while (_running < (_inRateLimitEpisode ? 1 : maxConcurrent) &&
+    // Después de un 429 (o de una sospecha, R4), de a uno hasta una
+    // respuesta aceptada: el primero hace de sonda y ningún otro queda
+    // esperando dentro del limitador (cada uno pagaría otra pausa).
+    while (_running <
+            (_inRateLimitEpisode || _inSuspicion ? 1 : maxConcurrent) &&
         _queue.isNotEmpty) {
       final job = _queue.first;
       final background = job.priority.isBackground;
@@ -194,15 +202,20 @@ class SyncScheduler {
           .then(
             job.completer.complete,
             onError: (Object error, StackTrace stack) {
-              if (_retriesAfterRateLimit(job, error)) {
+              if (_retriesAfterRateLimit(job, error) ||
+                  _retriesAfterSuspicion(job, error)) {
                 requeued = true;
                 return;
               }
-              job.completer.completeError(_withReason(job, error), stack);
+              final failure = _withReason(job, error);
+              job.completer.completeError(failure, stack);
               // La sonda volvió a dar 429: los demás fallarían igual.
               if (error is RateLimitFailure && _probeFailed) {
                 _failFastUntil = _rateLimit?.pausedUntil;
                 _failQueued();
+              }
+              if (failure is NetworkFailure && _suspicionProbeFailed(error)) {
+                _failSuspectedQueued(failure);
               }
             },
           )
@@ -231,6 +244,47 @@ class SyncScheduler {
     return true;
   }
 
+  /// Si el trabajo vuelve a la cola tras una sospecha de 429 oculto (Fase
+  /// R4): una sola vez, si alguien lo espera y no hay bloqueo persistente.
+  bool _retriesAfterSuspicion(_Job job, Object error) {
+    if (error is! NetworkFailure ||
+        !error.suspectedRateLimit ||
+        job.isAbandoned ||
+        isRateLimitBlocked ||
+        job.retriedSuspicion) {
+      return false;
+    }
+    job.retriedSuspicion = true;
+    _queue.add(job);
+    return true;
+  }
+
+  /// Hay un episodio de sospecha abierto (Fase R4).
+  bool get _inSuspicion => _rateLimit?.inSuspicion ?? false;
+
+  /// Una falla de red sin sospecha con el episodio abierto: salió después
+  /// de la espera (la sonda) y la recuperación no funcionó.
+  bool _suspicionProbeFailed(Object error) =>
+      _inSuspicion &&
+      error is NetworkFailure &&
+      !error.suspectedRateLimit &&
+      (error.issue == NetworkIssue.possibleCors ||
+          error.issue == NetworkIssue.offline);
+
+  /// Termina sin consultar los trabajos que esperaban el reintento de una
+  /// sospecha: la sonda ya volvió a fallar.
+  void _failSuspectedQueued(NetworkFailure failure) {
+    final waiting = [
+      for (final job in _queue)
+        if (job.retriedSuspicion) job,
+    ];
+    for (final job in waiting) {
+      _queue.remove(job);
+      _byKey.remove(job.key);
+      job.completer.completeError(failure);
+    }
+  }
+
   /// La pausa vigente supera [maxRateLimitWait].
   bool get _longPause {
     final until = _rateLimit?.pausedUntil;
@@ -246,7 +300,17 @@ class SyncScheduler {
 
   /// El error de un 429 que no se reintenta, con el motivo (para el
   /// mensaje: no decir «varios intentos» si hubo uno).
+  ///
+  /// Una falla ambigua del episodio de sospecha (la sonda o un trabajo que
+  /// ya se reintentó) sale marcada: quien la recibe no sigue descargando
+  /// (Fase R4).
   Object _withReason(_Job job, Object error) {
+    if (error is NetworkFailure &&
+        error.issue == NetworkIssue.possibleCors &&
+        !error.suspectedRateLimit &&
+        (job.retriedSuspicion || _inSuspicion)) {
+      return error.withSuspectedRateLimit();
+    }
     if (error is! RateLimitFailure || job.isAbandoned) return error;
     if (_longPause) {
       return error.withReason(
@@ -280,11 +344,15 @@ class SyncScheduler {
     reason: RateLimitReason.persistentBlock,
   );
 
-  /// Consultas en pausa por HTTP 429: no empieza nada (las que empezaran
-  /// esperarían en el limitador en orden de llegada) y se vuelve a mirar la
-  /// cola al terminar la pausa.
+  /// Consultas en pausa por HTTP 429 (o en la espera de una sospecha, R4):
+  /// no empieza nada (las que empezaran esperarían en el limitador en orden
+  /// de llegada) y se vuelve a mirar la cola al terminar la pausa.
   bool _waitingRateLimit() {
-    final until = _rateLimit?.pausedUntil;
+    final paused = _rateLimit?.pausedUntil;
+    final suspected = _rateLimit?.suspectedUntil;
+    final until = paused == null || (suspected?.isAfter(paused) ?? false)
+        ? suspected
+        : paused;
     if (until == null) return false;
     if (!_rateLimitWakeScheduled) {
       _rateLimitWakeScheduled = true;
@@ -330,6 +398,9 @@ class _Job {
 
   /// Veces que volvió a la cola tras un HTTP 429.
   var rateLimitRetries = 0;
+
+  /// Ya volvió a la cola por una sospecha de 429 oculto (Fase R4).
+  var retriedSuspicion = false;
 
   /// Quienes lo esperan; `null` = sin posibilidad de cancelar.
   final owners = <CancelToken?>[];

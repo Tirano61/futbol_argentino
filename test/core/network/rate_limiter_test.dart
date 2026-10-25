@@ -359,4 +359,128 @@ void main() {
     gate.complete();
     await second;
   });
+
+  group('sospecha de 429 oculto (Fase R4)', () {
+    const s = Duration(seconds: 1);
+
+    /// Una consulta que sale y es aceptada.
+    Future<void> accepted() async {
+      final sentAt = await limiter.acquire();
+      clock.advance(const Duration(milliseconds: 300));
+      limiter.recordAccepted(sentAt);
+    }
+
+    /// Una consulta que sale y falla por red (ambigua); devuelve si es
+    /// sospecha.
+    Future<bool> failed() async {
+      final sentAt = await limiter.acquire();
+      clock.advance(const Duration(milliseconds: 300));
+      return limiter.suspectRateLimit(sentAt: sentAt);
+    }
+
+    test('sin una respuesta aceptada antes no es sospecha', () async {
+      expect(await failed(), isFalse);
+      expect(limiter.suspectedUntil, isNull);
+      expect(limiter.inSuspicion, isFalse);
+
+      final before = clock.now();
+      await limiter.acquire();
+      expect(clock.now(), before, reason: 'sin espera');
+    });
+
+    test('con una respuesta aceptada hace menos de 2 min: espera 60 s, '
+        'aparte de la pausa por 429', () async {
+      await accepted();
+      clock.advance(const Duration(seconds: 100));
+      final until = limiter.suspicions.first;
+
+      expect(await failed(), isTrue);
+      final expected = clock.now().add(s * 60);
+      expect(limiter.suspectedUntil, expected);
+      expect(await until, expected);
+      expect(limiter.inSuspicion, isTrue);
+      expect(limiter.pausedUntil, isNull, reason: 'no es un 429');
+      expect(limiter.consecutiveRateLimits, 0);
+
+      await limiter.acquire();
+      expect(clock.now(), expected, reason: 'la consulta siguiente espera');
+    });
+
+    test('con la última respuesta aceptada hace más de 2 min no es '
+        'sospecha', () async {
+      await accepted();
+      clock.advance(const Duration(minutes: 2, seconds: 1));
+
+      expect(await failed(), isFalse);
+      expect(limiter.suspectedUntil, isNull);
+    });
+
+    test('dos consultas que salieron juntas: una sola espera', () async {
+      await accepted();
+      final first = await limiter.acquire();
+      final second = await limiter.acquire();
+      clock.advance(s);
+
+      expect(limiter.suspectRateLimit(sentAt: first), isTrue);
+      final until = limiter.suspectedUntil;
+      clock.advance(s * 5);
+      expect(limiter.suspectRateLimit(sentAt: second), isTrue);
+      expect(limiter.suspectedUntil, until, reason: 'no se alarga');
+    });
+
+    test('si el reintento vuelve a fallar se gasta el episodio: no hay otra '
+        'espera hasta una respuesta aceptada', () async {
+      await accepted();
+      expect(await failed(), isTrue);
+
+      // El reintento sale después de la espera y falla.
+      expect(await failed(), isFalse);
+      expect(limiter.suspectedUntil, isNull);
+      expect(limiter.inSuspicion, isTrue, reason: 'sigue abierto');
+
+      // Los pedidos siguientes no la reabren, aunque sean dentro de 2 min.
+      expect(await failed(), isFalse);
+      expect(limiter.suspectedUntil, isNull);
+
+      // Una respuesta aceptada cierra el episodio: otra falla vuelve a ser
+      // sospecha.
+      await accepted();
+      expect(limiter.inSuspicion, isFalse);
+      expect(await failed(), isTrue);
+    });
+
+    test('una respuesta aceptada de una consulta que salió antes de la '
+        'espera no cierra el episodio', () async {
+      await accepted();
+      final early = await limiter.acquire();
+      expect(await failed(), isTrue);
+
+      limiter.recordAccepted(early);
+
+      expect(limiter.inSuspicion, isTrue);
+      expect(await failed(), isFalse, reason: 'el reintento falló');
+    });
+
+    test('al terminar la espera, las consultas salen espaciadas', () async {
+      await accepted();
+      expect(await failed(), isTrue);
+      final until = limiter.suspectedUntil!;
+
+      final first = await limiter.acquire();
+      final second = await limiter.acquire();
+
+      expect(first, until);
+      expect(second.difference(first), limiter.cautiousGap);
+    });
+
+    test('no cambia las pausas de R1 ni los 429 seguidos', () async {
+      await accepted();
+      expect(await failed(), isTrue);
+
+      final sentAt = await limiter.acquire();
+      clock.advance(s);
+      expect(limiter.rateLimited(sentAt: sentAt), s * 60);
+      expect(limiter.consecutiveRateLimits, 1);
+    });
+  });
 }

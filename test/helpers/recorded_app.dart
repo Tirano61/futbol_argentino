@@ -55,6 +55,11 @@ final continentalRecordingTime = DateTime.utc(2026, 10, 15, 0, 45);
 /// usa la grabada). Sin [settle] no espera a que terminen las cargas. Cada
 /// petición se agrega a [requests]. [seed] guarda datos en la base antes de
 /// arrancar (p. ej. un favorito).
+///
+/// Con [web], los errores de red se clasifican como en Web (Fase R4): una
+/// petición para la que [hide] da `true` llega al servidor pero el
+/// navegador oculta la respuesta (un HTTP 429 sin CORS) y falla como
+/// «Failed to fetch»; [browserOnline] es `navigator.onLine`.
 Future<void> pumpApp(
   WidgetTester tester,
   Size size, {
@@ -63,6 +68,9 @@ Future<void> pumpApp(
   List<Uri>? requests,
   DateTime? now,
   Future<void> Function(Database db)? seed,
+  bool web = false,
+  bool Function()? browserOnline,
+  bool Function(Uri url)? hide,
 }) async {
   tester.view
     ..physicalSize = size
@@ -79,8 +87,13 @@ Future<void> pumpApp(
     badgeImages: const NetworkBadgeImages(),
     httpClient: MockClient((request) async {
       requests?.add(request.url);
+      if (hide?.call(request.url) ?? false) {
+        throw http.ClientException('TypeError: Failed to fetch', request.url);
+      }
       return respond?.call(request.url) ?? _recorded(request.url);
     }),
+    isWeb: web,
+    browserOnline: browserOnline,
   );
   addTearDown(deps.dispose);
 

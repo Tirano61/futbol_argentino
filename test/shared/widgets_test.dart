@@ -214,9 +214,32 @@ void main() {
       title(const NetworkFailure(issue: NetworkIssue.connection, detail: '')),
       'Sin conexión',
     );
-    // En Web, CORS y falta de red no se distinguen: se informa como red.
+    // En Web, CORS, falta de red y un 429 sin CORS no se distinguen: no se
+    // afirma ninguna causa (Fase R4). Solo «sin red» si el navegador lo
+    // informa.
     expect(
-      title(const NetworkFailure(issue: NetworkIssue.possibleCors, detail: '')),
+      failureMessage(
+        const NetworkFailure(issue: NetworkIssue.possibleCors, detail: ''),
+      ),
+      (
+        title: 'No se pudo consultar TheSportsDB',
+        message:
+            'Puede deberse a la conexión o a un límite temporal de '
+            'consultas. Probá de nuevo en unos minutos.',
+      ),
+    );
+    expect(
+      title(
+        const NetworkFailure(
+          issue: NetworkIssue.possibleCors,
+          detail: '',
+          suspectedRateLimit: true,
+        ),
+      ),
+      'No se pudo consultar TheSportsDB',
+    );
+    expect(
+      title(const NetworkFailure(issue: NetworkIssue.offline, detail: '')),
       'Sin conexión',
     );
     expect(

@@ -41,6 +41,36 @@ void main() {
     );
   });
 
+  test('Fase R4: «sin red» del navegador y sospecha de 429 oculto', () {
+    expect(
+      map(ApiExceptionType.offline),
+      isA<NetworkFailure>()
+          .having((f) => f.issue, 'issue', NetworkIssue.offline)
+          .having((f) => f.suspectedRateLimit, 'suspected', isFalse),
+    );
+    expect(
+      ApiException(
+        type: ApiExceptionType.possibleCors,
+        message: 'x',
+        uri: uri,
+        suspectedRateLimit: true,
+      ).toFailure(),
+      isA<NetworkFailure>()
+          .having((f) => f.issue, 'issue', NetworkIssue.possibleCors)
+          .having((f) => f.suspectedRateLimit, 'suspected', isTrue),
+    );
+    expect(map(ApiExceptionType.possibleCors).limitsQueries, isFalse);
+    expect(
+      const NetworkFailure(
+        issue: NetworkIssue.possibleCors,
+        detail: '',
+        suspectedRateLimit: true,
+      ).limitsQueries,
+      isTrue,
+    );
+    expect(const RateLimitFailure(detail: '').limitsQueries, isTrue);
+  });
+
   test('429 es RateLimitFailure', () {
     expect(
       map(ApiExceptionType.rateLimited, statusCode: 429),
