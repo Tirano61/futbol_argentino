@@ -178,8 +178,13 @@ class _MatchCard extends StatelessWidget {
 String _label(Failure failure) => switch (failure) {
   NetworkFailure(issue: NetworkIssue.timeout) => 'Timeout',
   NetworkFailure(issue: NetworkIssue.connection) => 'Error de conexión',
+  NetworkFailure(issue: NetworkIssue.possibleCors, suspectedRateLimit: true) =>
+    'Error de conexión / posible bloqueo CORS (Flutter Web) · posible 429 '
+        'oculto (sospecha)',
   NetworkFailure(issue: NetworkIssue.possibleCors) =>
     'Error de conexión / posible bloqueo CORS (Flutter Web)',
+  NetworkFailure(issue: NetworkIssue.offline) =>
+    'Sin conexión (el navegador informa que no hay red)',
   RateLimitFailure() => 'Límite de peticiones (HTTP 429)',
   ServerFailure() => 'Error HTTP',
   NotFoundFailure() => 'No encontrado',

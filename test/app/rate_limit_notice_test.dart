@@ -69,6 +69,14 @@ const compactExhaustedText =
 const compactThrottleText =
     'Muchas consultas seguidas: se sigue en menos de un minuto.';
 
+/// Fase R4: espera por la sospecha de un 429 oculto por CORS, con algo
+/// pendiente. No afirma un límite.
+String suspicionText(String time) =>
+    'No se pudo consultar TheSportsDB. Puede deberse a la conexión o a un '
+    'límite temporal. Se intentará nuevamente a las $time.';
+String compactSuspicionText(String time) =>
+    'No se pudo consultar TheSportsDB. Nuevo intento a las $time.';
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -494,5 +502,165 @@ void main() {
       expect(find.text(text), findsOne);
       await tester.pump(const Duration(minutes: 2));
     });
+  });
+
+  // Fase R4 (Web): la espera por la sospecha de un 429 oculto por CORS no
+  // afirma un límite.
+  group('posible 429 oculto', () {
+    /// Un trabajo cuya consulta falla como «Failed to fetch» las primeras
+    /// [failures] veces, poco después de una respuesta aceptada (como el
+    /// cliente en Web: le pregunta al limitador si es sospecha).
+    ({Future<void> done, List<DateTime> attempts}) runSuspectJob(
+      String key, {
+      int failures = 1,
+    }) {
+      limiter.recordAccepted(clock.now());
+      final attempts = <DateTime>[];
+      final done = scheduler.run(key, SyncPriority.visible, () async {
+        attempts.add(clock.now());
+        if (attempts.length > failures) {
+          limiter.recordAccepted(clock.now());
+          return;
+        }
+        throw NetworkFailure(
+          issue: NetworkIssue.possibleCors,
+          detail: 'Failed to fetch',
+          suspectedRateLimit: limiter.suspectRateLimit(sentAt: clock.now()),
+        );
+      });
+      done.ignore();
+      return (done: done, attempts: attempts);
+    }
+
+    testWidgets('dice que la consulta falló, las dos causas posibles y a '
+        'qué hora se intenta de nuevo; se recupera solo', (tester) async {
+      await pumpNotice(tester);
+      final job = runSuspectJob('ronda');
+      await settleStreams(tester);
+
+      expect(find.text(suspicionText('17:01')), findsOne);
+      expect(find.byIcon(Icons.sync_problem), findsOne);
+      expect(find.textContaining('Límite temporal de consultas'), findsNothing);
+      expect(find.textContaining('Demasiadas'), findsNothing);
+      expect(find.text('contenido'), findsOne);
+
+      await tester.pump(const Duration(minutes: 1));
+      await job.done;
+      expect(job.attempts, hasLength(2));
+      await settleStreams(tester);
+      expect(find.byType(InfoBanner), findsNothing);
+    });
+
+    testWidgets('si la recuperación falla no promete otro intento', (
+      tester,
+    ) async {
+      await pumpNotice(tester);
+      final job = runSuspectJob('ronda', failures: 99);
+      await settleStreams(tester);
+      expect(find.text(suspicionText('17:01')), findsOne);
+
+      await tester.pump(const Duration(minutes: 1));
+      await expectLater(job.done, throwsA(isA<NetworkFailure>()));
+      expect(job.attempts, hasLength(2));
+      await settleStreams(tester);
+      expect(find.byType(InfoBanner), findsNothing);
+      expect(find.textContaining('nuevamente'), findsNothing);
+    });
+
+    testWidgets('sin nada pendiente no avisa', (tester) async {
+      await pumpNotice(tester);
+      limiter.recordAccepted(clock.now());
+      expect(limiter.suspectRateLimit(sentAt: clock.now()), isTrue);
+      await settleStreams(tester);
+
+      expect(find.byType(InfoBanner), findsNothing);
+      await tester.pump(const Duration(minutes: 1));
+    });
+
+    testWidgets('una pausa por 429 confirmada manda sobre la sospecha', (
+      tester,
+    ) async {
+      await pumpNotice(tester);
+      final job = runSuspectJob('ronda');
+      await settleStreams(tester);
+      expect(find.text(suspicionText('17:01')), findsOne);
+
+      // Un 429 visible de una consulta que ya había salido.
+      limiter.rateLimited(sentAt: clock.now());
+      await settleStreams(tester);
+      expect(find.text(recoveryText('17:01')), findsOne);
+      expect(find.text(suspicionText('17:01')), findsNothing);
+
+      await tester.pump(const Duration(minutes: 1));
+      await job.done;
+    });
+
+    for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+      testWidgets('tema ${mode.name}: contraste, nombres y anuncio a los '
+          'lectores de pantalla', (tester) async {
+        await pumpNotice(tester, themeMode: mode);
+        runSuspectJob('ronda');
+        await settleStreams(tester);
+        final text = suspicionText('17:01');
+        expect(find.text(text), findsOne);
+
+        await expectGuidelines(tester);
+        expect(tester.getSemantics(find.text(text)).label, text);
+        final banner = tester.renderObject(
+          find
+              .descendant(
+                of: find.byType(InfoBanner),
+                matching: find.byType(Semantics),
+              )
+              .first,
+        );
+        expect(
+          (banner as RenderSemanticsAnnotations).properties.liveRegion,
+          isTrue,
+        );
+        await tester.pump(const Duration(minutes: 2));
+      });
+    }
+
+    for (final (width, shown) in [
+      (360.0, compactSuspicionText('17:01')),
+      (411.0, compactSuspicionText('17:01')),
+      (768.0, suspicionText('17:01')),
+    ]) {
+      testWidgets('${width.toInt()} dp al 200 %: «$shown»', (tester) async {
+        tester.view
+          ..physicalSize = Size(width, width < 600 ? 640 : 1024)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await pumpNotice(tester);
+        runSuspectJob('ronda');
+        await settleStreams(tester);
+
+        final banner = find.byType(InfoBanner);
+        expect(find.text(shown), findsOne);
+        expect(find.bySemanticsLabel(suspicionText('17:01')), findsOne);
+        expectWholeWords(tester, banner);
+        final paragraph = paragraphsIn(
+          banner,
+        ).singleWhere((p) => p.text.toPlainText() == shown);
+        final lines = linesOf(
+          paragraph,
+          0,
+          paragraph.text.toPlainText().length,
+        ).length;
+        expect(lines, lessThanOrEqualTo(InfoBanner.compactAfterLines));
+        if (width < 600) {
+          expect(tester.getSize(banner).height, lessThan(640 * 0.3));
+        }
+        expect(
+          tester.getRect(find.text('contenido')).top,
+          greaterThanOrEqualTo(tester.getRect(banner).bottom),
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(minutes: 2));
+      });
+    }
   });
 }

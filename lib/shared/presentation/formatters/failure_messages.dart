@@ -8,6 +8,15 @@ import '../../../core/time/argentina_time.dart';
         title: 'La consulta tardó demasiado',
         message: 'TheSportsDB no respondió a tiempo. Probá de nuevo.',
       ),
+      // Solo en Web: el navegador no dice la causa (un HTTP 429 sin CORS
+      // llega igual que un fallo de red). Sin el código HTTP no se afirma
+      // ninguna de las dos (Fase R4).
+      NetworkFailure(issue: NetworkIssue.possibleCors) => (
+        title: 'No se pudo consultar TheSportsDB',
+        message:
+            'Puede deberse a la conexión o a un límite temporal de '
+            'consultas. Probá de nuevo en unos minutos.',
+      ),
       NetworkFailure() => (
         title: 'Sin conexión',
         message: 'No se pudo conectar con TheSportsDB. Revisá tu conexión.',

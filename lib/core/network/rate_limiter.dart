@@ -15,6 +15,10 @@ Future<void> _realDelay(Duration duration) => Future<void>.delayed(duration);
 /// salen de a una cada [cautiousGap] (sin ráfaga al reanudar). Las esperas
 /// por el tope de [throttleNoticeThreshold] o más se informan en
 /// [throttles].
+///
+/// Fase R4 (Web): una falla de red ambigua poco después de una respuesta
+/// aceptada abre una espera por sospecha ([suspectRateLimit]), aparte de la
+/// pausa por 429: no escala las pausas ni cuenta como 429 seguido.
 class RateLimiter implements RateLimitStatus {
   RateLimiter({
     required this.maxRequests,
@@ -42,6 +46,14 @@ class RateLimiter implements RateLimitStatus {
   static const minRetryAfter = Duration(seconds: 1);
   static const maxRetryAfter = Duration(minutes: 10);
 
+  /// Una falla de red ambigua es sospecha de 429 oculto solo si hubo una
+  /// respuesta aceptada en este lapso antes de enviarla.
+  static const suspicionLookback = Duration(minutes: 2);
+
+  /// Espera por sospecha: fija (el primer escalón de [rateLimitPauses], el
+  /// «esperar 1 minuto» que documenta TheSportsDB), una por episodio.
+  static const suspicionPause = Duration(seconds: 60);
+
   final int maxRequests;
   final Duration window;
   final Clock _clock;
@@ -68,6 +80,17 @@ class RateLimiter implements RateLimitStatus {
   /// Hasta cuándo las peticiones salen espaciadas (la ventana que sigue a
   /// una pausa).
   DateTime? _cautiousUntil;
+
+  /// Hora de la última respuesta aceptada.
+  DateTime? _lastAcceptedAt;
+
+  /// Episodio de sospecha (Fase R4): inicio y fin de su espera, y si ya
+  /// falló una consulta enviada después (el reintento): hasta una respuesta
+  /// aceptada no hay otra sospecha.
+  DateTime? _suspectedAt;
+  DateTime? _suspectedUntil;
+  var _suspicionSpent = false;
+  final _suspicions = StreamController<DateTime>.broadcast();
 
   /// Separación entre peticiones en el modo prudente: el mismo tope,
   /// repartido en la ventana.
@@ -97,6 +120,18 @@ class RateLimiter implements RateLimitStatus {
 
   @override
   Stream<DateTime> get throttles => _throttles.stream;
+
+  @override
+  DateTime? get suspectedUntil {
+    final until = _suspectedUntil;
+    return until != null && _clock.now().isBefore(until) ? until : null;
+  }
+
+  @override
+  Stream<DateTime> get suspicions => _suspicions.stream;
+
+  @override
+  bool get inSuspicion => _suspectedAt != null;
 
   /// Espera hasta que haya cupo, lo reserva y devuelve la hora del turno
   /// (la de envío, para [rateLimited] y [recordAccepted]).
@@ -146,11 +181,52 @@ class RateLimiter implements RateLimitStatus {
   /// El servidor aceptó la petición enviada en [sentAt]: si salió después
   /// de la última pausa por 429, la próxima vuelve a la primera espera.
   void recordAccepted(DateTime sentAt) {
+    _lastAcceptedAt = _clock.now();
     final pauseStart = _rateLimitedAt;
     if (pauseStart == null || !sentAt.isBefore(pauseStart)) {
       _strikes = 0;
       _streak = 0;
     }
+    final suspectedAt = _suspectedAt;
+    if (suspectedAt != null && sentAt.isAfter(suspectedAt)) {
+      _suspectedAt = null;
+      _suspicionSpent = false;
+    }
+  }
+
+  /// Falla de red ambigua (Web, el navegador no dice la causa) de la
+  /// petición enviada en [sentAt]: si puede ser un HTTP 429 oculto por
+  /// CORS, abre una espera de [suspicionPause] y devuelve `true`.
+  ///
+  /// Es sospecha si hubo una respuesta aceptada en los [suspicionLookback]
+  /// anteriores al envío y el episodio no gastó su espera. Una petición
+  /// enviada hasta el inicio de la espera vigente (salieron juntas) es la
+  /// misma señal: no la alarga. Una enviada después (el reintento) que
+  /// vuelve a fallar gasta el episodio: no hay otra sospecha hasta una
+  /// respuesta aceptada. No toca la pausa por 429 ni los 429 seguidos.
+  bool suspectRateLimit({required DateTime sentAt}) {
+    if (_suspicionSpent) return false;
+    final suspectedAt = _suspectedAt;
+    if (suspectedAt != null) {
+      // En Web la hora tiene milisegundos: la misma hora es la misma señal
+      // (el reintento sale recién al terminar la espera).
+      if (!sentAt.isAfter(suspectedAt)) return true;
+      _suspicionSpent = true;
+      return false;
+    }
+    final accepted = _lastAcceptedAt;
+    if (accepted == null || sentAt.difference(accepted) > suspicionLookback) {
+      return false;
+    }
+    final now = _clock.now();
+    final until = now.add(suspicionPause);
+    _suspectedAt = now;
+    _suspectedUntil = until;
+    final cautious = until.add(window);
+    final current = _cautiousUntil;
+    if (current == null || cautious.isAfter(current)) _cautiousUntil = cautious;
+    _suspicions.add(until);
+    return true;
   }
 
   static Duration _clampRetryAfter(Duration value) => value < minRetryAfter
@@ -169,6 +245,11 @@ class RateLimiter implements RateLimitStatus {
       final pausedUntil = _pausedUntil;
       if (pausedUntil != null && now.isBefore(pausedUntil)) {
         await _delay(pausedUntil.difference(now));
+        continue;
+      }
+      final suspectedUntil = _suspectedUntil;
+      if (suspectedUntil != null && now.isBefore(suspectedUntil)) {
+        await _delay(suspectedUntil.difference(now));
         continue;
       }
 

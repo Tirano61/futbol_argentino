@@ -19,4 +19,16 @@ abstract interface class RateLimitStatus {
 
   /// Hora de fin (UTC) de cada espera de 3 s o más por el tope propio.
   Stream<DateTime> get throttles;
+
+  /// Fase R4 (Web): hasta cuándo (UTC) esperan las consultas por la
+  /// sospecha de un HTTP 429 oculto por CORS; `null` si no esperan. Es
+  /// aparte de [pausedUntil]: no es un 429 confirmado.
+  DateTime? get suspectedUntil;
+
+  /// Hora de fin (UTC) de cada espera por sospecha que empieza.
+  Stream<DateTime> get suspicions;
+
+  /// Hay un episodio de sospecha abierto: empezó una espera por sospecha y
+  /// todavía no llegó una respuesta aceptada de una consulta posterior.
+  bool get inSuspicion;
 }

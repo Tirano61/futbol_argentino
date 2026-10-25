@@ -6,6 +6,7 @@ enum ApiExceptionType {
   timeout('Timeout'),
   connection('Error de conexión'),
   possibleCors('Error de conexión / posible bloqueo CORS (Flutter Web)'),
+  offline('Sin conexión (el navegador informa que no hay red)'),
   format('Error de formato JSON');
 
   const ApiExceptionType(this.label);
@@ -25,6 +26,7 @@ class ApiException implements Exception {
     this.elapsed,
     this.rawBody,
     this.retryAfter,
+    this.suspectedRateLimit = false,
   });
 
   final ApiExceptionType type;
@@ -40,6 +42,10 @@ class ApiException implements Exception {
   /// y se entendió.
   final Duration? retryAfter;
 
+  /// Fase R4: un [ApiExceptionType.possibleCors] que puede ser un HTTP 429
+  /// oculto por CORS (ver `RateLimiter.suspectRateLimit`).
+  final bool suspectedRateLimit;
+
   /// Si vale la pena reintentar: fallas transitorias del servidor o de red.
   /// En Web un `ClientException` puede ser CORS, así que no se reintenta.
   bool get isTransient => switch (type) {
@@ -49,7 +55,9 @@ class ApiException implements Exception {
   };
 
   @override
-  String toString() => 'ApiException(${type.name}): $message';
+  String toString() =>
+      'ApiException(${type.name}'
+      '${suspectedRateLimit ? ', posible 429 oculto' : ''}): $message';
 
   /// Traducción al error de dominio que ven los repositorios.
   Failure toFailure() => switch (type) {
@@ -65,6 +73,12 @@ class ApiException implements Exception {
     ),
     ApiExceptionType.possibleCors => NetworkFailure(
       issue: NetworkIssue.possibleCors,
+      detail: message,
+      elapsed: elapsed,
+      suspectedRateLimit: suspectedRateLimit,
+    ),
+    ApiExceptionType.offline => NetworkFailure(
+      issue: NetworkIssue.offline,
       detail: message,
       elapsed: elapsed,
     ),

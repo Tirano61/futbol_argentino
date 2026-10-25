@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:futbol_argentino/core/config/app_config.dart';
+import 'package:futbol_argentino/core/error/failure.dart';
 import 'package:futbol_argentino/core/network/api_exception.dart';
 import 'package:futbol_argentino/core/network/rate_limiter.dart';
 import 'package:futbol_argentino/core/network/thesportsdb_client.dart';
@@ -21,6 +22,8 @@ void main() {
   TheSportsDbClient buildClient(
     Future<http.Response> Function(http.Request request) handler, {
     Duration timeout = const Duration(seconds: 15),
+    bool isWeb = false,
+    bool Function()? browserOnline,
   }) {
     limiter = RateLimiter(maxRequests: 25, clock: clock, delay: clock.delay);
     return TheSportsDbClient(
@@ -37,6 +40,8 @@ void main() {
       retryDelay: clock.delay,
       random: Random(0),
       clock: clock,
+      isWeb: isWeb,
+      browserOnline: browserOnline ?? () => true,
     );
   }
 
@@ -336,5 +341,190 @@ void main() {
       ),
     );
     expect(requests, hasLength(3));
+  });
+
+  group('Web (Fase R4)', () {
+    final ok = fixtureBytes('eventsround_4406_r12_s2026');
+
+    /// En Web, un 429 sin CORS llega igual que un fallo de red.
+    Never failedToFetch() =>
+        throw http.ClientException('TypeError: Failed to fetch');
+
+    TypeMatcher<ApiException> apiError(
+      ApiExceptionType type, {
+      bool suspected = false,
+    }) => isA<ApiException>()
+        .having((e) => e.type, 'type', type)
+        .having((e) => e.suspectedRateLimit, 'suspected', suspected);
+
+    test('una falla ambigua sin respuesta reciente es posible CORS, sin '
+        'reintentos ni espera', () async {
+      final client = buildClient((_) async => failedToFetch(), isWeb: true);
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(apiError(ApiExceptionType.possibleCors)),
+      );
+      expect(requests, hasLength(1));
+      expect(limiter.suspectedUntil, isNull);
+    });
+
+    test('poco después de una respuesta aceptada es sospecha de 429 oculto: '
+        'espera 60 s sin dar el 429 por confirmado', () async {
+      var fail = false;
+      final client = buildClient((_) async {
+        if (fail) failedToFetch();
+        return jsonResponse(ok);
+      }, isWeb: true);
+      await client.getJson('eventsround.php');
+      clock.advance(const Duration(seconds: 30));
+      fail = true;
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(
+          apiError(ApiExceptionType.possibleCors, suspected: true).having(
+            (e) => e.toFailure(),
+            'failure',
+            isA<NetworkFailure>().having(
+              (f) => f.suspectedRateLimit,
+              'suspectedRateLimit',
+              isTrue,
+            ),
+          ),
+        ),
+      );
+      expect(requests, hasLength(2), reason: 'sin reintento del cliente');
+      expect(
+        limiter.suspectedUntil,
+        clock.now().add(RateLimiter.suspicionPause),
+      );
+      expect(limiter.pausedUntil, isNull);
+      expect(limiter.consecutiveRateLimits, 0);
+    });
+
+    test(
+      'con navigator.onLine en false es «sin red», nunca sospecha',
+      () async {
+        var online = true;
+        var fail = false;
+        final client = buildClient(
+          (_) async {
+            if (fail) failedToFetch();
+            return jsonResponse(ok);
+          },
+          isWeb: true,
+          browserOnline: () => online,
+        );
+        await client.getJson('eventsround.php');
+        fail = true;
+        online = false;
+
+        await expectLater(
+          client.getJson('eventsround.php'),
+          throwsA(
+            apiError(ApiExceptionType.offline).having(
+              (e) => e.toFailure(),
+              'failure',
+              isA<NetworkFailure>().having(
+                (f) => f.issue,
+                'issue',
+                NetworkIssue.offline,
+              ),
+            ),
+          ),
+        );
+        expect(requests, hasLength(2), reason: 'sin reintentos');
+        expect(limiter.suspectedUntil, isNull);
+      },
+    );
+
+    test('un 429 visible sigue el flujo de R1', () async {
+      final client = buildClient((request) async {
+        if (requests.length == 1) return jsonResponse(ok);
+        return tooMany({'retry-after': '90'});
+      }, isWeb: true);
+      await client.getJson('eventsround.php');
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(
+          apiError(ApiExceptionType.rateLimited).having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(seconds: 90),
+          ),
+        ),
+      );
+      expect(limiter.pausedUntil, clock.now().add(const Duration(seconds: 90)));
+      expect(limiter.suspectedUntil, isNull);
+      expect(limiter.consecutiveRateLimits, 1);
+    });
+
+    test('401, 403, 404 y 500 visibles siguen siendo errores HTTP', () async {
+      for (final status in [401, 403, 404, 500]) {
+        requests.clear();
+        final client = buildClient(
+          (_) async => http.Response('{}', status),
+          isWeb: true,
+        );
+        await expectLater(
+          client.getJson('eventsround.php'),
+          throwsA(
+            apiError(
+              ApiExceptionType.http,
+            ).having((e) => e.statusCode, 'statusCode', status),
+          ),
+        );
+        expect(
+          requests,
+          hasLength(status >= 500 ? 3 : 1),
+          reason: 'solo el 5xx se reintenta',
+        );
+        expect(limiter.suspectedUntil, isNull);
+      }
+    });
+
+    test('timeout: reintentos transitorios, sin sospecha', () async {
+      var first = true;
+      final client = buildClient(
+        (_) async {
+          if (first) {
+            first = false;
+            return jsonResponse(ok);
+          }
+          return Completer<http.Response>().future;
+        },
+        isWeb: true,
+        timeout: const Duration(milliseconds: 20),
+      );
+      await client.getJson('eventsround.php');
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(apiError(ApiExceptionType.timeout)),
+      );
+      expect(requests, hasLength(4));
+      expect(limiter.suspectedUntil, isNull);
+    });
+
+    test('Android: el mismo error sigue siendo de conexión, con sus '
+        'reintentos y sin sospecha', () async {
+      var fail = false;
+      final client = buildClient((_) async {
+        if (fail) failedToFetch();
+        return jsonResponse(ok);
+      });
+      await client.getJson('eventsround.php');
+      fail = true;
+
+      await expectLater(
+        client.getJson('eventsround.php'),
+        throwsA(apiError(ApiExceptionType.connection)),
+      );
+      expect(requests, hasLength(4));
+      expect(limiter.suspectedUntil, isNull);
+      expect(limiter.inSuspicion, isFalse);
+    });
   });
 }
